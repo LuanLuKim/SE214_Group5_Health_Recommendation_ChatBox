@@ -1,0 +1,34 @@
+{
+  "name": "se214-health-assistant",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "engines": {
+    "node": ">=24 <25",
+    "npm": ">=11"
+  },
+  "scripts": {
+    "dev": "npm run build -w @health/contracts && concurrently -k -n api,web \"npm run dev -w @health/api\" \"npm run dev -w @health/web\"",
+    "build": "npm run build -w @health/contracts && npm run build -w @health/api && npm run build -w @health/web",
+    "typecheck": "npm run build -w @health/contracts && npm run typecheck --workspaces --if-present",
+    "test": "npm run build -w @health/contracts && npm run test --workspaces --if-present",
+    "check": "npm run typecheck && npm test && npm run build",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "db:migrate": "npm run db:migrate -w @health/api",
+    "db:seed": "npm run db:seed -w @health/api",
+    "db:up": "docker compose up -d db",
+    "db:down": "docker compose down"
+  },
+  "devDependencies": {
+    "@types/node": "26.6.6",
+    "concurrently": "10.0.6",
+    "prettier": "3.9.10",
+    "tsx": "4.23.15",
+    "typescript": "7.0.2"
+  }
+}
