@@ -63,6 +63,8 @@ docs/
 
 ## PostgreSQL với dữ liệu tổng hợp
 
+Để thu thập lô tài liệu y khoa trên máy cá nhân, xem [crawler, cách đọc log và chạy tiếp](tools/crawl/README.md). Dữ liệu thu được nằm trong `.data/crawl/` ở trạng thái nháp.
+
 Khởi động Docker Desktop nếu dùng Docker:
 
 ```powershell

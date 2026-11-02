@@ -1,0 +1,98 @@
+[
+  {
+    "id": "cold",
+    "topic": "cold",
+    "url": "https://www.cdc.gov/common-cold/about/index.html",
+    "mode": "collect_text",
+    "policy": "https://www.cdc.gov/other/agencymaterials.html",
+    "note": "Pilot nội bộ: chỉ giữ văn bản chính của CDC để rà soát, loại media và nội dung bên thứ ba.",
+    "questions": ["Cảm lạnh là gì?", "Cảm lạnh lây như thế nào?"]
+  },
+  {
+    "id": "sleep",
+    "topic": "sleep",
+    "url": "https://www.cdc.gov/sleep/about/index.html",
+    "mode": "collect_text",
+    "policy": "https://www.cdc.gov/other/agencymaterials.html",
+    "note": "Pilot nội bộ: chỉ giữ văn bản chính của CDC để rà soát, loại media và nội dung bên thứ ba.",
+    "questions": ["Chất lượng giấc ngủ có ý nghĩa gì?", "Làm sao xây dựng thói quen ngủ đều?"]
+  },
+  {
+    "id": "activity",
+    "topic": "physical_activity",
+    "url": "https://www.cdc.gov/physical-activity-basics/guidelines/adults.html",
+    "mode": "collect_text",
+    "policy": "https://www.cdc.gov/other/agencymaterials.html",
+    "note": "Pilot nội bộ: chỉ giữ văn bản chính của CDC để rà soát, loại media và nội dung bên thứ ba.",
+    "questions": [
+      "Những hoạt động nào được tính là vận động thể chất?",
+      "Tài liệu này dành cho nhóm tuổi nào?"
+    ]
+  },
+  {
+    "id": "dengue-vi",
+    "topic": "dengue",
+    "url": "https://www.who.int/vietnam/vi/news/questions-and-answers/q-a-detail/dengue-and-severe-dengue",
+    "mode": "metadata_only",
+    "policy": "https://www.who.int/about/policies/publishing/copyright",
+    "note": "Chờ xác minh quyền sử dụng và phạm vi nội dung từng trang.",
+    "questions": [
+      "Dengue lây qua đường nào?",
+      "Nguồn tiếng Việt và bản mới hơn có điểm nào xung đột?"
+    ]
+  },
+  {
+    "id": "dengue",
+    "topic": "dengue",
+    "url": "https://www.who.int/news-room/fact-sheets/detail/dengue-and-severe-dengue",
+    "mode": "metadata_only",
+    "policy": "https://www.who.int/about/policies/publishing/copyright",
+    "note": "Chờ xác minh quyền sử dụng và phạm vi nội dung từng trang.",
+    "questions": ["Nguồn nêu biện pháp phòng muỗi nào?"]
+  },
+  {
+    "id": "eczema",
+    "topic": "skin",
+    "url": "https://www.nhs.uk/conditions/contact-dermatitis/",
+    "mode": "collect_text",
+    "policy": "https://www.nhs.uk/our-policies/terms-and-conditions/",
+    "note": "Bản nháp văn bản nội bộ. Contains public sector information licensed under the Open Government Licence v3.0. Đối chiếu mục 3.5–3.6 NHS trước khi dịch hoặc xuất bản. Không tải media.",
+    "questions": ["Viêm da tiếp xúc là gì?", "Nguồn nói gì về tránh tác nhân kích ứng?"]
+  },
+  {
+    "id": "hives",
+    "topic": "allergy",
+    "url": "https://www.nhs.uk/conditions/hives/",
+    "mode": "collect_text",
+    "policy": "https://www.nhs.uk/our-policies/terms-and-conditions/",
+    "note": "Bản nháp văn bản nội bộ. Contains public sector information licensed under the Open Government Licence v3.0. Đối chiếu mục 3.5–3.6 NHS trước khi dịch hoặc xuất bản. Không tải media.",
+    "questions": ["Mề đay được mô tả như thế nào?"]
+  },
+  {
+    "id": "allergies",
+    "topic": "allergy",
+    "url": "https://www.nhs.uk/conditions/allergies/",
+    "mode": "collect_text",
+    "policy": "https://www.nhs.uk/our-policies/terms-and-conditions/",
+    "note": "Bản nháp văn bản nội bộ. Contains public sector information licensed under the Open Government Licence v3.0. Đối chiếu mục 3.5–3.6 NHS trước khi dịch hoặc xuất bản. Không tải media.",
+    "questions": ["Dị ứng là gì?"]
+  },
+  {
+    "id": "diarrhoea",
+    "topic": "digestion",
+    "url": "https://www.nhs.uk/conditions/diarrhoea-and-vomiting/",
+    "mode": "metadata_only",
+    "policy": "https://www.nhs.uk/our-policies/terms-and-conditions/",
+    "note": "Chờ xác minh quyền sử dụng và phạm vi nội dung từng trang.",
+    "questions": ["Phần nào của tài liệu áp dụng cho người lớn?"]
+  },
+  {
+    "id": "asthma",
+    "topic": "respiratory",
+    "url": "https://www.nhs.uk/conditions/asthma/",
+    "mode": "metadata_only",
+    "policy": "https://www.nhs.uk/our-policies/terms-and-conditions/",
+    "note": "Chờ xác minh quyền sử dụng và phạm vi nội dung từng trang.",
+    "questions": ["Hen là gì?", "Nội dung nào của nguồn chỉ áp dụng tại Anh?"]
+  }
+]
