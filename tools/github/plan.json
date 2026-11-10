@@ -1,0 +1,691 @@
+{
+  "people": {
+    "luan": { "login": "LuanLuKim", "name": "Lữ Kim Luân" },
+    "tai": { "login": null, "name": "Tài (vongoctaijk@gmail.com)" }
+  },
+  "milestones": [
+    {
+      "id": 1,
+      "title": "Sprint 1 - Thảo luận, kiến trúc & đặc tả",
+      "due": "2026-10-18",
+      "closed": true
+    },
+    { "id": 2, "title": "Sprint 2 - Baseline & hạ tầng", "due": "2026-11-09", "closed": true },
+    { "id": 3, "title": "Sprint 3 - Code: nền tảng & luồng lõi", "due": "2026-11-17" },
+    {
+      "id": 4,
+      "title": "Sprint 4 - Code: hoàn thiện & tích hợp (code freeze 25/11)",
+      "due": "2026-11-25"
+    },
+    { "id": 5, "title": "Sprint 5 - Kiểm thử & sửa lỗi", "due": "2026-11-27" },
+    { "id": 6, "title": "Sprint 6 - Hoàn tất & bàn giao", "due": "2026-11-30" }
+  ],
+  "labels": [
+    { "name": "M1", "color": "d73a4a", "description": "Safety Gate và quy tắc cảnh báo" },
+    { "name": "M2", "color": "0e8a16", "description": "Tra cứu và quản lý nội dung" },
+    { "name": "M3", "color": "1d76db", "description": "Hồ sơ, chỉ số và thống kê" },
+    { "name": "M4", "color": "5319e7", "description": "Hội thoại với trợ lý AI" },
+    { "name": "M5", "color": "fbca04", "description": "Tài khoản và phân quyền" },
+    { "name": "M6", "color": "f9a825", "description": "Lộ trình sinh hoạt và nhắc nhở" },
+    { "name": "M7", "color": "006b75", "description": "Crawler RAG và chuẩn hóa dữ liệu" },
+    { "name": "docs", "color": "c5def5", "description": "Tài liệu" },
+    { "name": "infra", "color": "bfd4f2", "description": "Hạ tầng, CI, môi trường" },
+    { "name": "qa", "color": "e99695", "description": "Kiểm thử và sửa lỗi" },
+    { "name": "release", "color": "0052cc", "description": "Hoàn tất và bàn giao" }
+  ],
+  "issues": [
+    {
+      "jira": "SCRUM-38",
+      "title": "Họp nhóm, chọn đề tài và thảo luận phạm vi, kiến trúc",
+      "milestone": 1,
+      "labels": ["docs"],
+      "state": "closed",
+      "scope": [
+        "Họp xác định đề tài trợ lý sức khỏe AI (hỗ trợ, không chẩn đoán), thống nhất phạm vi và cách viết SRS, use case."
+      ],
+      "refs": [
+        "Bản nháp thô: https://docs.google.com/document/d/1aIz5S8IIEF-2GLHpnGW6u--YFTulRUDlPnoc3njRAy0/edit?usp=sharing"
+      ]
+    },
+    {
+      "jira": "SCRUM-39",
+      "title": "Viết tài liệu thô và SRS v0.1 theo cấu trúc IEEE 830",
+      "milestone": 1,
+      "labels": ["docs"],
+      "state": "closed",
+      "scope": [
+        "Chuẩn hóa bản nháp nhiều người ghi thành SRS v0.1 (đến 18/10); v0.2 cập nhật 22/10."
+      ],
+      "refs": [
+        "Bản nháp thô: https://docs.google.com/document/d/1aIz5S8IIEF-2GLHpnGW6u--YFTulRUDlPnoc3njRAy0/edit?usp=sharing"
+      ]
+    },
+    {
+      "jira": "SCRUM-40",
+      "title": "Bổ sung use case: 12 lên 19 UC, thêm FR-2.8, FR-2.9, FR-3.5",
+      "milestone": 2,
+      "labels": ["docs"],
+      "state": "closed",
+      "scope": ["Cập nhật đặc tả use case ngày 25/10."],
+      "refs": []
+    },
+    {
+      "jira": "SCRUM-41",
+      "title": "Lập ma trận UC-FR, vai trò, phân quyền và phân công module",
+      "milestone": 2,
+      "labels": ["docs"],
+      "state": "closed",
+      "scope": ["File UC_FR_Mapping_Nhom5.xlsx."],
+      "refs": []
+    },
+    {
+      "jira": "SCRUM-42",
+      "title": "Dựng baseline sáu module (monorepo, migration, seed, adapter LLM)",
+      "milestone": 2,
+      "labels": ["infra"],
+      "state": "closed",
+      "assignee": "luan",
+      "doneBy": "luan",
+      "scope": [
+        "apps/api (Express + TS), apps/web (React + Vite), packages/contracts, 6 migration, seed synthetic, bảo mật nền, adapter LLM, stub Safety Gate, khung giao diện 6 module."
+      ],
+      "commit": "030a867",
+      "branch": "main (commit trực tiếp)",
+      "refs": []
+    },
+    {
+      "jira": "SCRUM-126",
+      "title": "Thu thập thử có giới hạn, tiếp tục được: nguồn y tế (pilot)",
+      "milestone": 2,
+      "labels": ["M7"],
+      "state": "closed",
+      "assignee": "luan",
+      "doneBy": "luan",
+      "scope": [
+        "Bộ thu thập pilot có ngân sách request, checkpoint, chạy tiếp được; danh sách nguồn và test."
+      ],
+      "commit": "64547a2",
+      "branch": "main (commit trực tiếp)",
+      "refs": []
+    },
+    {
+      "jira": "SCRUM-43",
+      "title": "UC-13: hàm tính tiến độ ngày và streak",
+      "milestone": 2,
+      "labels": ["M6"],
+      "state": "closed",
+      "assignee": "luan",
+      "doneBy": "luan",
+      "scope": ["Tính tiến độ ngày và chuỗi ngày hiện tại cho theo dõi thói quen; 18 test."],
+      "commit": "92549bd",
+      "branch": "feat/m6-uc13-progress-streak",
+      "pr": 21,
+      "refs": []
+    },
+    {
+      "jira": "SCRUM-44",
+      "title": "UC-04: hàm tính BMI",
+      "milestone": 2,
+      "labels": ["M3"],
+      "state": "closed",
+      "assignee": "tai",
+      "doneBy": "tai",
+      "scope": ["Hàm tính BMI cho hồ sơ sức khỏe; 14 test."],
+      "commit": "239bf77",
+      "branch": "feat/m3-calculate-bmi",
+      "pr": 22,
+      "refs": []
+    },
+    {
+      "jira": "SCRUM-127",
+      "title": "Crawler HTML theo nguồn: adapter NHS/WHO, template, chính sách quyền sử dụng",
+      "milestone": 3,
+      "labels": ["M7"],
+      "state": "closed",
+      "assignee": "luan",
+      "doneBy": "luan",
+      "scope": [
+        "tools/crawl: đọc docs/urls.txt, lưu raw theo hash, trích xuất có cấu trúc; adapter NHS/WHO; NHS/WHO chỉ dùng nội bộ, CDC bị chặn; giới hạn request, robots.txt, checkpoint, chạy nền.",
+        "Mọi kết quả ở trạng thái DRAFT, rag_eligible=false."
+      ],
+      "commit": "9004594",
+      "branch": "feat/medical-source-pilot",
+      "pr": 24,
+      "refs": []
+    },
+    {
+      "jira": "SCRUM-128",
+      "title": "Chuẩn hóa dữ liệu: bài đã chuẩn hóa, chunks JSONL và db_rows.json",
+      "milestone": 3,
+      "labels": ["M7"],
+      "state": "closed",
+      "assignee": "luan",
+      "doneBy": "luan",
+      "scope": [
+        "tools/normalize: đọc dữ liệu trích xuất, chia đoạn, ghi bài chuẩn hóa, chunks JSONL, db_rows.json và thống kê."
+      ],
+      "commit": "9004594",
+      "branch": "feat/medical-source-pilot",
+      "pr": 24,
+      "refs": ["Còn thiếu: nạp db_rows.json vào knowledge.* (xem issue SCRUM-48)."]
+    },
+    {
+      "jira": "SCRUM-129",
+      "title": "Danh mục URL nguồn (docs/urls.txt) và công cụ duyệt bản nháp pilot (review.py)",
+      "milestone": 3,
+      "labels": ["M7"],
+      "state": "closed",
+      "assignee": "luan",
+      "doneBy": "luan",
+      "scope": [
+        "docs/urls.txt là danh mục URL nguồn crawler đọc; tools/crawl/review.py duyệt lô bản nháp pilot."
+      ],
+      "commit": "9004594",
+      "branch": "feat/medical-source-pilot",
+      "pr": 24,
+      "refs": []
+    },
+
+    {
+      "jira": "SCRUM-14",
+      "title": "UC-01 Đăng ký tài khoản",
+      "milestone": 3,
+      "labels": ["M5"],
+      "state": "open",
+      "old": [19, 20],
+      "scope": [
+        "Đăng ký email/OAuth, băm mật khẩu (bcrypt/Argon2), lưu bản ghi đồng ý, xác nhận đủ 18 tuổi và phiên bản điều khoản.",
+        "Chuẩn hóa và kiểm tra định dạng email."
+      ],
+      "tests": [
+        "Email trùng bị từ chối",
+        "Thiếu đồng ý điều khoản bị từ chối",
+        "OAuth lỗi được xử lý, không tạo tài khoản dở",
+        "Email được chuẩn hóa (chữ thường, cắt khoảng trắng) và sai định dạng bị từ chối",
+        "Chưa đủ 18 tuổi hoặc sai phiên bản điều khoản bị từ chối",
+        "Mật khẩu không được lưu dạng rõ"
+      ]
+    },
+    {
+      "jira": "SCRUM-15",
+      "title": "UC-02 Đăng nhập, đăng xuất, khôi phục mật khẩu",
+      "milestone": 3,
+      "labels": ["M5"],
+      "state": "open",
+      "scope": ["Đăng nhập, đăng xuất, phiên có thời hạn, OAuth, khôi phục mật khẩu."],
+      "tests": [
+        "Giới hạn số lần thử sai",
+        "Mã khôi phục chỉ dùng một lần và hết hạn",
+        "Phiên hết hạn bị từ chối",
+        "Đăng xuất vô hiệu hóa phiên"
+      ]
+    },
+    {
+      "jira": "SCRUM-16",
+      "title": "UC-03 Quản lý tài khoản cá nhân",
+      "milestone": 3,
+      "labels": ["M5"],
+      "state": "open",
+      "scope": ["Cập nhật thông tin, đổi mật khẩu, xóa tài khoản có xác nhận."],
+      "tests": [
+        "Xóa tài khoản xóa hết dữ liệu liên quan hoặc rollback toàn bộ",
+        "Đổi mật khẩu cần mật khẩu cũ",
+        "Chỉ sửa được tài khoản của chính mình"
+      ]
+    },
+    {
+      "jira": "SCRUM-17",
+      "title": "UC-18 Quản lý người dùng và phân quyền",
+      "milestone": 4,
+      "labels": ["M5"],
+      "state": "open",
+      "scope": ["Tìm, khóa/mở khóa tài khoản, cấp/thu hồi vai trò, nhật ký kiểm toán."],
+      "tests": [
+        "Phân quyền R-01 đến R-04 đúng trên mọi route API",
+        "Quản trị viên không xem được dữ liệu cá nhân, hội thoại, phản hồi của người khác",
+        "Mọi thay đổi vai trò vào nhật ký kiểm toán"
+      ]
+    },
+    {
+      "jira": "SCRUM-18",
+      "title": "UC-04 Quản lý hồ sơ sức khỏe",
+      "milestone": 3,
+      "labels": ["M3"],
+      "state": "open",
+      "scope": [
+        "Lưu/đọc hồ sơ, kiểm tra khoảng giá trị, kiểm tra đồng ý, gắn hàm BMI đã có (PR #22)."
+      ],
+      "tests": [
+        "Giá trị ngoài khoảng hợp lệ bị từ chối",
+        "Chưa đồng ý xử lý dữ liệu sức khỏe thì bị chặn",
+        "Mỗi người một hồ sơ",
+        "BMI hiển thị đúng với dữ liệu hợp lệ"
+      ]
+    },
+    {
+      "jira": "SCRUM-19",
+      "title": "UC-05 Ghi nhận và xem thống kê chỉ số",
+      "milestone": 4,
+      "labels": ["M3"],
+      "state": "open",
+      "old": [8, 9, 10],
+      "scope": [
+        "Ghi chỉ số theo ngày (cập nhật nếu trùng ngày), tổng hợp tuần/tháng, nhận xét theo ngưỡng.",
+        "Kiểm tra tính hợp lệ chỉ số theo ngày; trung bình cân nặng và giờ ngủ 7 ngày; mức thay đổi cân nặng trong khoảng ngày."
+      ],
+      "tests": [
+        "Không trùng bản ghi (người dùng, ngày)",
+        "Chỉ số ngoài khoảng bị từ chối",
+        "Trung bình 7 ngày đúng, thiếu ngày không làm sai kết quả",
+        "Thay đổi cân nặng đúng với khoảng ngày bất kỳ",
+        "Biểu đồ đúng khoảng ngày được chọn"
+      ]
+    },
+    {
+      "jira": "SCRUM-20",
+      "title": "UC-19 Xem thống kê hệ thống (đề xuất, chờ xác nhận người phụ trách)",
+      "milestone": 4,
+      "labels": ["M3"],
+      "state": "open",
+      "scope": [
+        "Tổng hợp tài khoản mới, lượt truy cập, tương tác chatbot theo khoảng ngày; biểu đồ và bộ lọc ngày."
+      ],
+      "tests": ["Chỉ Quản trị viên xem được", "Dữ liệu tổng hợp không chứa dữ liệu cá nhân"]
+    },
+    {
+      "jira": "SCRUM-21",
+      "title": "UC-06 Trò chuyện với trợ lý AI",
+      "milestone": 4,
+      "labels": ["M4"],
+      "state": "open",
+      "old": [17],
+      "scope": [
+        "Điều phối: trích xuất thông tin, Safety Gate, RAG, LLM, Output Checker; giao diện chat streaming, nguồn, gợi ý chuyên khoa, lời miễn trừ.",
+        "Kiểm tra nội dung và giới hạn độ dài tin nhắn."
+      ],
+      "tests": [
+        "Safety Gate luôn chạy trước LLM",
+        "Ca khẩn cấp hiển thị hướng dẫn ngay, không gọi LLM",
+        "Thiếu thông tin thì hỏi lại",
+        "Câu hỏi ngoài phạm vi (thuốc, liều, chẩn đoán) bị từ chối",
+        "LLM lỗi hoặc timeout: báo lỗi, giữ kết quả Safety Gate, cho thử lại",
+        "Tin nhắn rỗng hoặc quá dài bị từ chối",
+        "Log không chứa nội dung hội thoại"
+      ]
+    },
+    {
+      "jira": "SCRUM-22",
+      "title": "UC-08 Đánh giá câu trả lời của trợ lý AI",
+      "milestone": 4,
+      "labels": ["M4"],
+      "state": "open",
+      "scope": [
+        "Lưu phản hồi, lọc danh tính, đính kèm hội thoại khi người dùng đồng ý; nút Hữu ích / Chưa hữu ích và biểu mẫu lý do."
+      ],
+      "tests": [
+        "Bản ghi phản hồi không chứa danh tính",
+        "Quản trị viên không đọc được phản hồi",
+        "Chỉ đính kèm hội thoại khi có đồng ý"
+      ]
+    },
+    {
+      "jira": "SCRUM-23",
+      "title": "UC-09 Quản lý lịch sử hội thoại",
+      "milestone": 4,
+      "labels": ["M4"],
+      "state": "open",
+      "old": [18],
+      "scope": [
+        "Danh sách, chi tiết, xóa phiên hội thoại; màn hình lịch sử.",
+        "Đếm tin nhắn và xác định thời điểm trao đổi cuối."
+      ],
+      "tests": [
+        "Chỉ truy cập được phiên của mình",
+        "Xóa là xóa hẳn",
+        "Số tin nhắn và thời điểm cuối đúng, kể cả phiên rỗng"
+      ]
+    },
+    {
+      "jira": "SCRUM-24",
+      "title": "UC-07 Đánh giá mức độ cần chú ý (Safety Gate)",
+      "milestone": 3,
+      "labels": ["M1"],
+      "state": "open",
+      "old": [13, 14],
+      "scope": [
+        "Nạp quy tắc đã duyệt, chọn đúng một nhãn, ưu tiên mức an toàn hơn; gợi ý chuyên khoa/cơ sở y tế; trạng thái chưa đánh giá được; nối vào UC-06.",
+        "Chọn mức cảnh báo theo thứ tự ưu tiên cấu hình; xác định và loại trùng các trường thông tin còn thiếu."
+      ],
+      "tests": [
+        "Bộ ca khẩn cấp đạt (M-01 = 100%, M-02 = 0% vi phạm)",
+        "Quy tắc chưa duyệt không được dùng",
+        "Nhiều quy tắc khớp thì chọn mức ưu tiên cao hơn",
+        "Trường thiếu được liệt kê một lần, không trùng",
+        "Chưa có quy tắc thì trả unavailable, không tự trả low risk"
+      ]
+    },
+    {
+      "jira": "SCRUM-25",
+      "title": "UC-16 Quản lý quy tắc dấu hiệu cảnh báo",
+      "milestone": 3,
+      "labels": ["M1"],
+      "state": "open",
+      "scope": [
+        "Soạn quy tắc kèm nguồn, lưu nháp, gửi duyệt; màn hình soạn và xem theo trạng thái; dữ liệu quy tắc mẫu."
+      ],
+      "tests": [
+        "Thiếu nguồn thì không gửi duyệt được",
+        "Chỉ 5 mức cảnh báo hợp lệ",
+        "Chỉ vai trò được phép mới soạn/gửi duyệt"
+      ]
+    },
+    {
+      "jira": "SCRUM-26",
+      "title": "UC-10 Tra cứu kiến thức sức khỏe",
+      "milestone": 3,
+      "labels": ["M2"],
+      "state": "open",
+      "old": [15],
+      "scope": [
+        "Tìm bài viết chỉ bài đã duyệt, lọc theo chủ đề; trang kiến thức và chi tiết (nguồn, ngày cập nhật).",
+        "Tính offset và tổng số trang cho kết quả tra cứu."
+      ],
+      "tests": [
+        "Bài nháp/chờ duyệt không xuất hiện",
+        "Mọi bài có nguồn",
+        "Phân trang đúng offset và tổng số trang, kể cả 0 kết quả"
+      ]
+    },
+    {
+      "jira": "SCRUM-27",
+      "title": "UC-11 Tra cứu cơ sở y tế",
+      "milestone": 3,
+      "labels": ["M2"],
+      "state": "open",
+      "old": [16],
+      "scope": [
+        "Tìm cơ sở y tế theo chuyên khoa, tỉnh/thành, tên; dùng lại cho Safety Gate; trang tra cứu và chi tiết (nguồn, ngày xác minh).",
+        "Lọc cơ sở theo tên, tỉnh và chuyên khoa."
+      ],
+      "tests": [
+        "Lọc đúng theo tên, tỉnh, chuyên khoa và tổ hợp",
+        "Mọi bản ghi có nguồn và ngày xác minh"
+      ]
+    },
+    {
+      "jira": "SCRUM-28",
+      "title": "UC-15 Quản lý bài viết và mẫu kế hoạch",
+      "milestone": 3,
+      "labels": ["M2"],
+      "state": "open",
+      "scope": [
+        "CRUD bài viết và mẫu kế hoạch sinh hoạt, trạng thái nháp/chờ duyệt; màn hình quản lý cho Biên tập viên."
+      ],
+      "tests": ["Bắt buộc có nguồn", "Phân quyền Biên tập viên"]
+    },
+    {
+      "jira": "SCRUM-29",
+      "title": "UC-17 Rà soát và phê duyệt nội dung, xử lý phản hồi AI",
+      "milestone": 4,
+      "labels": ["M2"],
+      "state": "open",
+      "scope": [
+        "Hàng đợi duyệt: phê duyệt/từ chối kèm lý do, khóa nội dung đã duyệt; màn hình duyệt và xử lý phản hồi."
+      ],
+      "tests": [
+        "Chỉ nội dung đã duyệt được hiển thị và đưa vào RAG",
+        "Từ chối phải có lý do",
+        "Chuyên gia nội dung xem phản hồi nhưng không thấy danh tính"
+      ]
+    },
+    {
+      "jira": "SCRUM-30",
+      "title": "UC-12 Chọn lộ trình sinh hoạt",
+      "milestone": 4,
+      "labels": ["M6"],
+      "state": "open",
+      "scope": [
+        "Danh sách mẫu lộ trình, chọn/đổi lộ trình, mỗi người một lộ trình đang dùng; màn hình chọn và xem."
+      ],
+      "tests": [
+        "Chỉ mẫu đã duyệt được chọn",
+        "Kiểm tra quyền sở hữu",
+        "Mỗi người chỉ một lộ trình đang dùng"
+      ]
+    },
+    {
+      "jira": "SCRUM-31",
+      "title": "UC-13 Theo dõi thói quen",
+      "milestone": 3,
+      "labels": ["M6"],
+      "state": "open",
+      "assignee": "luan",
+      "scope": [
+        "Hàm tiến độ ngày và streak đã có (PR #21). Còn lại: API ghi nhận hoàn thành theo ngày, thống kê chuỗi ngày, màn hình theo dõi."
+      ],
+      "tests": [
+        "Ghi nhận trùng ngày không tạo bản ghi thứ hai",
+        "Đổi múi giờ không làm sai chuỗi ngày",
+        "Streak đứt khi bỏ một ngày"
+      ]
+    },
+    {
+      "jira": "SCRUM-32",
+      "title": "UC-14 Thiết lập nhắc nhở",
+      "milestone": 4,
+      "labels": ["M6"],
+      "state": "open",
+      "scope": ["Lưu lịch nhắc, bật/tắt, lập lịch gửi nhắc; màn hình thiết lập."],
+      "tests": ["Nhắc đúng giờ", "Tắt nhắc thì không gửi", "Chỉ sửa được lịch của mình"]
+    },
+
+    {
+      "jira": "SCRUM-45",
+      "title": "Bật CI: chạy npm run check và test trên mỗi PR, bảo vệ nhánh main",
+      "milestone": 3,
+      "labels": ["infra"],
+      "state": "open",
+      "scope": [
+        "Thêm .github/workflows/ci.yml (job check và data-tools), áp ruleset nhánh main: PR bắt buộc, 1 reviewer, check xanh mới được merge."
+      ],
+      "tests": ["PR làm hỏng test bị chặn merge", "PR xanh và có 1 approval merge được"]
+    },
+    {
+      "jira": "SCRUM-46",
+      "title": "Chốt quy ước nhánh, PR, review và Definition of Done cho cả nhóm",
+      "milestone": 3,
+      "labels": ["infra", "docs"],
+      "state": "open",
+      "scope": [
+        "Cập nhật CONTRIBUTING.md: tên nhánh feat/mN-..., 1 reviewer, CI xanh, test mới đi kèm."
+      ],
+      "tests": ["CONTRIBUTING.md khớp ruleset thực tế"]
+    },
+    {
+      "jira": "SCRUM-47",
+      "title": "Bổ sung migration còn thiếu so với use case",
+      "milestone": 3,
+      "labels": ["infra"],
+      "state": "open",
+      "scope": [
+        "Bảng phiên đăng nhập, token khôi phục mật khẩu/xác nhận xóa, trạng thái xử lý phản hồi (UC-17), ánh xạ chuyên khoa cho quy tắc (UC-07). Thêm migration mới, không sửa migration cũ."
+      ],
+      "tests": ["db:migrate chạy trên cơ sở dữ liệu trống", "Seed chạy lặp được"]
+    },
+    {
+      "jira": "SCRUM-48",
+      "title": "Nạp dữ liệu crawler (M7) vào knowledge.*",
+      "milestone": 3,
+      "labels": ["M7"],
+      "state": "open",
+      "assignee": "luan",
+      "scope": [
+        "Chốt ánh xạ db_rows.json sang knowledge.*, viết script nạp chạy lặp được, quy trình duyệt (UC-17) trước khi đặt rag_eligible=true."
+      ],
+      "tests": [
+        "Script nạp chạy lặp không tạo bản ghi trùng",
+        "Mọi bản ghi có nguồn và ngày xác minh",
+        "UC-10, UC-11 và RAG đọc được dữ liệu mẫu"
+      ]
+    },
+    {
+      "jira": "SCRUM-49",
+      "title": "Thay guard requireSession bằng xác thực thật cho route các module",
+      "milestone": 3,
+      "labels": ["M5"],
+      "state": "open",
+      "scope": [
+        "Thay stub trả 503 AUTH_NOT_CONFIGURED bằng xác thực phiên thật; kiểm tra vai trò, quyền sở hữu, đồng ý."
+      ],
+      "tests": [
+        "Không đăng nhập thì 401",
+        "Sai vai trò thì 403",
+        "Không dùng header giả để mở route riêng tư"
+      ]
+    },
+    {
+      "jira": "SCRUM-50",
+      "title": "Chuẩn bị môi trường demo (DATA_MODE=postgres, biến môi trường, seed)",
+      "milestone": 4,
+      "labels": ["infra"],
+      "state": "open",
+      "scope": ["Chạy được bằng Docker Compose, tài liệu SETUP.md khớp."],
+      "tests": ["Làm theo SETUP.md trên máy sạch chạy được"]
+    },
+    {
+      "jira": "SCRUM-51",
+      "title": "Ghi sự kiện thống kê (đăng ký, truy cập, chat) phục vụ UC-19",
+      "milestone": 4,
+      "labels": ["M3"],
+      "state": "open",
+      "scope": ["Ghi sự kiện ẩn danh, không chứa nội dung hội thoại."],
+      "tests": ["Sự kiện không chứa dữ liệu cá nhân"]
+    },
+    {
+      "jira": "SCRUM-52",
+      "title": "Kiểm thử tích hợp end-to-end luồng chính",
+      "milestone": 4,
+      "labels": ["qa"],
+      "state": "open",
+      "scope": ["Đăng ký, đăng nhập, hồ sơ, chat có Safety Gate và RAG, phản hồi, lịch sử."],
+      "tests": ["Luồng chính chạy hết trên môi trường demo"]
+    },
+    {
+      "jira": "SCRUM-54",
+      "title": "Soạn kế hoạch kiểm thử và test case theo 19 UC",
+      "milestone": 4,
+      "labels": ["qa"],
+      "state": "open",
+      "scope": ["Mỗi UC có test case; liên kết với metric M-01 đến M-12."],
+      "tests": ["19 UC đều có test case"]
+    },
+    {
+      "jira": "SCRUM-55",
+      "title": "Kiểm thử chức năng theo module M1-M6",
+      "milestone": 5,
+      "labels": ["qa"],
+      "state": "open",
+      "scope": ["Chạy test từng module, ghi lỗi và kết quả."],
+      "tests": ["Mỗi module có báo cáo đạt/không đạt"]
+    },
+    {
+      "jira": "SCRUM-56",
+      "title": "Kiểm thử bảo mật và quyền riêng tư (M-10, M-11)",
+      "milestone": 5,
+      "labels": ["qa"],
+      "state": "open",
+      "scope": ["Phân quyền, rò rỉ dữ liệu, log, tiêu đề bảo mật."],
+      "tests": ["Không có lỗi mức Cao/Chặn còn mở"]
+    },
+    {
+      "jira": "SCRUM-57",
+      "title": "Đánh giá Safety Gate và truy xuất (M-01 đến M-05)",
+      "milestone": 5,
+      "labels": ["qa"],
+      "state": "open",
+      "scope": ["Chạy bộ ca đánh giá và ghi số liệu."],
+      "tests": ["M-01 = 100%, M-02 = 0%"]
+    },
+    {
+      "jira": "SCRUM-58",
+      "title": "Đo hiệu năng p90 và độ dễ sử dụng SUS (M-08, M-09)",
+      "milestone": 5,
+      "labels": ["qa"],
+      "state": "open",
+      "scope": ["Đo p90 và khảo sát SUS."],
+      "tests": ["Có số liệu và báo cáo"]
+    },
+    {
+      "jira": "SCRUM-59",
+      "title": "Sửa lỗi mức Cao/Chặn phát hiện khi kiểm thử",
+      "milestone": 5,
+      "labels": ["qa"],
+      "state": "open",
+      "scope": ["Sửa và thêm test hồi quy cho từng lỗi."],
+      "tests": ["Mỗi lỗi sửa có test hồi quy"]
+    },
+    {
+      "jira": "SCRUM-60",
+      "title": "Sửa lỗi vặt, chạy lại regression và chốt danh sách lỗi tồn đọng",
+      "milestone": 5,
+      "labels": ["qa"],
+      "state": "open",
+      "scope": ["Xong trước 27/11."],
+      "tests": ["npm run check xanh trên main"]
+    },
+    {
+      "jira": "SCRUM-62",
+      "title": "Báo cáo: phân tích thị trường, khách hàng, nhu cầu, tính khả thi, rủi ro",
+      "milestone": 6,
+      "labels": ["release", "docs"],
+      "state": "open",
+      "scope": ["Viết và chốt báo cáo."],
+      "tests": ["Báo cáo được cả nhóm rà soát"]
+    },
+    {
+      "jira": "SCRUM-63",
+      "title": "Báo cáo kết quả kiểm thử và các metric M-01 đến M-12",
+      "milestone": 6,
+      "labels": ["release", "docs"],
+      "state": "open",
+      "scope": ["Tổng hợp từ các issue kiểm thử."],
+      "tests": ["Số liệu khớp kết quả đo thực tế"]
+    },
+    {
+      "jira": "SCRUM-64",
+      "title": "Cập nhật tài liệu cho khớp mã nguồn (SRS, đặc tả UC, sơ đồ, kiến trúc)",
+      "milestone": 6,
+      "labels": ["release", "docs"],
+      "state": "open",
+      "scope": ["Mọi thay đổi ghi vào nhật ký thay đổi tài liệu (SCRUM-125)."],
+      "tests": ["Không còn chỗ tài liệu mâu thuẫn mã"]
+    },
+    {
+      "jira": "SCRUM-65",
+      "title": "Slide thuyết trình và kịch bản demo",
+      "milestone": 6,
+      "labels": ["release"],
+      "state": "open",
+      "scope": ["Slide và kịch bản."],
+      "tests": ["Có bản chạy thử"]
+    },
+    {
+      "jira": "SCRUM-66",
+      "title": "Demo thử (dry run) trên môi trường demo",
+      "milestone": 6,
+      "labels": ["release"],
+      "state": "open",
+      "scope": ["Chạy thử toàn bộ kịch bản."],
+      "tests": ["Demo chạy hết không lỗi"]
+    },
+    {
+      "jira": "SCRUM-67",
+      "title": "Gắn tag phát hành v1.0 trên main và đóng gói bản nộp",
+      "milestone": 6,
+      "labels": ["release"],
+      "state": "open",
+      "scope": ["Tag v1.0 và gói nộp."],
+      "tests": ["CI xanh trên commit được gắn tag"]
+    }
+  ]
+}

@@ -1,0 +1,40 @@
+name: CI
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+permissions:
+  contents: read
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  # Tên job "check" là tên ngữ cảnh bắt buộc trong ruleset của nhánh main.
+  check:
+    name: check
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      # Gồm typecheck, toàn bộ test (API, database, LLM, giao diện) và build.
+      - run: npm run check
+  data-tools:
+    name: data-tools
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: tools/crawl/requirements.txt
+      - run: python -m pip install -r tools/crawl/requirements.txt
+      - run: python -B -m unittest discover -s tools/crawl -p "test_*.py"
+      - run: python -B tools/normalize/test_normalize.py
