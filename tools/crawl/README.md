@@ -59,7 +59,7 @@ python -B tools/normalize/run.py
 python -B tools/normalize/run.py --status
 ```
 
-Dữ liệu thật nằm trong `.data/` và được Git bỏ qua. Khi nhận được ZIP dữ liệu từ Google Drive của nhóm, giải nén vào thư mục gốc của bản clone mới để giữ đúng cấu trúc `.data/`.
+Dữ liệu thật nằm trong `.data/` và được Git bỏ qua. Giải nén ZIP vào thư mục gốc của bản clone mới để giữ đúng cấu trúc `.data/`. [Tải ZIP dữ liệu trên Google Drive](https://drive.google.com/file/d/1hiwihR9-8cg3Yj9kD1iOXs7ekV6hyRcw/view?usp=sharing).
 
 ## Thêm nguồn hoặc mẫu trang
 
