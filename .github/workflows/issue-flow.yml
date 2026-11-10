@@ -27,6 +27,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - name: Tạo nhánh cho issue và báo người được gán
         env:
           GH_TOKEN: ${{ github.token }}
