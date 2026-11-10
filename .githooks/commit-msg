@@ -1,0 +1,8 @@
+#!/bin/sh
+# Thêm "Refs: #<số-issue>" vào commit nếu message chưa nhắc issue của nhánh.
+branch=$(git symbolic-ref --quiet --short HEAD) || exit 0
+number=${branch%%-*}
+case "$number" in '' | *[!0-9]*) exit 0 ;; esac
+[ "$number" = "$branch" ] && exit 0
+grep -v '^#' "$1" | grep -Eq "#$number([^0-9]|$)" && exit 0
+git interpret-trailers --in-place --trailer "Refs: #$number" "$1"

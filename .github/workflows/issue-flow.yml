@@ -1,0 +1,133 @@
+name: Issue flow
+# Quy trình nhóm: mỗi việc là một issue -> một nhánh <số-issue>-<mô-tả> -> một PR vào main.
+#  - Gán issue: tự tạo nhánh gắn với issue (mục Development) và comment hướng dẫn cho người được gán.
+#  - Push lên nhánh: kiểm tra nhánh thuộc issue đang mở và người push được giao issue đó,
+#    rồi tự tạo PR nháp "Closes #N" (kèm nhãn, milestone của issue) nếu nhánh chưa có PR.
+#  - PR vào main: kiểm tra lại tên nhánh và mô tả PR có nhắc issue.
+# Job "branch-policy" là status check bắt buộc của main (tools/github/ruleset-main.json).
+on:
+  issues:
+    types: [assigned]
+  push:
+    branches-ignore: [main]
+  pull_request:
+    types: [opened, edited, reopened, synchronize]
+    branches: [main]
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+concurrency:
+  group: issue-flow-${{ github.event_name }}-${{ github.event.issue.number || github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  issue-branch:
+    if: github.event_name == 'issues'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Tạo nhánh cho issue và báo người được gán
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          NUMBER: ${{ github.event.issue.number }}
+          TITLE: ${{ github.event.issue.title }}
+          ASSIGNEE: ${{ github.event.assignee.login }}
+        run: |
+          set -euo pipefail
+          branch=$(gh issue develop --list "$NUMBER" -R "$REPO" | awk 'NR==1 {print $1}')
+          if [ -z "$branch" ]; then
+            # Bỏ tiền tố [SCRUM-xx], bỏ dấu tiếng Việt, còn chữ thường/số/gạch ngang, tối đa 40 ký tự.
+            slug=$(printf '%s' "$TITLE" | sed -E 's/^\[[^]]*\][[:space:]]*//; s/đ/d/g; s/Đ/D/g' \
+              | iconv -f UTF-8 -t ASCII//TRANSLIT 2>/dev/null \
+              | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9]+/-/g; s/^-+//; s/-+$//' | cut -c1-40 | sed -E 's/-+$//')
+            branch="$NUMBER-${slug:-task}"
+            gh issue develop "$NUMBER" -R "$REPO" --base main --name "$branch"
+          fi
+          gh issue comment "$NUMBER" -R "$REPO" --body-file - <<EOF
+          @$ASSIGNEE nhánh làm việc của issue này: \`$branch\`
+
+          \`\`\`bash
+          git fetch origin
+          git switch $branch
+          # sửa, git commit, rồi:
+          git push
+          \`\`\`
+
+          - Chỉ commit và push trên nhánh này. Nhánh không theo mẫu \`<số-issue>-<mô-tả>\` sẽ bị GitHub từ chối.
+          - Lần push đầu tiên sẽ tự tạo PR nháp vào \`main\` có \`Closes #$NUMBER\`. Điền mô tả, chạy \`npm run check\`, rồi bấm **Ready for review**.
+          - Quy trình đầy đủ: [CONTRIBUTING.md](https://github.com/$REPO/blob/main/CONTRIBUTING.md).
+          EOF
+
+  branch-policy:
+    name: branch-policy
+    if: github.event_name != 'issues' && !(github.event_name == 'push' && github.event.deleted)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      issue: ${{ steps.check.outputs.issue }}
+    steps:
+      - name: Kiểm tra nhánh thuộc issue đã giao
+        id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          EVENT: ${{ github.event_name }}
+          BRANCH: ${{ github.head_ref || github.ref_name }}
+          ACTOR: ${{ github.event.pull_request.user.login || github.actor }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: |
+          set -euo pipefail
+          fail() { echo "::error title=Sai quy trình nhánh::$1"; exit 1; }
+          [[ "$BRANCH" =~ ^([0-9]+)-[A-Za-z0-9._-]+$ ]] \
+            || fail "Nhánh '$BRANCH' không theo mẫu <số-issue>-<mô-tả>. Dùng nhánh được tạo trong issue (gh issue develop --list <số>)."
+          n="${BASH_REMATCH[1]}"
+          issue=$(gh api "repos/$REPO/issues/$n" 2>/dev/null) || fail "Không có issue #$n."
+          [ "$(jq -r 'has("pull_request")' <<<"$issue")" = false ] || fail "#$n là pull request, không phải issue."
+          [ "$(jq -r .state <<<"$issue")" = open ] || fail "Issue #$n đã đóng. Mở issue mới cho phần việc tiếp theo."
+          if ! jq -e --arg a "$ACTOR" 'any(.assignees[]; .login == $a)' <<<"$issue" >/dev/null; then
+            perm=$(gh api "repos/$REPO/collaborators/$ACTOR/permission" --jq .permission 2>/dev/null || echo none)
+            [ "$perm" = admin ] || fail "@$ACTOR chưa được giao issue #$n. Nhờ trưởng nhóm gán issue trước khi làm."
+          fi
+          if [ "$EVENT" = pull_request ]; then
+            grep -Eq "#$n([^0-9]|$)" <<<"$PR_BODY" || fail "Mô tả PR phải có 'Closes #$n' (hoặc 'Refs #$n' nếu mới xong một phần)."
+          fi
+          echo "issue=$n" >> "$GITHUB_OUTPUT"
+          echo "Nhánh $BRANCH thuộc issue #$n, người làm @$ACTOR."
+
+  auto-pr:
+    needs: branch-policy
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: .github/pull_request_template.md
+          sparse-checkout-cone-mode: false
+      - name: Tạo PR nháp nếu nhánh chưa có PR
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          BRANCH: ${{ github.ref_name }}
+          ACTOR: ${{ github.actor }}
+          ISSUE: ${{ needs.branch-policy.outputs.issue }}
+        run: |
+          set -euo pipefail
+          existing=$(gh pr list -R "$REPO" --head "$BRANCH" --state open --json number --jq '.[0].number // empty')
+          if [ -n "$existing" ]; then echo "Nhánh đã có PR #$existing."; exit 0; fi
+          ahead=$(gh api "repos/$REPO/compare/main...$BRANCH" --jq .ahead_by)
+          if [ "$ahead" -eq 0 ]; then echo "Nhánh chưa có commit mới so với main."; exit 0; fi
+          issue=$(gh api "repos/$REPO/issues/$ISSUE")
+          body=$(printf 'Closes #%s\n\n> PR nháp tạo tự động khi đẩy nhánh `%s`. Điền phần dưới, chạy `npm run check`, rồi bấm **Ready for review**. Nếu PR chỉ xong một phần issue, đổi `Closes` thành `Refs`.\n\n%s\n' \
+            "$ISSUE" "$BRANCH" "$(cat .github/pull_request_template.md)")
+          if ! pr=$(jq -n --arg t "$(jq -r .title <<<"$issue")" --arg h "$BRANCH" --arg b "$body" \
+            '{title: $t, head: $h, base: "main", body: $b, draft: true}' \
+            | gh api "repos/$REPO/pulls" --input - --jq .number); then
+            echo "::warning title=Chưa tạo được PR tự động::Admin cần bật Settings → Actions → General → 'Allow GitHub Actions to create and approve pull requests'. Tạm thời tạo PR bằng: gh pr create --fill --draft (nhớ ghi Closes #$ISSUE)."
+            exit 0
+          fi
+          jq '{labels: [.labels[].name], assignees: [env.ACTOR]} + (if .milestone then {milestone: .milestone.number} else {} end)' <<<"$issue" \
+            | gh api -X PATCH "repos/$REPO/issues/$pr" --input - >/dev/null
+          echo "Đã tạo PR nháp #$pr cho issue #$ISSUE."

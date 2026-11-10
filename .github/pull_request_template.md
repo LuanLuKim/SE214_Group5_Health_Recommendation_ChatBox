@@ -1,3 +1,5 @@
+Closes #\_\_ <!-- số issue của nhánh; dùng "Refs #" nếu PR mới xong một phần -->
+
 ## Change
 
 Module: M__ (name)
