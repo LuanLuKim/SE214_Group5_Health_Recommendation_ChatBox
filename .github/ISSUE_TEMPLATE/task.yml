@@ -1,0 +1,24 @@
+name: Công việc (task)
+description: Một đầu việc có phạm vi và điều kiện kiểm thử rõ ràng
+labels: []
+body:
+  - type: input
+    id: jira
+    attributes:
+      label: Mã Jira
+      placeholder: SCRUM-0
+  - type: textarea
+    id: scope
+    attributes:
+      label: Phạm vi
+      description: Việc cần làm, UC/module liên quan.
+    validations:
+      required: true
+  - type: textarea
+    id: tests
+    attributes:
+      label: Điều kiện kiểm thử
+      description: Mỗi dòng là một ca kiểm thử tự động phải đạt trước khi merge.
+      placeholder: '- [ ] ...'
+    validations:
+      required: true
