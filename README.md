@@ -61,6 +61,10 @@ docs/
 .github/                       Mẫu pull request
 ```
 
+## Thu thập và chuẩn hóa dữ liệu
+
+Xem [cách chạy crawler, chuẩn hóa và thử với JSON mẫu](tools/crawl/README.md). Các tệp đầu ra được lưu cục bộ trong `.data/`.
+
 ## PostgreSQL với dữ liệu tổng hợp
 
 Khởi động Docker Desktop nếu dùng Docker:

@@ -15,5 +15,8 @@ data/processed/
 data/indexes/
 backups/
 .data/
+__pycache__/
+*.py[cod]
+.pytest_cache/
 playwright-report/
 test-results/

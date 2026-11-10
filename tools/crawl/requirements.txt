@@ -1,0 +1,4 @@
+# Tested with Python 3.12.10; see environment.yml for the Conda environment.
+beautifulsoup4==4.14.3
+soupsieve==3.0.4
+typing-extensions==4.16.0
