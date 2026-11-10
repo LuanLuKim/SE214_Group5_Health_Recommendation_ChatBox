@@ -3,11 +3,11 @@ import assert from 'node:assert/strict';
 import { PGlite } from '@electric-sql/pglite';
 import { readSqlFiles } from '../scripts/database-files.js';
 
-test('all six module migrations execute, synthetic seed is idempotent, constraints hold', async () => {
+test('all module migrations execute, synthetic seed is idempotent, constraints hold', async () => {
   const db = new PGlite();
   try {
     const migrations = await readSqlFiles('migrations');
-    assert.equal(migrations.length, 6);
+    assert.equal(migrations.length, 7);
     for (const file of migrations) await db.exec(file.sql);
     for (let run = 0; run < 2; run++)
       for (const file of await readSqlFiles('seeds')) await db.exec(file.sql);
