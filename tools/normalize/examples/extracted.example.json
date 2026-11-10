@@ -1,0 +1,19 @@
+{
+  "url": "https://example.com/synthetic-article",
+  "title": "Bài mẫu chuẩn hóa",
+  "language": "vi",
+  "adapter": "synthetic",
+  "fetched_at": "2026-01-01T00:00:00Z",
+  "blocks": [
+    {
+      "id": "L0001",
+      "tag": "h2",
+      "text": "Giới thiệu"
+    },
+    {
+      "id": "L0002",
+      "tag": "p",
+      "text": "Đây là văn bản tự tạo để minh họa cách bộ chuẩn hóa nhóm nội dung theo tiêu đề."
+    }
+  ]
+}

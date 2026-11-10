@@ -1,0 +1,94 @@
+# urls.txt — Danh sách URL thu thập dữ liệu y tế (NHS & WHO Việt Nam)
+# Định dạng: <URL> [topic_mặc_định]
+# Môi trường chạy: conda activate se214-crawler
+# Lệnh crawl: python -B tools/crawl/run.py --urls docs/urls.txt
+# Lệnh chuẩn hóa: python -B tools/normalize/run.py --urls docs/urls.txt
+
+# ==============================================================================
+# LÔ A: NHS CỐT LÕI & CẤP CỨU (7 URL)
+# ==============================================================================
+https://www.nhs.uk/conditions/contact-dermatitis/       skin
+https://www.nhs.uk/conditions/anaphylaxis/              allergy
+https://www.nhs.uk/conditions/pneumonia/                respiratory
+https://www.nhs.uk/conditions/asthma/                   respiratory
+https://www.nhs.uk/conditions/diarrhoea-and-vomiting/   digestive
+https://www.nhs.uk/conditions/heart-attack/             cardiovascular
+https://www.nhs.uk/conditions/stroke/                   neurology
+
+# ==============================================================================
+# LÔ B: WHO VIỆT NAM (4 bài tiếng Việt gốc — Q&A và Chủ đề sức khỏe dịch tễ)
+# ==============================================================================
+https://www.who.int/vietnam/vi/news/questions-and-answers/q-a-detail/dengue-and-severe-dengue  infectious
+https://www.who.int/vietnam/vi/health-topics/influenza-%28seasonal%29                           respiratory
+https://www.who.int/vietnam/vi/health-topics/cardiovascular-disease                            cardiovascular
+https://www.who.int/vietnam/vi/health-topics/chronic-obstructive-pulmonary-disease-copd       respiratory
+
+# ==============================================================================
+# LÔ C: CẢM CÚM, HÔ HẤP & SỐT (Đối chiếu WHO & Phục vụ RAG chăm sóc)
+# ==============================================================================
+https://www.nhs.uk/conditions/common-cold/              respiratory
+https://www.nhs.uk/conditions/flu/                      respiratory
+https://www.nhs.uk/conditions/covid-19/                 respiratory
+https://www.nhs.uk/conditions/fever-in-adults/          general
+
+# ==============================================================================
+# LÔ D: DA LIỄU & DỊ ỨNG (Đối chiếu lâm sàng)
+# ==============================================================================
+https://www.nhs.uk/conditions/atopic-eczema/            skin
+https://www.nhs.uk/conditions/allergies/                allergy
+https://www.nhs.uk/conditions/hives/                    allergy
+
+# ==============================================================================
+# LÔ E: ĐAU NGỰC, ĐAU BỤNG & TIÊU HÓA (Phục vụ Safety Gate Triage)
+# ==============================================================================
+https://www.nhs.uk/conditions/chest-pain/               cardiovascular
+https://www.nhs.uk/conditions/stomach-ache/             digestive
+
+# ==============================================================================
+# LÔ F: ĐAU ĐẦU, THẦN KINH & F.A.S.T (Cấp cứu đột quỵ)
+# ==============================================================================
+https://www.nhs.uk/conditions/headache/                 neurology
+https://www.nhs.uk/conditions/migraine/                 neurology
+https://www.nhs.uk/conditions/stroke/symptoms/          neurology
+
+# ==============================================================================
+# LÔ G: BỆNH MẠN TÍNH & TIẾT NIỆU (MVP Giáo dục sức khỏe)
+# ==============================================================================
+https://www.nhs.uk/conditions/type-2-diabetes/          endocrine
+https://www.nhs.uk/conditions/high-blood-pressure-hypertension/ cardiovascular
+https://www.nhs.uk/conditions/urinary-tract-infections-utis/    urology
+
+
+# ==============================================================================
+# LÔ H: CẨM NANG Y TẾ MỞ RỘNG (Thuốc OTC, Kháng sinh, Da liễu, HFMD, Giấc ngủ, Tâm thần)
+# ==============================================================================
+https://www.nhs.uk/medicines/antihistamines/                                    allergy
+https://www.nhs.uk/conditions/antibiotics/                                      medication
+https://www.who.int/vietnam/vi/health-topics/antimicrobial-resistance           medication
+https://www.nhs.uk/conditions/emollients/                                       skin
+https://www.nhs.uk/conditions/hand-foot-mouth-disease/                          pediatric
+https://www.nhs.uk/conditions/insomnia/                                         sleep
+https://www.nhs.uk/mental-health/conditions/generalised-anxiety-disorder/       mental_health
+https://www.nhs.uk/mental-health/conditions/depression-in-adults/               mental_health
+https://www.who.int/vietnam/vi/health-topics/mental-health                      mental_health
+
+
+# ==============================================================================
+# LÔ I: SƠ CỨU, CHẤN THƯƠNG HÀNG NGÀY & THUỐC THIẾT YẾU (First-Aid & Essential OTC)
+# ==============================================================================
+https://www.nhs.uk/conditions/burns-and-scalds/                                  first_aid
+https://www.nhs.uk/conditions/cuts-and-grazes/                                   first_aid
+https://www.nhs.uk/conditions/sprains-and-strains/                               first_aid
+https://www.nhs.uk/conditions/nosebleed/                                         first_aid
+https://www.nhs.uk/conditions/heat-exhaustion-heatstroke/                        first_aid
+https://www.nhs.uk/conditions/animal-and-human-bites/                            first_aid
+https://www.who.int/vietnam/vi/health-topics/rabies                              infectious
+https://www.nhs.uk/conditions/food-poisoning/                                    digestive
+https://www.nhs.uk/symptoms/sore-throat/                                         respiratory
+https://www.nhs.uk/symptoms/cough/                                               respiratory
+https://www.nhs.uk/conditions/chickenpox/                                        pediatric
+https://www.nhs.uk/medicines/paracetamol-for-adults/                             medication
+https://www.nhs.uk/medicines/ibuprofen-for-adults/                               medication
+https://www.nhs.uk/conditions/dehydration/                                       general
+https://www.who.int/vietnam/vi/health-topics/tuberculosis                        infectious
+https://www.who.int/vietnam/vi/health-topics/diabetes                            endocrine

@@ -1,0 +1,18 @@
+{
+  "nhs": {
+    "adapter": "nhs",
+    "hosts": ["www.nhs.uk"],
+    "templates": [
+      {"id": "nhs-main-v1", "root": "main", "title": "h1", "remove": ["nav", "footer", "[class*=nhsuk-gallery]", "figure", "button"]}
+    ]
+  },
+  "who": {
+    "adapter": "who",
+    "hosts": ["www.who.int"],
+    "templates": [
+      {"id": "who-qa-v1", "root": ".qa-details__wrapper", "title": "h1", "remove": ["nav", "footer", ".sf-social-share"]},
+      {"id": "who-topic-v1", "root": "article.health-topic--detail", "title": "h1", "remove": ["nav", "footer", ".sf-social-share"]}
+    ]
+  },
+  "cdc": {"adapter": "generic", "hosts": ["www.cdc.gov"], "templates": []}
+}
