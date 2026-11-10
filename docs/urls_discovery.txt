@@ -1,0 +1,12 @@
+# urls_discovery.txt — trang mục lục, CHỈ để tìm URL (discover.py), KHÔNG chuẩn hóa, KHÔNG vào RAG.
+# Crawl: python -B tools/crawl/run.py --urls docs/urls_discovery.txt
+https://www.nhs.uk/medicines/                          medication_index
+https://www.nhs.uk/conditions/vitamins-and-minerals/   nutrition_index
+
+# Hub thuốc chỉ gồm danh sách link: dùng để chọn trang con theo chữ trên link (discover.py --link-text).
+https://www.nhs.uk/medicines/metronidazole/              hub
+https://www.nhs.uk/medicines/clarithromycin/             hub
+https://www.nhs.uk/medicines/amoxicillin/                hub
+https://www.nhs.uk/medicines/ramipril/                   hub
+https://www.nhs.uk/medicines/alendronic-acid/            hub
+https://www.nhs.uk/medicines/ferrous-sulfate/            hub

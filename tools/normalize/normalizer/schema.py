@@ -126,10 +126,12 @@ class NormalizedArticle:
         max_words: int = DEFAULT_MAX_WORDS,
         min_words: int = DEFAULT_MIN_WORDS,
         as_of: str | None = None,
+        medicine_names: frozenset[str] = frozenset(),
     ) -> list[dict[str, Any]]:
         from .chunking import build_chunks
 
-        return build_chunks(self, max_words=max_words, min_words=min_words, as_of=as_of)[0]
+        return build_chunks(self, max_words=max_words, min_words=min_words, as_of=as_of,
+                            medicine_names=medicine_names)[0]
 
     def to_db_row(self) -> dict[str, Any]:
         """Map to ``knowledge.articles`` columns."""
@@ -151,12 +153,14 @@ class NormalizedArticle:
         max_words: int = DEFAULT_MAX_WORDS,
         min_words: int = DEFAULT_MIN_WORDS,
         as_of: str | None = None,
+        medicine_names: frozenset[str] = frozenset(),
     ) -> dict[str, Any]:
         """Full serializable representation. Chunks use the same thresholds as
         ``chunks.jsonl`` so chunk ids match between the two outputs."""
         from .chunking import build_chunks
 
-        chunks, dropped = build_chunks(self, max_words=max_words, min_words=min_words, as_of=as_of)
+        chunks, dropped = build_chunks(self, max_words=max_words, min_words=min_words, as_of=as_of,
+                                       medicine_names=medicine_names)
         data = asdict(self)
         data["uuid"] = self.uuid
         data["content_text"] = self.content_text

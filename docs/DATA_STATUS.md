@@ -19,6 +19,34 @@ Thay cho bản 03/11 (sau đợt dọn dẹp). Số liệu lấy từ `.data/` s
 
 Ngân sách crawl tích lũy: **118/200 request**, 13 MiB trên đĩa (giới hạn 250 MiB). Tái trích từ raw không cần mạng và cho cùng văn bản.
 
+## Bổ sung 10/11 tối — dinh dưỡng và tài liệu tham khảo thuốc (issue #85)
+
+**Phạm vi.** [PROJECT_CONTEXT.md](requirements/PROJECT_CONTEXT.md) loại trừ "drug lookup": chatbot không trả lời theo tên thuốc ("đang uống thuốc X có được uống rượu không"). Vì vậy dữ liệu chia ba danh sách:
+
+| Danh sách | Nội dung | Chuẩn hóa | RAG |
+| --- | --- | --- | --- |
+| `docs/urls.txt` | +10 trang Vitamin & khoáng chất NHS (topic `nutrition`) | `.data/normalized/` | Có (vẫn DRAFT) |
+| `docs/urls_reference.txt` | 27 trang thuốc NHS: 20 thuốc phổ biến ở VN + trang "Antibiotics › Interactions" | `.data/normalized_reference/` (`--corpus expert_reference`) | **Không bao giờ**: `rag_eligible=false`, `corpus="expert_reference"` |
+| `docs/urls_discovery.txt` | Mục lục NHS Medicines A–Z, mục lục vitamin, 6 hub chỉ có link | Không | Không |
+
+Trang thuốc chỉ để chuyên gia nội dung (R-03) đối chiếu khi viết bài **chung** về đồ ăn/đồ uống/thực phẩm bổ sung cần lưu ý khi dùng thuốc. Câu hỏi nêu tên thuốc nên được Safety Gate chuyển sang `ROUTINE_CONSULT` (hỏi dược sĩ/bác sĩ).
+
+**Cách tìm URL (không viết cứng).** `docs/medicine_seeds.txt` liệt kê tên thuốc; `discover.py --seeds` khớp với chữ trên link của mục lục A–Z đã crawl. NHS đang đổi giao diện: 14 thuốc là một trang dài, 6 thuốc (metronidazole, clarithromycin, amoxicillin, ramipril, alendronic acid, ferrous sulfate) là hub chỉ có link → chọn trang con theo chữ trên link của chính hub (`--link-text "Common questions" --link-text "How and when to take"`), không đoán slug.
+
+**Cờ mới theo chunk.**
+- `food_interaction` trong `scope_tags` và `interaction_terms` (khóa ổn định: `alcohol`, `grapefruit`, `dairy`, `calcium`, `iron`, `vitamin_k`, `caffeine`, `tyramine`, `potassium`, `liquorice`, `cranberry`, `soya`, `herbal`, `supplements`). Chỉ gắn khi chất nằm cùng đoạn với ngữ cảnh thuốc; với gạch đầu dòng thì cùng dòng hoặc câu dẫn của nó ("Do not take it with:"). Chỉ nhắc chất (vd. "sữa giàu canxi") không tính.
+- Ngữ cảnh thuốc gồm từ chung (medicine, pharmacist, thuốc, dược sĩ…) và **300 tên thuốc đọc từ link của mục lục A–Z đã crawl** (`normalizer/vocabulary.py`), không có tên thuốc nào trong code. Trang có topic `medication` thì mọi đoạn đều là ngữ cảnh thuốc.
+- `corpus` (`rag` / `expert_reference`) trên bài, chunk và `db_rows`. Loader (#50) phải giữ `expert_reference` ngoài truy xuất.
+
+**Kết quả.** RAG: 71 bài, 236 chunk (trung vị 237 từ, tối đa 393), 7 chunk `food_interaction` (rượu với kháng sinh/thuốc giảm đau/kháng histamin, nam việt quất với warfarin, St John's wort). Tham khảo: 27 bài, 110 chunk, 40 chunk `food_interaction`; kết quả khớp nội dung từng trang (bưởi với statin/amlodipine/sertraline, vitamin K và nam việt quất với warfarin, sữa/canxi với ciprofloxacin, cà phê/canxi/sắt với levothyroxine, trà/sữa với viên sắt, kali với ramipril/losartan, cam thảo với prednisolone). 0 chunk vượt trần ở cả hai.
+
+**Sửa kèm.**
+- Các mục `<details>` liền nhau bị lồng vào nhau (trang "Common questions": mỗi câu hỏi thành con của câu trước, chunk tới 523 từ). Nay là các mục ngang hàng.
+- Ngân sách chunk trừ đúng độ dài tiêu đề cấp cao (chunk Vitamin D từng 402 từ).
+- Hai lỗi này cũng đổi `heading_path`, `text` và id của vài chunk RAG cũ.
+
+**Ngân sách crawl: 168/200 request** (+50: 1 mục lục thuốc, 1 mục lục vitamin, 10 vitamin, 21 hub/trang thuốc, 12 trang con, 5 robots). Còn 32.
+
 ## Kho dữ liệu
 
 | Đường dẫn | Vai trò |
@@ -51,10 +79,11 @@ Chính sách nguồn (`tools/crawl/source_policies.json`): NHS và WHO đều `c
 - **90% chunk là tiếng Anh**, người dùng hỏi tiếng Việt → cần dịch (`tools/translate`, đang có lỗi ghi trong [M7_DATA_RAG_PLAN.md](M7_DATA_RAG_PLAN.md#p4-dịch-toolstranslate--lỗi-đã-thấy-khi-đọc-code)) hoặc embedding đa ngữ.
 - **Cờ `medication` và `paediatric` rộng** (125 và 85 chunk) vì NHS nhắc "medicine", "child" ở nhiều nơi. Cố ý nghiêng về an toàn; người duyệt có thể thu hẹp sau.
 - **Tiêu đề trang thuốc NHS dài** ("Ibuprofen for adults (Nurofen) - Other common brands: …") được giữ nguyên văn.
-- Chưa có thông tin tương tác thuốc – thức ăn; xem việc crawl bổ sung trang thuốc NHS.
+- Trang thuốc NHS trong `urls.txt` (paracetamol, ibuprofen, antihistamines) đang ở kho RAG từ trước #85 và có liều dùng. Theo quy tắc "không drug lookup", nhóm cần quyết định có chuyển chúng sang `urls_reference.txt` không.
+- Từ điển chất (`SUBSTANCES` trong `tags.py`) là danh sách cố định; cần chuyên gia duyệt và bổ sung tên tiếng Việt khi có bản dịch.
 
 ## Kiểm thử
 
-- Crawler: 48 test (`python -B -m unittest discover -s tools/crawl -p "test_*.py"`).
-- Normalizer: 22 test (`python -B tools/normalize/test_normalize.py`), hai test chạy trên dữ liệu thật và tự bỏ qua trên bản clone mới.
+- Crawler: 53 test (`python -B -m unittest discover -s tools/crawl -p "test_*.py"`), gồm 5 test `discover.py` trên dữ liệu tổng hợp.
+- Normalizer: 28 test (`python -B tools/normalize/test_normalize.py`), hai test chạy trên dữ liệu thật và tự bỏ qua trên bản clone mới.
 - Translator: 27 test, vẫn đạt với định dạng chunk mới.
