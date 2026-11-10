@@ -86,6 +86,61 @@ def structured_blocks(root, url):
     return blocks
 
 
+HEADINGS = {"h2", "h3", "h4", "h5", "h6"}
+
+
+def link_led(node):
+    """True when the first non-blank child of ``node`` is a link with an href."""
+    for child in node.children:
+        if isinstance(child, Comment):
+            continue
+        if isinstance(child, NavigableString):
+            if child.strip():
+                return False
+            continue
+        return child.name == "a" and bool(child.get("href"))
+    return False
+
+
+def link_only(node):
+    """True when the node's whole text is its single link (a trailing full stop allowed)."""
+    links = node.find_all("a")
+    return len(links) == 1 and bool(links[0].get("href")) and space(node.get_text()).rstrip(".") == space(links[0].get_text()).rstrip(".")
+
+
+def _signpost_item(node):
+    if node.name == "p":
+        return link_led(node)
+    if node.name in {"ul", "ol"}:
+        items = node.find_all("li", recursive=False)
+        return bool(items) and all(link_led(item) for item in items)
+    return False
+
+
+def signpost_children(section, keep=()):
+    """Direct children to drop when ``section`` only points elsewhere, else [].
+
+    A signpost section starts with a heading and every other direct child is a
+    link-led paragraph, a list whose items all start with a link, or a link-free
+    "card description" paragraph that sits between a sub-heading (h3-h6) and such
+    a link. Children matching ``keep`` (e.g. inset callouts) are never dropped and
+    are ignored when classifying the section.
+    """
+    children = [c for c in section.find_all(recursive=False) if not any(c.css.match(k) for k in keep)]
+    if not children or children[0].name not in HEADINGS or all(c.name in HEADINGS for c in children):
+        return []
+    for i, child in enumerate(children):
+        if child.name in HEADINGS or _signpost_item(child):
+            continue
+        before = children[i - 1] if i else None
+        after = children[i + 1] if i + 1 < len(children) else None
+        if (child.name == "p" and not child.find("a") and before is not None and before.name in HEADINGS - {"h2"}
+                and after is not None and _signpost_item(after)):
+            continue
+        return []
+    return children
+
+
 def page_metadata(soup):
     pages, warnings = [], []
 

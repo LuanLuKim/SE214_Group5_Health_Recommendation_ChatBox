@@ -43,7 +43,7 @@ def validate_url(url, sources):
     return urlunsplit(("https", parts.hostname, parts.path or "/", parts.query, ""))
 
 
-def load_urls(path, sources, limit=80):
+def load_urls(path, sources, limit=200):
     urls = []
     for line in Path(path).read_text(encoding="utf-8-sig").splitlines():
         value = line.split("#", 1)[0].strip()

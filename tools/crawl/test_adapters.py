@@ -80,6 +80,45 @@ class AdapterTests(unittest.TestCase):
             with self.subTest(markup=markup), self.assertRaisesRegex(ValueError, "TEMPLATE|ROOT"):
                 self.parse(markup)
 
+    def test_nhs_figure_keeps_caption_but_drops_image_credit(self):
+        markup = """<main><h1>Example</h1><figure class="nhsuk-image"><img src="x.jpg" alt="alt text">
+          <figcaption class="nhsuk-image__caption">Caption describing the picture.</figcaption>
+          <div aria-hidden="true" class="nhsuk-u-visually-hidden">Credit: <p>Photo agency <a href="https://photo.example/1">link</a></p></div>
+          </figure><div class="nhsuk-gallery"><figure><img src="y.jpg"><div>Gallery credit</div></figure></div></main>"""
+        for path in ("/conditions/topic/", "/live-well/topic/"):
+            with self.subTest(path=path):
+                self.assertEqual([b["text"] for b in self.parse(markup, path=path)["blocks"]],
+                                 ["Example", "Caption describing the picture."])
+
+    def test_template_is_chosen_by_page_type_path(self):
+        markup = '<main><h1>Example</h1><p>Body.</p></main>'
+        self.assertEqual(self.parse(markup, path="/live-well/topic/")["template_id"], "nhs-livewell-v1")
+        self.assertEqual(self.parse(markup, path="/conditions/topic/")["template_id"], "nhs-main-v1")
+        source = copy.deepcopy(self.sources["nhs"])
+        source["templates"].append(dict(source["templates"][1], id="other-livewell", paths=["/live-well/topic/"]))
+        with self.assertRaisesRegex(ValueError, "AMBIGUOUS_TEMPLATE"):
+            extract(markup, "https://www.nhs.uk/live-well/topic/page/", source)
+        self.assertEqual(extract(markup, "https://www.nhs.uk/live-well/elsewhere/", source)["template_id"], "nhs-livewell-v1")
+
+    def test_livewell_drops_signposts_but_keeps_callouts_and_advice(self):
+        page = '''<main><h1>Example</h1><nav class="beta-hub-sibling-nav"><h2>More in Topic</h2><a href="/a">A</a></nav>
+          <section><p>Intro text.</p><div class="nhsuk-card nhsuk-card--care"><h3>Non-urgent advice: Speak to a GP if:</h3><p>Advice text.</p></div>
+            <p><a href="/tool/">Use the tool</a></p><p>Keep <a href="/x">inline</a> link.</p></section>
+          <section><div class="nhsuk-inset-text"><h2>Callout</h2><p>Callout text.</p><p><a href="/calc/">Use the calculator</a></p></div></section>
+          <section><h2>Real section</h2><p>Real text.</p><p>Read <a href="/more">more about it</a>.</p><p><a href="/more">Read more about it</a>.</p></section>
+          <section><h2>Real with list</h2><p>Lead text.</p><ul><li><a href="/x">link first</a> then text</li></ul></section>
+          <section><h2>Further</h2><h3><b>Card</b></h3><p>Card description.</p><p><a href="https://other.example/">Visit</a></p>
+            <ul><li><a href="/y">Y</a> has more</li></ul><div class="nhsuk-inset-text"><h2>Kept inset</h2><p>Kept text.</p></div></section>
+          <section><h2>Quiz</h2><p>Try the <a href="https://www.nhs.uk/better-health/healthy-choices-quiz/">quiz</a> today.</p></section>
+          </main>'''
+        texts = [b["text"] for b in self.parse(page, path="/live-well/topic/")["blocks"]]
+        self.assertEqual(texts, ["Example", "Intro text.", "Non-urgent advice: Speak to a GP if:", "Advice text.", "Keep inline link.",
+                                 "Callout", "Callout text.", "Real section", "Real text.", "Read more about it.",
+                                 "Real with list", "Lead text.", "link first then text", "Kept inset", "Kept text."])
+        conditions = [b["text"] for b in self.parse(page, path="/conditions/topic/")["blocks"]]
+        self.assertIn("Card description.", conditions)
+        self.assertIn("Use the tool", conditions)
+
     def test_metadata_dates_and_malformed_json_are_nonfatal(self):
         doc = self.parse('''<script type="application/ld+json">{"@type":"MedicalWebPage","dateModified":"2026-10-01"}</script>
           <script type="application/ld+json">oops</script><main><h1>Example</h1><p>Page last reviewed: 2 October 2025</p><p>Next review due: 2 October 2028</p></main>''')
@@ -101,6 +140,13 @@ class AdapterTests(unittest.TestCase):
             path = Path(directory) / "urls.txt"
             path.write_text('\ufeff# comment\nhttps://www.nhs.uk/a?x=1#part\nhttps://www.nhs.uk/a?x=1\nhttps://www.nhs.uk/a?x=2 # note', encoding="utf-8")
             self.assertEqual(load_urls(path, self.sources), ["https://www.nhs.uk/a?x=1", "https://www.nhs.uk/a?x=2"])
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "urls_group.txt"
+            path.write_text("".join(f"https://www.nhs.uk/p{i}/\n" for i in range(200)), encoding="utf-8")
+            self.assertEqual(len(load_urls(path, self.sources)), 200)
+            path.write_text("".join(f"https://www.nhs.uk/p{i}/\n" for i in range(201)), encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "URL_COUNT_MUST_BE_1_TO_200"):
+                load_urls(path, self.sources)
         for url in ["http://www.nhs.uk/a", "https://www.nhs.uk:444/a", "https://x@www.nhs.uk/a", "https://evil.example/a", "https://www.nhs.uk/a b"]:
             with self.subTest(url=url), self.assertRaises(ValueError):
                 validate_url(url, self.sources)

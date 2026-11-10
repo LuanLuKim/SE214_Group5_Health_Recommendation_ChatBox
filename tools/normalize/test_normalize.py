@@ -17,7 +17,7 @@ COLLECTION = ROOT / ".data" / "collection"
 
 from normalizer.schema import Block, Section, NormalizedArticle, digest, article_uuid
 from normalizer.transform import transform, scope_tags, clean_blocks
-from run import load_url_topics, load_extracted, main
+from run import CORPORA, load_url_topics, load_url_topics_from, load_extracted, main
 
 
 def _doc(blocks, *, title="Flu", url="https://www.nhs.uk/conditions/example/", **extra):
@@ -105,6 +105,61 @@ def test_food_interaction_reads_lead_in_with_its_bullets_and_header():
     # the substance word does not supply its own medicine context, and an allergy is not an interaction
     assert interaction_terms("Cough › Treatment\nTry a herbal medicine called pelargonium.") == []
     assert interaction_terms("Nosebleed › Treatment\nA doctor may prescribe a cream; check it if you have a soya allergy.") == []
+    # calcium as nutrition (prescribed or recommended itself) is lifestyle content, not an interaction
+    assert interaction_terms("Bones › Supplements\nIf you have osteoporosis, your GP may prescribe a calcium supplement.\n"
+                             "Go for one that contains calcium and vitamin D. Your GP or pharmacist can help you choose.") == []
+    assert interaction_terms("Bones › Supplements\nDo not take calcium at the same time as this medicine.") == ["calcium"]
+
+
+def test_interaction_mentions_and_breast_milk_and_drug_class():
+    from normalizer.tags import interaction_review
+    review = interaction_review("Example › About\nExamplodipine is a type of medicine called a calcium-channel blocker.",
+                                medicine_names=frozenset({"examplodipine"}))
+    assert review["terms"] == [] and review["mentions"] == ["calcium"]
+    assert interaction_review("Example › Breastfeeding\nSmall amounts of the medicine pass into breast milk.")["mentions"] == []
+
+
+def test_resolver_precedence_human_llm_resolution_and_safety():
+    from normalizer.tags import interaction_candidates, interaction_review, resolve
+    text = "Example › Food\nTake this medicine with a glass of milk."  # rule: linked → interaction
+    cand = interaction_candidates(text)[0]
+    assert cand["rule"] is True and cand["terms"] == ["dairy"]
+    assert resolve(cand, None)["by"] == "rule"
+    agree = resolve(cand, {"interaction": True, "terms": ["dairy"], "model": "m"})
+    assert agree == {"terms": ["dairy"], "by": "m", "conflict": False, "needs_review": False}
+    # LLM disagrees and nothing settled it: keep as interaction (safety first) and ask a person
+    unresolved = resolve(cand, {"interaction": False, "model": "m"})
+    assert unresolved["terms"] == ["dairy"] and unresolved["conflict"] and unresolved["needs_review"]
+    # an adjudication settles the conflict
+    settled = resolve(cand, {"interaction": False, "model": "m", "resolution": {"interaction": False, "model": "m2"}})
+    assert settled["terms"] == [] and settled["by"] == "m2:resolved" and not settled["needs_review"]
+    # a human decision always wins
+    human = resolve(cand, {"interaction": True, "model": "m", "human": {"interaction": False}})
+    assert human["terms"] == [] and human["by"] == "human"
+    # verdicts flow through interaction_review by candidate id
+    review = interaction_review(text, verdicts={cand["id"]: {"interaction": False, "model": "m",
+                                                             "resolution": {"interaction": False, "model": "m"}}})
+    assert review["terms"] == [] and review["mentions"] == ["dairy"]
+    assert review["evidence"][0]["conflict"] is True
+
+
+def test_chunk_tag_resolver_and_heading_lines():
+    from normalizer.tags import interaction_candidates, resolve_tags
+    rule = ["medication", "foreign_service"]
+    assert resolve_tags(rule, None) == {"tags": rule, "by": "rule", "conflicts": [], "needs_review": [], "flags": []}
+    review = {"tags": ["emergency", "medication"], "flags": ["ui_leftover", "bogus"], "model": "m"}
+    open_ = resolve_tags(rule, review)  # emergency added, foreign_service dropped: both disputed, both kept
+    assert open_["tags"] == ["emergency", "medication", "foreign_service"]
+    assert open_["conflicts"] == open_["needs_review"] == ["emergency", "foreign_service"] and open_["flags"] == ["ui_leftover"]
+    settled = resolve_tags(rule, {**review, "resolution": {"emergency": False, "foreign_service": True, "_reason": "x"}})
+    assert settled["tags"] == ["medication", "foreign_service"] and settled["needs_review"] == []
+    assert resolve_tags(rule, {**review, "human": {"tags": ["paediatric"]}})["tags"] == ["paediatric"]
+    # a merged section's heading line is context, not a claim; a bullet keeps its whole lead-in
+    text = ("Example › Food\nExample › Food and alcohol with this medicine\nYou can eat normally.\n"
+            "Some medicines can stop it working. These include:\n• the herbal supplement St John's wort")
+    cands = interaction_candidates(text)
+    assert [c["sentence"] for c in cands] == [
+        "Some medicines can stop it working. These include: the herbal supplement St John's wort"]
 
 
 def test_chunks_carry_interaction_terms():
@@ -240,6 +295,28 @@ def test_flags_are_per_chunk_not_per_section():
     assert [("emergency" in c["scope_tags"]) for c in chunks].count(True) == 1
 
 
+def test_emergency_card_keeps_its_triggers_with_its_expander():
+    # NHS 999 card: trigger list, a "What we mean by severe pain" <details>, then an
+    # "Information:" note. Packing used to cut after the triggers, so the next chunk
+    # showed the 999 heading over the pain definitions with no triggers.
+    details = "main > details:nth-of-type(1)"
+    card = "Immediate action required: Call 999 or go to A&E if you:"
+    article = transform(_doc([
+        ("h2", "Part"), ("p", _words(90, "intro")),
+        ("h2", card), ("li", "vomit blood or have vomit that looks like coffee"),
+        ("li", "have a sudden severe headache"), ("li", "are confused or not responding"),
+        ("summary", "What we mean by severe pain", {"context_path": details}),
+        ("p", _words(30, "pain"), {"dom_path": details + " > div:nth-of-type(1) > p:nth-of-type(1)"}),
+        ("p", "Information: Do not drive to A&E. Ask someone to drive you."),
+    ]))
+    chunks = article.to_chunks(max_words=150, min_words=30)
+    with_pain = [c for c in chunks if "pain pain" in c["text"]]
+    assert len(with_pain) == 1
+    text = with_pain[0]["text"]
+    assert "have a sudden severe headache" in text and "Do not drive to A&E" in text
+    assert all(c["word_count"] <= 150 for c in chunks)
+
+
 def test_junk_and_duplicates_are_dropped_with_reason():
     from normalizer.chunking import build_chunks
     article = transform(_doc([
@@ -295,6 +372,25 @@ def test_load_url_topics():
     assert len(topics) >= 5
     assert topics.get("https://www.nhs.uk/conditions/asthma/") == "respiratory"
     assert "https://www.nhs.uk/conditions/stroke/" not in topics  # hub page is commented out
+
+
+def test_rag_corpus_reads_several_lists_and_rejects_topic_conflicts():
+    lists, _ = CORPORA["rag"]
+    assert [p.name for p in lists] == ["urls.txt", "urls_lifestyle.txt"]
+    tmp = Path(tempfile.mkdtemp())
+    try:
+        (tmp / "a.txt").write_text("https://www.nhs.uk/a/ skin\nhttps://www.nhs.uk/b/ sleep\n", encoding="utf-8")
+        (tmp / "b.txt").write_text("https://www.nhs.uk/b/ sleep\nhttps://www.nhs.uk/c/\n", encoding="utf-8")
+        assert load_url_topics_from([tmp / "a.txt", tmp / "b.txt"]) == {
+            "https://www.nhs.uk/a/": "skin", "https://www.nhs.uk/b/": "sleep", "https://www.nhs.uk/c/": "general"}
+        (tmp / "b.txt").write_text("https://www.nhs.uk/a/ exercise\n", encoding="utf-8")
+        try:
+            load_url_topics_from([tmp / "a.txt", tmp / "b.txt"])
+            raise AssertionError("topic conflict not detected")
+        except ValueError as exc:
+            assert "URL_TOPIC_CONFLICT" in str(exc)
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
 
 
 def test_runner_reads_current_extraction_and_ids_match():

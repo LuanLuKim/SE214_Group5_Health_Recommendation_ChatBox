@@ -1,7 +1,7 @@
 """Normalize extracted documents into articles, RAG chunks and DB rows.
 
 Usage (from repo root, inside conda env):
-    python -B tools/normalize/run.py                  # URLs enabled in docs/urls.txt
+    python -B tools/normalize/run.py                  # URLs in docs/urls.txt + docs/urls_lifestyle.txt
     python -B tools/normalize/run.py --all-extracted  # every extracted document (e.g. the example)
     python -B tools/normalize/run.py --status         # show current output summary
     python -B tools/normalize/run.py --corpus expert_reference
@@ -34,9 +34,13 @@ ROOT = Path(__file__).resolve().parents[2]
 COLLECTION_DIR = ROOT / ".data" / "collection"
 EXTRACTED_DIR = COLLECTION_DIR / "extracted"
 OUTPUT_DIR = ROOT / ".data" / "normalized"
+# Offline LLM review of food-medicine sentences (review_interactions.py). Read as data only.
+VERDICTS = ROOT / ".data" / "review" / "interaction_verdicts.json"
+CHUNK_VERDICTS = ROOT / ".data" / "review" / "chunk_verdicts.json"  # review_chunks.py
+# corpus -> (URL lists read together, output directory). Each list is its own crawl group.
 CORPORA = {
-    "rag": (ROOT / "docs" / "urls.txt", OUTPUT_DIR),
-    "expert_reference": (ROOT / "docs" / "urls_reference.txt", ROOT / ".data" / "normalized_reference"),
+    "rag": ((ROOT / "docs" / "urls.txt", ROOT / "docs" / "urls_lifestyle.txt"), OUTPUT_DIR),
+    "expert_reference": ((ROOT / "docs" / "urls_reference.txt",), ROOT / ".data" / "normalized_reference"),
 }
 
 
@@ -51,6 +55,16 @@ def load_url_topics(path: Path) -> dict[str, str]:
             continue
         parts = line.split()
         mapping[parts[0]] = parts[1] if len(parts) > 1 else "general"
+    return mapping
+
+
+def load_url_topics_from(paths) -> dict[str, str]:
+    """Merge several URL lists; a URL listed twice must keep the same topic."""
+    mapping: dict[str, str] = {}
+    for path in paths:
+        for url, topic in load_url_topics(Path(path)).items():
+            if mapping.setdefault(url, topic) != topic:
+                raise ValueError(f"URL_TOPIC_CONFLICT: {url}")
     return mapping
 
 
@@ -107,6 +121,22 @@ def _mark_corpus(data: dict, corpus: str) -> None:
             record["rag_eligible"] = False
 
 
+def _interaction_summary(chunks: list[dict], verdicts: dict) -> dict:
+    evidence = [e for c in chunks for e in c.get("interaction_evidence", [])]
+    by = Counter(e["by"].split(":")[0] if e["by"].startswith("conflict") else
+                 ("resolved" if e["by"].endswith(":resolved") else
+                  ("rule" if e["by"] == "rule" else ("human" if e["by"] == "human" else "llm"))) for e in evidence)
+    return {
+        "candidates": len(evidence),
+        "confirmed": sum(e["interaction"] for e in evidence),
+        "decided_by": dict(sorted(by.items())),
+        "verdicts_loaded": len(verdicts),
+        "conflicts": sum(e["conflict"] for e in evidence),
+        "needs_review": [{"chunk_id": c["id"], "candidate_id": e["candidate_id"], "sentence": e["sentence"]}
+                         for c in chunks for e in c.get("interaction_evidence", []) if e["needs_review"]],
+    }
+
+
 def _dump(path: Path, data) -> None:
     path.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8", newline="\n")
 
@@ -121,12 +151,16 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--corpus", choices=sorted(CORPORA), default="rag",
                         help="rag (default) or expert_reference (medicine pages, never RAG)")
-    parser.add_argument("--urls", type=Path, help="URL list with topic mappings (default depends on --corpus)")
+    parser.add_argument("--urls", type=Path, nargs="+",
+                        help="URL list(s) with topic mappings (default depends on --corpus)")
     parser.add_argument("--index-urls", type=Path, default=ROOT / "docs" / "urls_discovery.txt",
                         help="index pages; those with topic 'medication_index' supply medicine names")
     parser.add_argument("--all-extracted", action="store_true", help="ignore urls.txt; newest extraction of every URL")
     parser.add_argument("--collection", type=Path, default=COLLECTION_DIR, help=argparse.SUPPRESS)
     parser.add_argument("--output", type=Path, help=argparse.SUPPRESS)
+    parser.add_argument("--verdicts", type=Path, default=VERDICTS,
+                        help="interaction verdicts from review_interactions.py (default: .data/review/…)")
+    parser.add_argument("--no-verdicts", action="store_true", help="ignore verdicts; rule only")
     parser.add_argument("--status", action="store_true", help="show summary of normalized output")
     parser.add_argument("--chunks-only", action="store_true", help="skip db_rows.json")
     parser.add_argument("--max-chunk-words", type=int, default=DEFAULT_MAX_WORDS)
@@ -145,9 +179,10 @@ def main(argv: list[str] | None = None) -> int:
 
     from normalizer.transform import transform
 
-    url_topics = load_url_topics(args.urls)
+    url_topics = load_url_topics_from(args.urls)
     if not args.all_extracted and not url_topics:
-        print(f"No enabled URLs in {args.urls}; use --all-extracted to read every extraction.", file=sys.stderr)
+        print(f"No enabled URLs in {', '.join(map(str, args.urls))}; use --all-extracted to read every extraction.",
+              file=sys.stderr)
         return 1
     docs, problems = load_extracted(args.collection, None if args.all_extracted else list(url_topics))
     if not docs:
@@ -163,8 +198,14 @@ def main(argv: list[str] | None = None) -> int:
     medicine_names = load_medicine_names(args.index_urls, args.collection)
     if not medicine_names:
         print(f"  WARN no medicine names: no crawled 'medication_index' page in {args.index_urls}", file=sys.stderr)
+    verdicts, chunk_verdicts = {}, {}
+    # Real review files belong to the real output; a test --output only reads an explicit --verdicts.
+    if not args.no_verdicts and args.verdicts.exists() and (args.output is None or args.verdicts != VERDICTS):
+        verdicts = json.loads(args.verdicts.read_text(encoding="utf-8")).get("verdicts", {})
+    if not args.no_verdicts and CHUNK_VERDICTS.exists() and args.output is None:
+        chunk_verdicts = json.loads(CHUNK_VERDICTS.read_text(encoding="utf-8")).get("verdicts", {})
     limits = dict(max_words=args.max_chunk_words, min_words=args.min_chunk_words, as_of=args.as_of,
-                  medicine_names=medicine_names)
+                  medicine_names=medicine_names, interaction_verdicts=verdicts, chunk_verdicts=chunk_verdicts)
     all_articles, all_chunks, errors, hubs = [], [], [], []
     dropped_chunks, dropped_sections = [], []
 
@@ -202,6 +243,7 @@ def main(argv: list[str] | None = None) -> int:
     summary = {
         "normalizer_version": VERSION,
         "corpus": args.corpus,
+        "url_lists": [Path(p).name for p in args.urls],
         "medicine_names_from_index": len(medicine_names),
         "as_of": args.as_of,
         "limits": {"max_chunk_words": args.max_chunk_words, "min_chunk_words": args.min_chunk_words},
@@ -216,6 +258,14 @@ def main(argv: list[str] | None = None) -> int:
         "languages": dict(sorted(Counter(c["language"] for c in all_chunks).items())),
         "scope_tag_counts": dict(sorted(tag_counts.items())),
         "interaction_term_counts": dict(sorted(Counter(t for c in all_chunks for t in c["interaction_terms"]).items())),
+        "interaction_review": _interaction_summary(all_chunks, verdicts),
+        "tag_review": {
+            "chunk_verdicts_loaded": sum(1 for c in all_chunks if c["tag_review"]["by"] != "rule"),
+            "conflicts": dict(sorted(Counter(t for c in all_chunks for t in c["tag_review"]["conflicts"]).items())),
+            "needs_review": [{"chunk_id": c["id"], "tags": c["tag_review"]["needs_review"]}
+                             for c in all_chunks if c["tag_review"]["needs_review"]],
+            "review_flags": dict(sorted(Counter(f for c in all_chunks for f in c["review_flags"]).items())),
+        },
         "review_status": dict(Counter(c["review_status"] for c in all_chunks)),
         "rag_eligible": sum(1 for c in all_chunks if c["rag_eligible"]),
         "dropped_sections": dropped_sections,

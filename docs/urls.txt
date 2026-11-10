@@ -62,8 +62,8 @@ https://www.nhs.uk/conditions/urinary-tract-infections-utis/    urology
 # ==============================================================================
 # LÔ H: CẨM NANG Y TẾ MỞ RỘNG (Thuốc OTC, Kháng sinh, Da liễu, HFMD, Giấc ngủ, Tâm thần)
 # ==============================================================================
-https://www.nhs.uk/medicines/antihistamines/                                    allergy
-https://www.nhs.uk/conditions/antibiotics/                                      medication
+# [chuyển sang urls_reference.txt — trang thuốc có liều dùng, #87] https://www.nhs.uk/medicines/antihistamines/
+# [chuyển sang urls_reference.txt — trang thuốc (chuyển hướng tới /medicines/antibiotics/), #87] https://www.nhs.uk/conditions/antibiotics/
 https://www.who.int/vietnam/vi/health-topics/antimicrobial-resistance           medication
 https://www.nhs.uk/conditions/emollients/                                       skin
 https://www.nhs.uk/conditions/hand-foot-mouth-disease/                          pediatric
@@ -87,8 +87,8 @@ https://www.nhs.uk/conditions/food-poisoning/                                   
 https://www.nhs.uk/symptoms/sore-throat/                                         respiratory
 https://www.nhs.uk/symptoms/cough/                                               respiratory
 https://www.nhs.uk/conditions/chickenpox/                                        pediatric
-https://www.nhs.uk/medicines/paracetamol-for-adults/                             medication
-https://www.nhs.uk/medicines/ibuprofen-for-adults/                               medication
+# [chuyển sang urls_reference.txt — trang thuốc có liều dùng, #87] https://www.nhs.uk/medicines/paracetamol-for-adults/
+# [chuyển sang urls_reference.txt — trang thuốc có liều dùng, #87] https://www.nhs.uk/medicines/ibuprofen-for-adults/
 https://www.nhs.uk/conditions/dehydration/                                       general
 https://www.who.int/vietnam/vi/health-topics/tuberculosis                        infectious
 https://www.who.int/vietnam/vi/health-topics/diabetes                            endocrine
@@ -126,3 +126,26 @@ https://www.nhs.uk/conditions/vitamins-and-minerals/calcium/                nutr
 https://www.nhs.uk/conditions/vitamins-and-minerals/iodine/                 nutrition
 https://www.nhs.uk/conditions/vitamins-and-minerals/iron/                   nutrition
 https://www.nhs.uk/conditions/vitamins-and-minerals/others/                 nutrition
+# ==============================================================================
+# LÔ K (lối sống, NHS Live Well) đã chuyển sang docs/urls_lifestyle.txt (#87) — nhóm crawl riêng.
+# ==============================================================================
+# ==============================================================================
+# LÔ L: DA, TÓC, MÓNG — CHĂM SÓC CƠ THỂ & SẮC ĐẸP (NHS Conditions, #87)
+# Chọn theo chữ trên link của mục lục NHS A–Z (docs/urls_discovery.txt, conditions_index), không đoán slug.
+# A–Z không có link "hair loss" nên chưa thêm trang rụng tóc.
+# ==============================================================================
+https://www.nhs.uk/conditions/acne/                                skin
+https://www.nhs.uk/conditions/rosacea/                             skin
+https://www.nhs.uk/conditions/dandruff/                            skin
+https://www.nhs.uk/conditions/head-lice-and-nits/                  skin
+https://www.nhs.uk/conditions/ingrown-hairs/                       skin
+https://www.nhs.uk/conditions/sunburn/                             skin
+https://www.nhs.uk/conditions/heat-rash-prickly-heat/              skin
+https://www.nhs.uk/conditions/excessive-sweating-hyperhidrosis/    skin
+https://www.nhs.uk/conditions/stretch-marks/                       skin
+https://www.nhs.uk/conditions/cold-sores/                          skin
+https://www.nhs.uk/conditions/warts-and-verrucas/                  skin
+https://www.nhs.uk/conditions/athletes-foot/                       skin
+https://www.nhs.uk/conditions/fungal-nail-infection/               skin
+https://www.nhs.uk/conditions/corns-and-calluses/                  skin
+https://www.nhs.uk/conditions/moles/                               skin

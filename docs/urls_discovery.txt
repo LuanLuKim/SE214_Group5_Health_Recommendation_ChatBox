@@ -10,3 +10,27 @@ https://www.nhs.uk/medicines/amoxicillin/                hub
 https://www.nhs.uk/medicines/ramipril/                   hub
 https://www.nhs.uk/medicines/alendronic-acid/            hub
 https://www.nhs.uk/medicines/ferrous-sulfate/            hub
+
+# Hub NHS Live Well (lối sống: cân nặng, ăn uống, vận động, giấc ngủ). Trang con chọn bằng discover.py --prefix /live-well/.
+https://www.nhs.uk/live-well/                            lifestyle_index
+https://www.nhs.uk/live-well/healthy-weight/             hub
+https://www.nhs.uk/live-well/eat-well/                   hub
+https://www.nhs.uk/live-well/exercise/                   hub
+https://www.nhs.uk/live-well/healthy-weight/managing-your-weight/   hub
+https://www.nhs.uk/live-well/sleep-and-tiredness/        hub
+
+# Hub Live Well cấp 2 (link lấy từ /live-well/ và /live-well/eat-well/ đã crawl, #87). Chỉ để chọn trang con.
+https://www.nhs.uk/live-well/alcohol-advice/             hub
+https://www.nhs.uk/live-well/quit-smoking/               hub
+https://www.nhs.uk/live-well/bone-health/                hub
+https://www.nhs.uk/live-well/healthy-teeth-and-gums/     hub
+https://www.nhs.uk/live-well/pain/                       hub
+https://www.nhs.uk/live-well/seasonal-health/            hub
+https://www.nhs.uk/live-well/eat-well/5-a-day/           hub
+https://www.nhs.uk/live-well/eat-well/digestive-health/  hub
+https://www.nhs.uk/live-well/eat-well/food-types/        hub
+https://www.nhs.uk/live-well/eat-well/food-guidelines-and-food-labels/   hub
+https://www.nhs.uk/live-well/eat-well/how-to-eat-a-balanced-diet/        hub
+
+# Mục lục bệnh NHS A–Z: chọn trang da, tóc theo chữ trên link (discover.py --link-text), không đoán slug.
+https://www.nhs.uk/conditions/                           conditions_index

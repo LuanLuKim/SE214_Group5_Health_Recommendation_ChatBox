@@ -1,10 +1,18 @@
 """Declarative template extraction; source subclasses only add source metadata."""
 from datetime import datetime
 import json
+from urllib.parse import urlsplit
 
 from bs4 import BeautifulSoup
 
-from ..html import digest, page_metadata, space, structured_blocks
+from ..html import digest, link_only, page_metadata, signpost_children, space, structured_blocks
+
+
+def select_by_path(matches, path):
+    """Keep templates for this page type: a template declaring ``paths`` (URL path
+    prefixes) applies only to those paths and wins over templates without ``paths``."""
+    specific = [(t, r) for t, r in matches if any(path.startswith(p) for p in t.get("paths", []))]
+    return specific or [(t, r) for t, r in matches if not t.get("paths")]
 
 
 class TemplateAdapter:
@@ -17,6 +25,7 @@ class TemplateAdapter:
         soup = BeautifulSoup(html, "html.parser")
         matches = [(template, soup.select(template["root"])) for template in source["templates"]]
         matches = [(template, roots) for template, roots in matches if roots]
+        matches = select_by_path(matches, urlsplit(url).path)
         if len(matches) != 1:
             raise ValueError("UNSUPPORTED_TEMPLATE" if not matches else "AMBIGUOUS_TEMPLATE")
         template, roots = matches[0]
@@ -32,6 +41,16 @@ class TemplateAdapter:
         for node in root.select(",".join(["script", "style", "svg", "iframe", "img"] + template.get("remove", []))):
             if node.parent is not None:
                 node.decompose()
+        # Page-type options: sections that only point to other pages, then bare link paragraphs.
+        signposts = template.get("drop_signpost_sections")
+        if signposts is not None:
+            for section in root.select(signposts.get("scope", "section")):
+                for node in signpost_children(section, signposts.get("keep", [])):
+                    node.decompose()
+        if template.get("drop_link_only_paragraphs"):
+            for node in root.select("p"):
+                if node.parent is not None and link_only(node):
+                    node.decompose()
         # Template-declared structure: e.g. accordion triggers that act as headings.
         for selector, tag in template.get("headings", {}).items():
             if tag not in {"h2", "h3", "h4", "h5", "h6"}:

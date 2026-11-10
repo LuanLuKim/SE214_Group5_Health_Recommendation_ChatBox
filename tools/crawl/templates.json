@@ -3,7 +3,12 @@
     "adapter": "nhs",
     "hosts": ["www.nhs.uk"],
     "templates": [
-      {"id": "nhs-main-v1", "root": "main", "title": "h1", "remove": ["nav", "footer", "[class*=nhsuk-gallery]", "figure", "button", ".nhsuk-action-link", ".app-brightcove-video"]}
+      {"id": "nhs-main-v1", "root": "main", "title": "h1", "remove": ["nav", "footer", "[class*=nhsuk-gallery]", "figure > :not(figcaption)", "button", ".nhsuk-action-link", ".app-brightcove-video"]},
+      {"id": "nhs-livewell-v1", "paths": ["/live-well/"], "root": "main", "title": "h1",
+       "remove": ["nav", "footer", "[class*=nhsuk-gallery]", "figure > :not(figcaption)", "button", ".nhsuk-action-link", ".app-brightcove-video",
+                  ".beta-hub-sibling-nav", "section:has(a[href*='/healthy-choices-quiz/'])"],
+       "drop_signpost_sections": {"scope": "section", "keep": [".nhsuk-inset-text"]},
+       "drop_link_only_paragraphs": true}
     ]
   },
   "who": {

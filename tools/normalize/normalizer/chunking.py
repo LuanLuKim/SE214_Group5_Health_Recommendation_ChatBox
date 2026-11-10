@@ -6,6 +6,9 @@ Rules
 * Inside one top-level heading, pack consecutive sections until ``max_words``;
   a chunk below ``min_words`` keeps absorbing the next section.
 * A section longer than ``max_words`` is split on block boundaries.
+* An NHS care card ("Immediate action required: …") travels as one unit with
+  its expanders and trailing note, so its trigger list is never cut away from
+  them (only a card larger than one chunk is split).
 * The first line of every chunk is ``Title › heading › path`` so a chunk
   read alone still says what it is about.
 * Scope tags are computed on the final chunk text.
@@ -17,7 +20,8 @@ from dataclasses import dataclass
 from typing import Any, TYPE_CHECKING
 
 from .schema import Block, chunk_uuid, digest
-from .tags import interaction_terms, scope_tags
+from .tags import interaction_review, resolve_tags, scope_tags
+from .transform import _CALLOUT_HEADING
 
 if TYPE_CHECKING:
     from .schema import NormalizedArticle, Section
@@ -36,6 +40,31 @@ class _Piece:
     @property
     def words(self) -> int:
         return sum(len(b.line.split()) for b in self.blocks) + sum(len(h.split()) for h in self.path[-1:])
+
+
+def _card_key(path: list[str]) -> tuple[str, ...] | None:
+    """Heading path down to the care card this piece sits in, or None."""
+    for i, heading in enumerate(path):
+        if _CALLOUT_HEADING.match(heading):
+            return tuple(path[:i + 1])
+    return None
+
+
+def _units(pieces: list[_Piece], budget: int) -> list[list[_Piece]]:
+    """Consecutive pieces of one care card form a unit; a unit over budget falls apart."""
+    units: list[list[_Piece]] = []
+    last_key = None
+    for piece in pieces:
+        key = _card_key(piece.path)
+        if key is not None and key == last_key:
+            units[-1].append(piece)
+        else:
+            units.append([piece])
+        last_key = key
+    out: list[list[_Piece]] = []
+    for unit in units:
+        out.extend([unit] if sum(p.words for p in unit) <= budget else [[p] for p in unit])
+    return out
 
 
 def _common_prefix(paths: list[list[str]]) -> list[str]:
@@ -81,13 +110,15 @@ def _render(title: str, pieces: list[_Piece]) -> tuple[str, list[str], str]:
 
 def build_chunks(
     article: "NormalizedArticle", *, max_words: int, min_words: int, as_of: str | None = None,
-    medicine_names: frozenset[str] = frozenset(),
+    medicine_names: frozenset[str] = frozenset(), interaction_verdicts: dict | None = None,
+    chunk_verdicts: dict | None = None,
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     """Return ``(chunks, dropped)`` for one article.
 
     ``medicine_names`` comes from crawled index pages (normalizer.vocabulary).
     """
-    context = {"medicine_names": medicine_names, "medicine_page": article.topic in MEDICINE_TOPICS}
+    context = {"medicine_names": medicine_names, "medicine_page": article.topic in MEDICINE_TOPICS,
+               "verdicts": interaction_verdicts}
     if article.content_kind == "hub":
         return [], [{"chunk_key": article.id, "reason": "hub_page"}]
 
@@ -111,11 +142,15 @@ def build_chunks(
         chunks_in_group: list[list[_Piece]] = []
         current: list[_Piece] = []
         words = 0
-        queue = list(group)
+        queue = _units(group, group_budget)
         while queue:
-            piece = queue.pop(0)
-            if current and words + piece.words > group_budget:
-                if words < min_words and len(piece.blocks) > 1:
+            unit = queue.pop(0)
+            unit_words = sum(p.words for p in unit)
+            piece = unit[0]
+            if current and words + unit_words > group_budget:
+                # A care card is never topped up into a small chunk: its list stays whole.
+                if words < min_words and len(unit) == 1 and len(piece.blocks) > 1 \
+                        and _card_key(piece.path) is None:
                     # Top up a small chunk with leading blocks of the next piece.
                     room, take = group_budget - words, 0
                     while take < len(piece.blocks) - 1 and \
@@ -123,14 +158,14 @@ def build_chunks(
                         take += 1
                     if take:
                         current.append(_Piece(piece.section_id, piece.path, piece.blocks[:take]))
-                        queue.insert(0, _Piece(piece.section_id, piece.path, piece.blocks[take:]))
+                        queue.insert(0, [_Piece(piece.section_id, piece.path, piece.blocks[take:])])
                         chunks_in_group.append(current)
                         current, words = [], 0
                         continue
                 chunks_in_group.append(current)
                 current, words = [], 0
-            current.append(piece)
-            words += piece.words
+            current.extend(unit)
+            words += unit_words
         if current:
             chunks_in_group.append(current)
         packed.extend(chunks_in_group)
@@ -165,7 +200,10 @@ def build_chunks(
             dropped.append({"chunk_key": key, "reason": "duplicate", "duplicate_of": seen[body_hash]})
             continue
         seen[body_hash] = key
-        tags = scope_tags(text, **context)
+        rule_tags = scope_tags(text, **context)
+        review = interaction_review(text, **context)
+        decision = resolve_tags(rule_tags, (chunk_verdicts or {}).get(digest(text)))
+        tags = list(decision["tags"])
         if stale:
             tags.append("stale_source")
         word_count = len(text.split())
@@ -192,7 +230,12 @@ def build_chunks(
             "source_last_reviewed": article.source_last_reviewed,
             "source_next_review_due": article.source_next_review_due,
             "scope_tags": tags,
-            "interaction_terms": interaction_terms(text, **context),
+            "rule_tags": rule_tags,
+            "tag_review": {k: decision[k] for k in ("by", "conflicts", "needs_review")},
+            "review_flags": decision["flags"],
+            "interaction_terms": review["terms"],
+            "interaction_mentions": review["mentions"],
+            "interaction_evidence": review["evidence"],
             "stale_source": stale,
             "review_status": article.review_status,
             "rag_eligible": article.rag_eligible,

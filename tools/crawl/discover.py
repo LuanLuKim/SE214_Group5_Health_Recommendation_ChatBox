@@ -2,7 +2,7 @@
 
 Offline: reads the current extraction of every enabled URL, never fetches.
 It only *suggests*; a person reviews the list and copies chosen lines into a
-URL list (docs/urls.txt, docs/urls_reference.txt), so the crawler still only
+URL list (docs/urls.txt, docs/urls_lifestyle.txt, docs/urls_reference.txt…), so the crawler still only
 collects approved URLs.
 
     python -B tools/crawl/discover.py                       # all configured hosts
@@ -35,7 +35,11 @@ from crawler.config import ROOT, load_sources
 # Service finders, accounts, feedback forms and media are never health content.
 SKIP_PATH_PARTS = ("/service-search/", "/nhs-services/", "/our-policies/", "/contact-us", "/login",
                    "/accessibility", "/about-us", "/news/", "/media-centre/", "/campaigns/")
-URL_LISTS = ("urls.txt", "urls_reference.txt", "urls_discovery.txt")
+
+
+def url_lists(docs=ROOT / "docs"):
+    """Every URL list (docs/urls*.txt); each one is a crawl group."""
+    return sorted(Path(docs).glob("urls*.txt"))
 
 
 def canonical(href):
@@ -152,7 +156,7 @@ def main(argv=None):
     parser.add_argument("--urls", type=Path, default=ROOT / "docs" / "urls.txt", help="pages whose links are read")
     parser.add_argument("--known", type=Path, action="append",
                         help="URL list whose entries are not suggested again (repeatable; "
-                             "default: docs/" + ", docs/".join(URL_LISTS) + ")")
+                             "default: every docs/urls*.txt)")
     parser.add_argument("--prefix", help="keep only paths starting with this, e.g. /medicines/")
     parser.add_argument("--seeds", type=Path, help="keep only links matching a name in this file")
     parser.add_argument("--link-text", action="append", metavar="PHRASE",
@@ -163,7 +167,7 @@ def main(argv=None):
     sources = load_sources()
     hosts = {h for s in sources.values() if s["policy"]["mode"] == "collect_text" for h in s["hosts"]}
     urls, _ = enabled_urls(args.urls)
-    lists = args.known or [ROOT / "docs" / name for name in URL_LISTS]
+    lists = args.known or url_lists()
     known = known_urls([args.urls, *lists], args.collection)
     rows = discover(urls, known, hosts, args.collection, args.prefix)
 
