@@ -63,7 +63,7 @@ docs/
 
 ## Thu thập và chuẩn hóa dữ liệu
 
-Xem [cách chạy crawler, chuẩn hóa và thử với JSON mẫu](tools/crawl/README.md). Các tệp đầu ra được lưu cục bộ trong `.data/`.
+Xem [cách chạy crawler, chuẩn hóa và thử với JSON mẫu](tools/crawl/README.md). Các tệp đầu ra được lưu cục bộ trong `.data/` (Git bỏ qua); bản dữ liệu đã crawl và chuẩn hóa nằm trong [thư mục Google Drive của nhóm](https://drive.google.com/drive/folders/1BMsxyx8SK94LIRb4UEDoaK_75j9_UULl?usp=sharing).
 
 ## PostgreSQL với dữ liệu tổng hợp
 
