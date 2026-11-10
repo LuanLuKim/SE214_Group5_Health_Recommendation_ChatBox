@@ -2,8 +2,9 @@ name: CI
 on:
   pull_request:
     branches: [main]
+  # Mọi nhánh được đẩy lên đều chạy check; nhánh fail sẽ hiện dấu đỏ và không merge được vào main.
   push:
-    branches: [main]
+    branches: ['**']
 permissions:
   contents: read
 concurrency:
