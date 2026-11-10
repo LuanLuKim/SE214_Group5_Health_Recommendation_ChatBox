@@ -1,0 +1,44 @@
+# medicine_seeds.txt — tên thuốc/chất phổ biến ở Việt Nam để tìm trang NHS tương ứng.
+#
+# CHỈ phục vụ tài liệu tham khảo cho chuyên gia nội dung (docs/urls_reference.txt,
+# rag_eligible luôn false). Phạm vi dự án loại trừ "drug lookup": chatbot KHÔNG tra cứu
+# theo tên thuốc; mọi câu hỏi nêu tên thuốc được chuyển tới dược sĩ/bác sĩ.
+#
+# Định dạng: <tên tiếng Anh> | <tên khác, cách gọi ở VN> ...
+# Dùng:  python -B tools/crawl/discover.py --urls docs/urls_discovery.txt --seeds docs/medicine_seeds.txt
+#   -> trang hub của từng thuốc, khớp theo chữ trên link của mục lục NHS A–Z đã crawl.
+# Hub chỉ là danh sách link thì đưa vào urls_discovery.txt (topic hub), crawl, rồi chọn trang con
+# theo chữ trên link của chính hub đó:
+#   python -B tools/crawl/discover.py --urls docs/urls_discovery.txt --prefix /medicines/
+#       --link-text "Common questions" --link-text "How and when to take"
+# Kết quả là danh sách ỨNG VIÊN; người duyệt chọn rồi mới chép vào urls_reference.txt.
+
+# Kháng sinh
+metronidazole   | Flagyl
+ciprofloxacin   | Cipro
+doxycycline
+clarithromycin
+amoxicillin     | Amoxicilin
+
+# Tim mạch, mỡ máu, chống đông
+warfarin
+atorvastatin    | Lipitor
+simvastatin
+amlodipine      | Amlor
+ramipril
+losartan
+aspirin
+
+# Nội tiết, chuyển hóa
+levothyroxine   | Levothyrox | Berlthyrox
+metformin       | Glucophage
+alendronic acid | alendronate | Fosamax
+prednisolone tablets and liquid | prednisolone
+
+# Bổ sung khoáng chất
+ferrous sulfate | sắt sulfat
+
+# Tiêu hóa, thần kinh, giảm đau
+omeprazole
+sertraline      | Zoloft
+codeine

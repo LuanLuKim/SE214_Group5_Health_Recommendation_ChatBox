@@ -70,6 +70,71 @@ def test_scope_tags_emergency_anywhere_in_text():
     assert "emergency" in scope_tags("It can be life-threatening and needs an ambulance.")
 
 
+def test_food_interaction_needs_substance_next_to_a_medicine():
+    from normalizer.tags import interaction_terms
+    assert "food_interaction" in scope_tags("Do not drink alcohol while taking this medicine.")
+    # medicine names come from the index vocabulary, not from code
+    names = frozenset({"examplestatin"})
+    assert interaction_terms("Grapefruit juice can raise the level of examplestatin.") == []
+    assert interaction_terms("Grapefruit juice can raise the level of examplestatin.", medicine_names=names) == ["grapefruit"]
+    assert interaction_terms("Không uống rượu bia khi đang dùng thuốc kháng sinh.") == ["alcohol"]
+    assert interaction_terms("Uống thuốc cách xa sữa và cà phê ít nhất 2 giờ.") == ["dairy", "caffeine"]
+    # nutrition facts alone are not interactions
+    assert interaction_terms("Milk and cheese are good sources of calcium.") == []
+    assert interaction_terms("Sữa mẹ có nhiều canxi.") == []
+    # tobacco is not a medicine; breast milk is not dairy
+    assert interaction_terms("Hút thuốc lá và uống rượu làm tăng nguy cơ.") == []
+    assert interaction_terms("Cho trẻ bú sữa mẹ khi uống thuốc.") == []
+
+
+def test_food_interaction_reads_lead_in_with_its_bullets_and_header():
+    from normalizer.tags import interaction_terms
+    text = "Overview › How to take it\nDo not take your medicine at the same time as:\n• milk\n• tea or coffee\nSome other paragraph."
+    assert interaction_terms(text) == ["dairy", "caffeine"]
+    # on a medicine page (its topic says so) every paragraph has a medicine context
+    assert interaction_terms("Example › Common questions\nAvoid grapefruit juice.") == []
+    assert interaction_terms("Example › Common questions\nAvoid grapefruit juice.", medicine_page=True) == ["grapefruit"]
+    # the header line is not scanned: a medicine name in the title alone is not enough
+    assert interaction_terms("Examplestatin › Overview\nGood sources include cheese.",
+                             medicine_names=frozenset({"examplestatin"})) == []
+    # sibling bullets are separate: an allergen list naming milk and medicines is not an interaction
+    assert interaction_terms("Allergies › Causes\nCommon allergens include:\n• foods such as cows' milk\n"
+                             "• medicines such as antibiotics") == []
+    # a heading is not the page subject
+    assert interaction_terms("Food poisoning › A pharmacist can help\nGet help if:\n• vomit looks like ground coffee") == []
+    # the substance word does not supply its own medicine context, and an allergy is not an interaction
+    assert interaction_terms("Cough › Treatment\nTry a herbal medicine called pelargonium.") == []
+    assert interaction_terms("Nosebleed › Treatment\nA doctor may prescribe a cream; check it if you have a soya allergy.") == []
+
+
+def test_chunks_carry_interaction_terms():
+    doc = _doc([("h2", "Common questions"), ("p", "Do not drink alcohol while taking this medicine " + _words(20))],
+               title="Example")
+    chunk = transform(doc).to_chunks()[0]
+    assert chunk["interaction_terms"] == ["alcohol"] and "food_interaction" in chunk["scope_tags"]
+    # a page whose URL-list topic is "medication" gives every paragraph a medicine context
+    doc = _doc([("h2", "Food and drink"), ("p", "Avoid grapefruit juice. " + _words(20))], title="Example")
+    assert transform(doc).to_chunks()[0]["interaction_terms"] == []
+    assert transform(doc, topic="medication").to_chunks()[0]["interaction_terms"] == ["grapefruit"]
+    # names from the index vocabulary reach chunk tagging
+    doc = _doc([("h2", "Food"), ("p", "Grapefruit juice affects examplestatin. " + _words(20))], title="Example")
+    chunk = transform(doc).to_chunks(medicine_names=frozenset({"examplestatin"}))[0]
+    assert chunk["interaction_terms"] == ["grapefruit"]
+
+
+def test_medicine_names_come_from_index_links():
+    from normalizer.vocabulary import medicine_names
+    base = "https://www.example.org/medicines/"
+    links = [("Examplol for adults", "examplol-for-adults/"), ("Examplol for children", "examplol-for-children/"),
+             ("Brandix, see Genericine (Brandix)", "genericine/"), ("Ferric thing", "ferric-thing/"),
+             ("Back to top", "#top"), ("Elsewhere", "https://www.example.org/conditions/x/")]
+    blocks = [{"text": t, "links": [{"text": t, "href": h if h.startswith("http") else base + h}]} for t, h in links]
+    names = medicine_names([{"url": base, "blocks": blocks}])
+    assert {"examplol for adults", "examplol for children", "examplol", "brandix", "genericine", "ferric thing"} <= names
+    # a first word starting only one entry is not a name on its own; links off the index are not medicines
+    assert "ferric" not in names and "back to top" not in names and "elsewhere" not in names
+
+
 def test_scope_tags_clean():
     assert scope_tags("Overview", "This is a general health topic.") == []
 
@@ -126,6 +191,20 @@ def test_summary_heading_ends_with_its_details_block():
     by_text = {b.text: s.heading_path for s in article.sections for b in s.blocks}
     assert by_text["Inside the expander."] == ["Symptoms", "Rash on dark skin"]
     assert by_text["After the expander."] == ["Symptoms"]
+
+
+def test_consecutive_details_blocks_are_siblings():
+    # NHS "Common questions" pages: one <details> per question, nothing between them.
+    first, second = "main > details:nth-of-type(1)", "main > details:nth-of-type(2)"
+    article = transform(_doc([
+        ("summary", "Question one?", {"context_path": first, "dom_path": first + " > summary:nth-of-type(1)"}),
+        ("p", "Answer one.", {"dom_path": first + " > div:nth-of-type(1) > p:nth-of-type(1)"}),
+        ("summary", "Question two?", {"context_path": second, "dom_path": second + " > summary:nth-of-type(1)"}),
+        ("p", "Answer two.", {"dom_path": second + " > div:nth-of-type(1) > p:nth-of-type(1)"}),
+    ]))
+    by_text = {b.text: s.heading_path for s in article.sections for b in s.blocks}
+    assert by_text["Answer one."] == ["Question one?"]
+    assert by_text["Answer two."] == ["Question two?"]
 
 
 def test_warning_card_after_link_list_is_kept_under_section():
@@ -244,6 +323,32 @@ def test_runner_reads_current_extraction_and_ids_match():
         assert [c["id"] for c in article["chunks"]] == [c["id"] for c in chunks]
         rows = json.loads((tmp / "out" / "db_rows.json").read_text(encoding="utf-8"))
         assert rows[0]["id"] == chunks[0]["article_uuid"]
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+
+
+def test_expert_reference_corpus_is_never_rag_eligible():
+    tmp = Path(tempfile.mkdtemp())
+    try:
+        url = "https://www.nhs.uk/medicines/example/"
+        key = sha256(url.encode()).hexdigest()
+        (tmp / "col" / "extracted").mkdir(parents=True)
+        (tmp / "col" / "pages").mkdir()
+        doc = _doc([("h2", "Common questions"), ("p", "Avoid alcohol with this medicine. " + _words(30))], url=url)
+        (tmp / "col" / "extracted" / "x.json").write_text(json.dumps(doc), encoding="utf-8")
+        (tmp / "col" / "pages" / f"{key}.json").write_text(json.dumps({"url": url, "extraction_file": "x.json"}), encoding="utf-8")
+        (tmp / "urls.txt").write_text(f"{url} medication\n", encoding="utf-8")
+        args = ["--corpus", "expert_reference", "--urls", str(tmp / "urls.txt"), "--collection", str(tmp / "col"),
+                "--output", str(tmp / "out"), "--as-of", "2026-11-10"]
+        import contextlib, io
+        with contextlib.redirect_stdout(io.StringIO()):
+            assert main(args) == 0
+        chunks = [json.loads(line) for line in (tmp / "out" / "chunks.jsonl").read_text(encoding="utf-8").splitlines()]
+        assert chunks and all(c["corpus"] == "expert_reference" and c["rag_eligible"] is False for c in chunks)
+        rows = json.loads((tmp / "out" / "db_rows.json").read_text(encoding="utf-8"))
+        assert rows[0]["corpus"] == "expert_reference"
+        summary = json.loads((tmp / "out" / "summary.json").read_text(encoding="utf-8"))
+        assert summary["corpus"] == "expert_reference" and summary["interaction_term_counts"] == {"alcohol": 1}
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
 

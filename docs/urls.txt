@@ -111,3 +111,18 @@ https://www.nhs.uk/conditions/type-2-diabetes/what-is-type-2-diabetes/          
 https://www.nhs.uk/conditions/type-2-diabetes/symptoms/                                 endocrine
 https://www.nhs.uk/conditions/type-2-diabetes/treatment/                                endocrine
 https://www.nhs.uk/conditions/type-2-diabetes/complications/                            endocrine
+
+# ==============================================================================
+# LÔ J: VITAMIN & KHOÁNG CHẤT (dinh dưỡng; lưu ý khi dùng thực phẩm bổ sung)
+# Lời nhắc chung về ăn uống thuộc phạm vi lối sống; KHÔNG tra cứu theo tên thuốc.
+# ==============================================================================
+https://www.nhs.uk/conditions/vitamins-and-minerals/vitamin-a/              nutrition
+https://www.nhs.uk/conditions/vitamins-and-minerals/vitamin-b/              nutrition
+https://www.nhs.uk/conditions/vitamins-and-minerals/vitamin-c/              nutrition
+https://www.nhs.uk/conditions/vitamins-and-minerals/vitamin-d/              nutrition
+https://www.nhs.uk/conditions/vitamins-and-minerals/vitamin-e/              nutrition
+https://www.nhs.uk/conditions/vitamins-and-minerals/vitamin-k/              nutrition
+https://www.nhs.uk/conditions/vitamins-and-minerals/calcium/                nutrition
+https://www.nhs.uk/conditions/vitamins-and-minerals/iodine/                 nutrition
+https://www.nhs.uk/conditions/vitamins-and-minerals/iron/                   nutrition
+https://www.nhs.uk/conditions/vitamins-and-minerals/others/                 nutrition

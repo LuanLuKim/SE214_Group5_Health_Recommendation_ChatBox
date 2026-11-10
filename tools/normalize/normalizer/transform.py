@@ -158,6 +158,13 @@ def transform(extracted: dict[str, Any], *, topic: str = "general") -> Normalize
     current = open_section()
     for raw in blocks_raw:
         tag, text = raw["tag"], raw["text"]
+        # Leaving a <details> block: what follows belongs to the parent heading.
+        # Checked for headings too, so consecutive accordions are siblings, not nested.
+        dom_path = raw.get("dom_path") or ""
+        popped = False
+        while stack and stack[-1][2] and not dom_path.startswith(stack[-1][2] + " > "):
+            stack.pop()
+            popped = True
         if tag in _HEADING_TAGS or tag == "summary":
             if tag == "h1" and text == title:
                 continue
@@ -180,12 +187,6 @@ def transform(extracted: dict[str, Any], *, topic: str = "general") -> Normalize
             current = open_section()
             continue
 
-        # Leaving a <details> block: content after it belongs to the parent heading.
-        dom_path = raw.get("dom_path") or ""
-        popped = False
-        while stack and stack[-1][2] and not dom_path.startswith(stack[-1][2] + " > "):
-            stack.pop()
-            popped = True
         if popped:
             current = open_section()
         current.blocks.append(Block(

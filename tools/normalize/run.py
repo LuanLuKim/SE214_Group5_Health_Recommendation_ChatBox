@@ -4,6 +4,14 @@ Usage (from repo root, inside conda env):
     python -B tools/normalize/run.py                  # URLs enabled in docs/urls.txt
     python -B tools/normalize/run.py --all-extracted  # every extracted document (e.g. the example)
     python -B tools/normalize/run.py --status         # show current output summary
+    python -B tools/normalize/run.py --corpus expert_reference
+        # docs/urls_reference.txt -> .data/normalized_reference; never RAG
+
+Corpora: ``rag`` is the chatbot knowledge base (still DRAFT until reviewed).
+``expert_reference`` holds medicine pages that content experts consult while
+writing general articles; the project excludes drug lookup, so these chunks are
+written with ``rag_eligible = false`` and ``corpus = "expert_reference"``
+regardless of review status, and the loader must keep them out of retrieval.
 
 Reads the *current* extraction of each URL through the crawler's
 ``pages/<sha256(url)>.json`` pointer; older extraction versions stay on disk
@@ -26,6 +34,10 @@ ROOT = Path(__file__).resolve().parents[2]
 COLLECTION_DIR = ROOT / ".data" / "collection"
 EXTRACTED_DIR = COLLECTION_DIR / "extracted"
 OUTPUT_DIR = ROOT / ".data" / "normalized"
+CORPORA = {
+    "rag": (ROOT / "docs" / "urls.txt", OUTPUT_DIR),
+    "expert_reference": (ROOT / "docs" / "urls_reference.txt", ROOT / ".data" / "normalized_reference"),
+}
 
 
 def load_url_topics(path: Path) -> dict[str, str]:
@@ -77,6 +89,24 @@ def load_extracted(collection: Path, urls: list[str] | None) -> tuple[list[dict]
     return docs, problems
 
 
+def load_medicine_names(index_urls: Path, collection: Path) -> frozenset[str]:
+    """Medicine names from the crawled index pages whose topic is 'medication_index'."""
+    from normalizer.vocabulary import medicine_names
+
+    urls = [url for url, topic in load_url_topics(index_urls).items() if topic == "medication_index"]
+    docs, _ = load_extracted(collection, urls) if urls else ([], [])
+    return medicine_names(docs)
+
+
+def _mark_corpus(data: dict, corpus: str) -> None:
+    """Stamp the corpus on the article, its DB row and every chunk."""
+    data["db_row"]["corpus"] = corpus
+    for record in [data, *data["chunks"]]:
+        record["corpus"] = corpus
+        if corpus != "rag":
+            record["rag_eligible"] = False
+
+
 def _dump(path: Path, data) -> None:
     path.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8", newline="\n")
 
@@ -89,10 +119,14 @@ def main(argv: list[str] | None = None) -> int:
     from normalizer.schema import DEFAULT_MAX_WORDS, DEFAULT_MIN_WORDS, VERSION
 
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--urls", type=Path, default=ROOT / "docs" / "urls.txt", help="urls.txt with topic mappings")
+    parser.add_argument("--corpus", choices=sorted(CORPORA), default="rag",
+                        help="rag (default) or expert_reference (medicine pages, never RAG)")
+    parser.add_argument("--urls", type=Path, help="URL list with topic mappings (default depends on --corpus)")
+    parser.add_argument("--index-urls", type=Path, default=ROOT / "docs" / "urls_discovery.txt",
+                        help="index pages; those with topic 'medication_index' supply medicine names")
     parser.add_argument("--all-extracted", action="store_true", help="ignore urls.txt; newest extraction of every URL")
     parser.add_argument("--collection", type=Path, default=COLLECTION_DIR, help=argparse.SUPPRESS)
-    parser.add_argument("--output", type=Path, default=OUTPUT_DIR, help=argparse.SUPPRESS)
+    parser.add_argument("--output", type=Path, help=argparse.SUPPRESS)
     parser.add_argument("--status", action="store_true", help="show summary of normalized output")
     parser.add_argument("--chunks-only", action="store_true", help="skip db_rows.json")
     parser.add_argument("--max-chunk-words", type=int, default=DEFAULT_MAX_WORDS)
@@ -100,7 +134,9 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--as-of", default=date.today().isoformat(),
                         help="date (YYYY-MM-DD) used for the stale_source flag; default today")
     args = parser.parse_args(argv)
-    output: Path = args.output
+    default_urls, default_output = CORPORA[args.corpus]
+    args.urls = args.urls or default_urls
+    output: Path = args.output or default_output
 
     if args.status:
         summary_path = output / "summary.json"
@@ -124,7 +160,11 @@ def main(argv: list[str] | None = None) -> int:
     for stale_file in articles_dir.glob("*.json"):
         stale_file.unlink()
 
-    limits = dict(max_words=args.max_chunk_words, min_words=args.min_chunk_words, as_of=args.as_of)
+    medicine_names = load_medicine_names(args.index_urls, args.collection)
+    if not medicine_names:
+        print(f"  WARN no medicine names: no crawled 'medication_index' page in {args.index_urls}", file=sys.stderr)
+    limits = dict(max_words=args.max_chunk_words, min_words=args.min_chunk_words, as_of=args.as_of,
+                  medicine_names=medicine_names)
     all_articles, all_chunks, errors, hubs = [], [], [], []
     dropped_chunks, dropped_sections = [], []
 
@@ -134,6 +174,7 @@ def main(argv: list[str] | None = None) -> int:
         try:
             article = transform(doc, topic=url_topics.get(url, "general"))
             data = article.to_dict(**limits)
+            _mark_corpus(data, args.corpus)
             data["_source_file"] = source_file
             _dump(articles_dir / f"{article.id}.json", data)
             dropped_sections += [{"url": url, **d} for d in data["dropped_sections"]]
@@ -160,6 +201,8 @@ def main(argv: list[str] | None = None) -> int:
     tag_counts = Counter(t for c in all_chunks for t in c["scope_tags"])
     summary = {
         "normalizer_version": VERSION,
+        "corpus": args.corpus,
+        "medicine_names_from_index": len(medicine_names),
         "as_of": args.as_of,
         "limits": {"max_chunk_words": args.max_chunk_words, "min_chunk_words": args.min_chunk_words},
         "extracted_documents": len(docs),
@@ -172,6 +215,7 @@ def main(argv: list[str] | None = None) -> int:
                         "mean": round(statistics.fmean(words), 1)},
         "languages": dict(sorted(Counter(c["language"] for c in all_chunks).items())),
         "scope_tag_counts": dict(sorted(tag_counts.items())),
+        "interaction_term_counts": dict(sorted(Counter(t for c in all_chunks for t in c["interaction_terms"]).items())),
         "review_status": dict(Counter(c["review_status"] for c in all_chunks)),
         "rag_eligible": sum(1 for c in all_chunks if c["rag_eligible"]),
         "dropped_sections": dropped_sections,

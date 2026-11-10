@@ -17,12 +17,14 @@ from dataclasses import dataclass
 from typing import Any, TYPE_CHECKING
 
 from .schema import Block, chunk_uuid, digest
-from .tags import scope_tags
+from .tags import interaction_terms, scope_tags
 
 if TYPE_CHECKING:
     from .schema import NormalizedArticle, Section
 
 MIN_BODY_WORDS = 8
+# URL-list topics whose pages are about one medicine: every paragraph has a medicine context.
+MEDICINE_TOPICS = frozenset({"medication"})
 
 
 @dataclass
@@ -78,38 +80,44 @@ def _render(title: str, pieces: list[_Piece]) -> tuple[str, list[str], str]:
 
 
 def build_chunks(
-    article: "NormalizedArticle", *, max_words: int, min_words: int, as_of: str | None = None
+    article: "NormalizedArticle", *, max_words: int, min_words: int, as_of: str | None = None,
+    medicine_names: frozenset[str] = frozenset(),
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
-    """Return ``(chunks, dropped)`` for one article."""
+    """Return ``(chunks, dropped)`` for one article.
+
+    ``medicine_names`` comes from crawled index pages (normalizer.vocabulary).
+    """
+    context = {"medicine_names": medicine_names, "medicine_page": article.topic in MEDICINE_TOPICS}
     if article.content_kind == "hub":
         return [], [{"chunk_key": article.id, "reason": "hub_page"}]
 
     header_words = len(article.title.split()) + 4
     budget = max(40, max_words - header_words)
 
-    # 1. pieces, grouped by top-level heading
-    groups: list[list[_Piece]] = []
+    # 1. pieces, grouped by top-level heading. The header line repeats that
+    #    heading in every chunk of the group, so its words come off the budget.
+    groups: list[tuple[int, list[_Piece]]] = []
     last_top: object = object()
     for section in article.sections:
         top = section.heading_path[0] if section.heading_path else None
         if top != last_top:
-            groups.append([])
+            groups.append((max(40, budget - (len(top.split()) + 1 if top else 0)), []))
             last_top = top
-        groups[-1].extend(_split_section(section, budget))
+        groups[-1][1].extend(_split_section(section, groups[-1][0]))
 
     # 2. pack each group
     packed: list[list[_Piece]] = []
-    for group in groups:
+    for group_budget, group in groups:
         chunks_in_group: list[list[_Piece]] = []
         current: list[_Piece] = []
         words = 0
         queue = list(group)
         while queue:
             piece = queue.pop(0)
-            if current and words + piece.words > budget:
+            if current and words + piece.words > group_budget:
                 if words < min_words and len(piece.blocks) > 1:
                     # Top up a small chunk with leading blocks of the next piece.
-                    room, take = budget - words, 0
+                    room, take = group_budget - words, 0
                     while take < len(piece.blocks) - 1 and \
                             sum(len(b.line.split()) for b in piece.blocks[:take + 1]) + 3 <= room:
                         take += 1
@@ -157,7 +165,7 @@ def build_chunks(
             dropped.append({"chunk_key": key, "reason": "duplicate", "duplicate_of": seen[body_hash]})
             continue
         seen[body_hash] = key
-        tags = scope_tags(text)
+        tags = scope_tags(text, **context)
         if stale:
             tags.append("stale_source")
         word_count = len(text.split())
@@ -184,6 +192,7 @@ def build_chunks(
             "source_last_reviewed": article.source_last_reviewed,
             "source_next_review_due": article.source_next_review_due,
             "scope_tags": tags,
+            "interaction_terms": interaction_terms(text, **context),
             "stale_source": stale,
             "review_status": article.review_status,
             "rag_eligible": article.rag_eligible,

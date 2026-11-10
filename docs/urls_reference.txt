@@ -1,0 +1,38 @@
+# urls_reference.txt — Trang thuốc NHS, CHỈ làm tài liệu tham khảo cho chuyên gia nội dung (R-03).
+#
+# KHÔNG vào RAG: phạm vi dự án loại trừ "drug lookup" (docs/requirements/PROJECT_CONTEXT.md, Outside scope).
+# Chuẩn hóa riêng, rag_eligible luôn false:
+#   python -B -X utf8 tools/normalize/run.py --corpus expert_reference
+# Crawl:  python -B tools/crawl/run.py --urls docs/urls_reference.txt
+# Tìm thêm: tools/crawl/discover.py --urls docs/urls_discovery.txt --seeds docs/medicine_seeds.txt
+#
+# Mục đích: chuyên gia đối chiếu khi viết bài CHUNG về đồ ăn/đồ uống/thực phẩm bổ sung
+# cần lưu ý khi đang dùng thuốc (vd. rượu, bưởi, sữa, cà phê, vitamin K).
+
+https://www.nhs.uk/medicines/antibiotics/interactions/      medication
+https://www.nhs.uk/medicines/metronidazole/common-questions-about-metronidazole/                     medication
+https://www.nhs.uk/medicines/metronidazole/how-and-when-to-take-or-use-metronidazole/                medication
+https://www.nhs.uk/medicines/ciprofloxacin/                  medication
+https://www.nhs.uk/medicines/doxycycline/                    medication
+https://www.nhs.uk/medicines/clarithromycin/common-questions-about-clarithromycin/                   medication
+https://www.nhs.uk/medicines/clarithromycin/how-and-when-to-take-clarithromycin/                     medication
+https://www.nhs.uk/medicines/amoxicillin/common-questions-about-amoxicillin/                         medication
+https://www.nhs.uk/medicines/amoxicillin/how-and-when-to-take-amoxicillin/                           medication
+https://www.nhs.uk/medicines/warfarin/                       medication
+https://www.nhs.uk/medicines/atorvastatin/                   medication
+https://www.nhs.uk/medicines/simvastatin/                    medication
+https://www.nhs.uk/medicines/amlodipine/                     medication
+https://www.nhs.uk/medicines/ramipril/common-questions-about-ramipril/                               medication
+https://www.nhs.uk/medicines/ramipril/how-and-when-to-take-ramipril/                                 medication
+https://www.nhs.uk/medicines/losartan/                       medication
+https://www.nhs.uk/medicines/aspirin/                        medication
+https://www.nhs.uk/medicines/levothyroxine/                  medication
+https://www.nhs.uk/medicines/metformin/                      medication
+https://www.nhs.uk/medicines/alendronic-acid/common-questions-about-alendronic-acid/                 medication
+https://www.nhs.uk/medicines/alendronic-acid/how-and-when-to-take-alendronic-acid/                   medication
+https://www.nhs.uk/medicines/prednisolone-tablets-and-liquid/ medication
+https://www.nhs.uk/medicines/ferrous-sulfate/common-questions-about-ferrous-sulfate/                 medication
+https://www.nhs.uk/medicines/ferrous-sulfate/how-and-when-to-take-ferrous-sulfate/                   medication
+https://www.nhs.uk/medicines/omeprazole/                     medication
+https://www.nhs.uk/medicines/sertraline/                     medication
+https://www.nhs.uk/medicines/codeine/                        medication
