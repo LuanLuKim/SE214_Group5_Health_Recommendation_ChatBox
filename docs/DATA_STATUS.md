@@ -65,6 +65,8 @@ Trang thuốc chỉ để chuyên gia nội dung (R-03) đối chiếu khi viế
 
 **Kết quả.** RAG: 136 bài, 414 chunk (26 · 235 · 397 từ), 0 vượt trần; chủ đề mới: `exercise` 36, `weight` 11, `sleep` 11, `alcohol` 7, `bone_health` 7, `smoking` 4, `oral_health` 4, `hygiene` 2 chunk. Tham khảo: 31 bài, 132 chunk, 27 chunk `food_interaction`. Tất cả vẫn `DRAFT`, `rag_eligible=false`.
 
+**Dữ liệu:** `SE214-crawler-data.zip` (bản 10/11) trên [Google Drive của nhóm](https://drive.google.com/drive/folders/1BMsxyx8SK94LIRb4UEDoaK_75j9_UULl?usp=sharing); giải nén vào thư mục gốc repo.
+
 ## Kho dữ liệu
 
 | Đường dẫn | Vai trò |

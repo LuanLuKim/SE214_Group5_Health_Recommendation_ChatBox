@@ -93,7 +93,7 @@ python -B tools/normalize/run.py --all-extracted
 python -B tools/normalize/run.py --status
 ```
 
-Dữ liệu thật nằm trong `.data/` và được Git bỏ qua. Khi nhận được ZIP dữ liệu từ Google Drive của nhóm, giải nén vào thư mục gốc của bản clone mới để giữ đúng cấu trúc `.data/`.
+Dữ liệu thật nằm trong `.data/` và được Git bỏ qua. Tải `SE214-crawler-data.zip` từ [thư mục Google Drive của nhóm](https://drive.google.com/drive/folders/1BMsxyx8SK94LIRb4UEDoaK_75j9_UULl?usp=sharing) và giải nén vào thư mục gốc của bản clone mới để giữ đúng cấu trúc `.data/` (gồm `collection/`, `normalized/`, `normalized_reference/` và kết quả rà soát `review/*_verdicts.json`).
 
 ## Thêm nguồn hoặc mẫu trang
 
