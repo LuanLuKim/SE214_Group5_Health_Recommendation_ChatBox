@@ -138,6 +138,39 @@ export interface SafetyDecision {
 export interface SafetyEvaluator {
   evaluate(input: { text: string }): Promise<SafetyDecision>;
 }
+
+// UC-16 authoring input. A stored draft is inert until M2 approves a version.
+const ruleTermSchema = z.string().trim().min(1).max(120);
+export const ruleDraftInputSchema = z.strictObject({
+  name: z.string().trim().min(1).max(200),
+  conditions: z.strictObject({
+    all: z.array(ruleTermSchema).min(1).max(20),
+    any: z.array(ruleTermSchema).max(20),
+  }),
+  requiredFields: z.array(ruleTermSchema).max(20),
+  careLevel: careLevelSchema,
+  specialtyIds: z.array(ruleTermSchema).max(20),
+  sourceName: z.string().trim().min(1).max(200),
+  sourceUrl: z
+    .url()
+    .max(2000)
+    .refine((value) => {
+      const url = new URL(value);
+      return (
+        (url.protocol === 'https:' || url.protocol === 'http:') &&
+        !url.username &&
+        !url.password
+      );
+    }),
+});
+export type RuleDraftInput = z.infer<typeof ruleDraftInputSchema>;
+export interface SafetyRule extends RuleDraftInput {
+  id: string;
+  reviewStatus: ReviewStatus;
+  isSynthetic: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
 // M2 -> M4: implementations must return only approved, current content.
 export interface KnowledgeRetriever {
   retrieve(query: string): Promise<ArticleSummary[]>;
