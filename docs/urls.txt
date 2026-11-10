@@ -13,7 +13,7 @@ https://www.nhs.uk/conditions/pneumonia/                respiratory
 https://www.nhs.uk/conditions/asthma/                   respiratory
 https://www.nhs.uk/conditions/diarrhoea-and-vomiting/   digestive
 https://www.nhs.uk/conditions/heart-attack/             cardiovascular
-https://www.nhs.uk/conditions/stroke/                   neurology
+# [hub: chỉ có liên kết, xem LÔ J] https://www.nhs.uk/conditions/stroke/                   neurology
 
 # ==============================================================================
 # LÔ B: WHO VIỆT NAM (4 bài tiếng Việt gốc — Q&A và Chủ đề sức khỏe dịch tễ)
@@ -28,7 +28,7 @@ https://www.who.int/vietnam/vi/health-topics/chronic-obstructive-pulmonary-disea
 # ==============================================================================
 https://www.nhs.uk/conditions/common-cold/              respiratory
 https://www.nhs.uk/conditions/flu/                      respiratory
-https://www.nhs.uk/conditions/covid-19/                 respiratory
+# [hub: chỉ có liên kết, xem LÔ J] https://www.nhs.uk/conditions/covid-19/                 respiratory
 https://www.nhs.uk/conditions/fever-in-adults/          general
 
 # ==============================================================================
@@ -54,7 +54,7 @@ https://www.nhs.uk/conditions/stroke/symptoms/          neurology
 # ==============================================================================
 # LÔ G: BỆNH MẠN TÍNH & TIẾT NIỆU (MVP Giáo dục sức khỏe)
 # ==============================================================================
-https://www.nhs.uk/conditions/type-2-diabetes/          endocrine
+# [hub: chỉ có liên kết, xem LÔ J] https://www.nhs.uk/conditions/type-2-diabetes/          endocrine
 https://www.nhs.uk/conditions/high-blood-pressure-hypertension/ cardiovascular
 https://www.nhs.uk/conditions/urinary-tract-infections-utis/    urology
 
@@ -69,7 +69,7 @@ https://www.nhs.uk/conditions/emollients/                                       
 https://www.nhs.uk/conditions/hand-foot-mouth-disease/                          pediatric
 https://www.nhs.uk/conditions/insomnia/                                         sleep
 https://www.nhs.uk/mental-health/conditions/generalised-anxiety-disorder/       mental_health
-https://www.nhs.uk/mental-health/conditions/depression-in-adults/               mental_health
+# [hub: chỉ có liên kết, xem LÔ J] https://www.nhs.uk/mental-health/conditions/depression-in-adults/               mental_health
 https://www.who.int/vietnam/vi/health-topics/mental-health                      mental_health
 
 
@@ -92,3 +92,22 @@ https://www.nhs.uk/medicines/ibuprofen-for-adults/                              
 https://www.nhs.uk/conditions/dehydration/                                       general
 https://www.who.int/vietnam/vi/health-topics/tuberculosis                        infectious
 https://www.who.int/vietnam/vi/health-topics/diabetes                            endocrine
+
+# ==============================================================================
+# LÔ J: TRANG CON CỦA BÀI NHIỀU TRANG (trang hub NHS chỉ chứa liên kết)
+# Các URL hub ở trên đã được comment; nội dung thật nằm ở các trang con dưới đây.
+# ==============================================================================
+https://www.nhs.uk/conditions/stroke/treatment/                                         neurology
+https://www.nhs.uk/conditions/stroke/recovery/                                          neurology
+https://www.nhs.uk/conditions/stroke/causes/                                            neurology
+https://www.nhs.uk/conditions/covid-19/covid-19-symptoms-and-what-to-do/                respiratory
+https://www.nhs.uk/conditions/covid-19/how-to-avoid-catching-and-spreading-covid-19/    respiratory
+https://www.nhs.uk/conditions/covid-19/treatments-for-covid-19/                         respiratory
+https://www.nhs.uk/mental-health/conditions/depression-in-adults/overview/              mental_health
+https://www.nhs.uk/mental-health/conditions/depression-in-adults/symptoms/              mental_health
+https://www.nhs.uk/mental-health/conditions/depression-in-adults/treatment/             mental_health
+https://www.nhs.uk/mental-health/conditions/depression-in-adults/living-with/           mental_health
+https://www.nhs.uk/conditions/type-2-diabetes/what-is-type-2-diabetes/                  endocrine
+https://www.nhs.uk/conditions/type-2-diabetes/symptoms/                                 endocrine
+https://www.nhs.uk/conditions/type-2-diabetes/treatment/                                endocrine
+https://www.nhs.uk/conditions/type-2-diabetes/complications/                            endocrine

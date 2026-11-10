@@ -1,7 +1,8 @@
 """Canonical schema for normalized health articles.
 
 Transforms extracted block-level data from the crawler into section-based
-documents aligned with the ``knowledge.articles`` DB table schema.
+documents aligned with the ``knowledge.articles`` DB table, plus RAG chunks
+for ``knowledge.chunks``.
 
 No imports from apps/, packages/, database/ or any backend/frontend code.
 """
@@ -10,12 +11,28 @@ from __future__ import annotations
 from dataclasses import dataclass, field, asdict
 from hashlib import sha256
 from typing import Any
+from uuid import UUID, uuid5
 
-VERSION = "normalize-v1"
+VERSION = "normalize-v2"
+
+# Fixed namespace so ids are identical on every machine and every run.
+# Never change it: database rows are keyed by these ids.
+NAMESPACE = UUID("6f1c2a8e-3b7d-5e94-a0c1-5e214a7d0b5e")
+
+DEFAULT_MAX_WORDS = 400
+DEFAULT_MIN_WORDS = 120
 
 
 def digest(text: str) -> str:
     return sha256(text.encode("utf-8")).hexdigest()
+
+
+def article_uuid(canonical_url: str) -> str:
+    return str(uuid5(NAMESPACE, "article:" + canonical_url))
+
+
+def chunk_uuid(chunk_key: str) -> str:
+    return str(uuid5(NAMESPACE, "chunk:" + chunk_key))
 
 
 # ── Lowest-level: a single text block from extracted data ──────────────
@@ -27,25 +44,26 @@ class Block:
     list_depth: int = 0
     links: list[dict[str, str]] = field(default_factory=list)
 
+    @property
+    def line(self) -> str:
+        bullet = self.tag in {"li", "tr"} and self.list_depth >= 1
+        return ("• " if bullet else "") + self.text
+
 
 # ── Mid-level: a heading + its body blocks ─────────────────────────────
 @dataclass
 class Section:
-    """One heading-scoped section of a health article."""
+    """One heading-scoped section. ``heading_path`` excludes the article title."""
     id: str
     heading: str
     heading_level: int  # 1–6 from h1–h6; 0 for preamble
     blocks: list[Block] = field(default_factory=list)
+    heading_path: list[str] = field(default_factory=list)
     scope_tags: list[str] = field(default_factory=list)
 
     @property
     def body_text(self) -> str:
-        """Join block texts with newline, preserving list items."""
-        lines: list[str] = []
-        for block in self.blocks:
-            prefix = "• " if block.tag == "li" and block.list_depth >= 1 else ""
-            lines.append(prefix + block.text)
-        return "\n".join(lines)
+        return "\n".join(block.line for block in self.blocks)
 
 
 # ── Top-level: a complete normalized document ──────────────────────────
@@ -57,28 +75,39 @@ class NormalizedArticle:
     topic: str
     language: str
     source_name: str
-    source_url: str
+    source_url: str  # citation URL (final URL after redirects)
     source_updated_at: str | None
     source_last_reviewed: str | None
     source_next_review_due: str | None
     fetched_at: str
     sections: list[Section]
+    canonical_url: str = ""  # URL as configured in urls.txt; identity key
+    source_published_at: str | None = None
+    content_kind: str = "article"  # "article" | "hub" (link list only)
+    dropped_sections: list[dict[str, str]] = field(default_factory=list)
     normalizer_version: str = VERSION
     review_status: str = "DRAFT"
     rag_eligible: bool = False
 
+    def __post_init__(self) -> None:
+        if not self.canonical_url:
+            self.canonical_url = self.source_url
+
+    @property
+    def uuid(self) -> str:
+        return article_uuid(self.canonical_url)
+
     # ── Derived fields ─────────────────────────────────────────────
     @property
     def content_text(self) -> str:
-        """Full article text: heading + body per section, separated by
-        double newlines.  This maps to ``knowledge.articles.content``."""
+        """Full article text (``knowledge.articles.content``)."""
         parts: list[str] = []
         for section in self.sections:
             body = section.body_text
             if not body:
                 continue
-            if section.heading and section.heading_level > 0:
-                parts.append(f"{section.heading}\n{body}")
+            if section.heading_path:
+                parts.append(f"{' › '.join(section.heading_path)}\n{body}")
             else:
                 parts.append(body)
         return "\n\n".join(parts)
@@ -87,82 +116,25 @@ class NormalizedArticle:
     def content_sha256(self) -> str:
         return digest(self.content_text)
 
-    def to_chunks(self, *, max_words: int = 650) -> list[dict[str, Any]]:
-        """Produce RAG-oriented chunks, one per section.
+    def is_stale(self, as_of: str | None) -> bool:
+        due = self.source_next_review_due
+        return bool(as_of and due and due < as_of)
 
-        If a section exceeds ``max_words``, it is cleanly subdivided across
-        block boundaries with a part indicator ``(phần N)``.
-        """
-        chunks: list[dict[str, Any]] = []
-        for section in self.sections:
-            if not section.blocks:
-                continue
-            heading = section.heading or "Overview"
+    def to_chunks(
+        self,
+        *,
+        max_words: int = DEFAULT_MAX_WORDS,
+        min_words: int = DEFAULT_MIN_WORDS,
+        as_of: str | None = None,
+    ) -> list[dict[str, Any]]:
+        from .chunking import build_chunks
 
-            # Subdivide blocks if the section is too large for a single chunk
-            header_words = len(f"{self.title}\n{heading}\n".split())
-            sub_chunks: list[list[Block]] = []
-            current_group: list[Block] = []
-            current_words = header_words
-
-            for block in section.blocks:
-                b_words = len(block.text.split())
-                if current_group and (current_words + b_words > max_words):
-                    sub_chunks.append(current_group)
-                    current_group = [block]
-                    current_words = header_words + b_words
-                else:
-                    current_group.append(block)
-                    current_words += b_words
-
-            if current_group:
-                sub_chunks.append(current_group)
-
-            for idx, blks in enumerate(sub_chunks):
-                sub_sec = Section(
-                    id=section.id,
-                    heading=heading,
-                    heading_level=section.heading_level,
-                    blocks=blks,
-                )
-                body = sub_sec.body_text
-                if not body:
-                    continue
-                sub_heading = (
-                    f"{heading} (phần {idx + 1})"
-                    if len(sub_chunks) > 1
-                    else heading
-                )
-                chunk_text = f"{self.title}\n{sub_heading}\n{body}"
-                word_count = len(chunk_text.split())
-                chunk_id = (
-                    f"{section.id}-p{idx:02d}-{digest(chunk_text)[:12]}"
-                    if len(sub_chunks) > 1
-                    else f"{section.id}-{digest(chunk_text)[:12]}"
-                )
-                chunks.append({
-                    "id": chunk_id,
-                    "article_id": self.id,
-                    "section_id": section.id,
-                    "heading": sub_heading,
-                    "text": chunk_text,
-                    "text_sha256": digest(chunk_text),
-                    "word_count": word_count,
-                    "over_limit": word_count > max_words,
-                    "language": self.language,
-                    "source_url": self.source_url,
-                    "source_name": self.source_name,
-                    "fetched_at": self.fetched_at,
-                    "scope_tags": section.scope_tags,
-                    "review_status": self.review_status,
-                    "rag_eligible": self.rag_eligible,
-                    "normalizer_version": self.normalizer_version,
-                })
-        return chunks
+        return build_chunks(self, max_words=max_words, min_words=min_words, as_of=as_of)[0]
 
     def to_db_row(self) -> dict[str, Any]:
         """Map to ``knowledge.articles`` columns."""
         return {
+            "id": self.uuid,
             "title": self.title,
             "topic": self.topic,
             "content": self.content_text,
@@ -173,11 +145,24 @@ class NormalizedArticle:
             "is_synthetic": False,
         }
 
-    def to_dict(self) -> dict[str, Any]:
-        """Full serializable representation for the JSON output."""
+    def to_dict(
+        self,
+        *,
+        max_words: int = DEFAULT_MAX_WORDS,
+        min_words: int = DEFAULT_MIN_WORDS,
+        as_of: str | None = None,
+    ) -> dict[str, Any]:
+        """Full serializable representation. Chunks use the same thresholds as
+        ``chunks.jsonl`` so chunk ids match between the two outputs."""
+        from .chunking import build_chunks
+
+        chunks, dropped = build_chunks(self, max_words=max_words, min_words=min_words, as_of=as_of)
         data = asdict(self)
+        data["uuid"] = self.uuid
         data["content_text"] = self.content_text
         data["content_sha256"] = self.content_sha256
-        data["chunks"] = self.to_chunks()
+        data["stale_source"] = self.is_stale(as_of)
+        data["chunks"] = chunks
+        data["dropped_chunks"] = dropped
         data["db_row"] = self.to_db_row()
         return data

@@ -40,6 +40,25 @@ class AdapterTests(unittest.TestCase):
         self.assertEqual(doc["title"], "Hỏi đáp")
         self.assertEqual([b["text"] for b in doc["blocks"]], ["Question?", "Answer."])
 
+    def test_who_accordion_trigger_becomes_heading_and_date_is_metadata(self):
+        doc = self.parse('''<html lang="vi"><div class="qa-details__wrapper"><div class="col">
+          <h1 class="qa-details__title">Hỏi đáp</h1><span>2 October 2024 | Questions and answers</span></div>
+          <div class="sf-accordion__panel"><div class="sf-accordion__trigger-panel"><a href="#"><span>Question?</span></a></div>
+          <div><p>Answer.</p></div></div></div></html>''', "who", "/news/questions-and-answers/q-a-detail/example")
+        self.assertEqual([(b["tag"], b["text"]) for b in doc["blocks"]], [("h1", "Hỏi đáp"), ("h2", "Question?"), ("p", "Answer.")])
+        self.assertEqual(doc["source_published_at"], "2024-10-02")
+
+    def test_who_topic_drops_header_label_and_link_sidebar(self):
+        doc = self.parse('''<h1>Topic</h1><article class="health-topic--detail"><div class="sf-header-title"><span>Label</span></div>
+          <h2>Section</h2><p>Body.</p><div class="sf_colsIn"><p class="section-header">Technical links</p><ul><li>Fact sheets</li></ul></div>
+          </article>''', "who", "/health-topics/example")
+        self.assertEqual([b["text"] for b in doc["blocks"]], ["Section", "Body."])
+
+    def test_nhs_action_links_and_video_cards_are_ui(self):
+        doc = self.parse('''<main><h1>Example</h1><p>Go to A&amp;E.</p><a class="nhsuk-action-link" href="/x"><span>Find a place</span></a>
+          <div class="app-brightcove-video"><h3>Video: example</h3><p>Watch this video.</p></div></main>''')
+        self.assertEqual([b["text"] for b in doc["blocks"]], ["Example", "Go to A&E."])
+
     def test_who_topic_and_links(self):
         doc = self.parse('<h1>Topic</h1><article class="health-topic--detail"><h2>Section</h2><p>See <a href="/more">more</a>.</p></article>',
                          "who", "/health-topics/example")
