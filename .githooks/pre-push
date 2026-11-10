@@ -1,0 +1,14 @@
+#!/bin/sh
+# Chỉ cho push lên nhánh issue (<số-issue>-<mô-tả>); main chỉ nhận thay đổi qua PR.
+# GitHub cũng chặn phía server (ruleset), hook này chỉ báo lỗi sớm hơn.
+status=0
+while read -r local_ref local_sha remote_ref remote_sha; do
+  case "$local_sha" in *[!0]*) ;; *) continue ;; esac # xóa nhánh
+  case "$remote_ref" in refs/heads/*) ;; *) continue ;; esac # tag
+  name=${remote_ref#refs/heads/}
+  number=${name%%-*}
+  case "$number" in '' | *[!0-9]*) ;; *) [ "$number" != "$name" ] && continue ;; esac
+  echo "Không push lên '$name'. Chỉ push nhánh issue dạng <số-issue>-<mô-tả>; main nhận thay đổi qua PR." >&2
+  status=1
+done
+exit $status

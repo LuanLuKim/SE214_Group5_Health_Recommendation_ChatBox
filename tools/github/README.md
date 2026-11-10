@@ -10,4 +10,20 @@ node tools/github/sync.mjs            # chạy thử, không đổi gì
 node tools/github/sync.mjs --apply    # thực hiện
 ```
 
+## Quy trình issue → nhánh → PR
+
+- `../../.github/workflows/issue-flow.yml`: gán issue thì tạo nhánh `<số>-<mô-tả>` gắn với issue và comment hướng dẫn; push thì kiểm tra `branch-policy` và tạo PR nháp `Closes #<số>`.
+- `ruleset-branches.json`: chặn tạo/đẩy nhánh không có dạng `<số>-…` (trừ admin).
+- `../../.githooks/` + `install-hooks.mjs`: hook local, bật tự động qua `npm install`.
+
+Áp ruleset (chỉ admin, chạy một lần hoặc sau khi sửa file JSON):
+
+```powershell
+gh api repos/LuanLuKim/SE214_Group5_Health_Recommendation_ChatBox/rulesets --input tools/github/ruleset-branches.json
+# Sau khi issue-flow.yml đã nằm trên main, cập nhật ruleset main để bắt buộc check branch-policy:
+gh api -X PUT repos/LuanLuKim/SE214_Group5_Health_Recommendation_ChatBox/rulesets/25446752 --input tools/github/ruleset-main.json
+```
+
+Workflow cần quyền tạo PR bằng `GITHUB_TOKEN`: Settings → Actions → General → "Allow GitHub Actions to create and approve pull requests".
+
 Điền `people.tai.login` trong `plan.json` (tên GitHub của Tài) trước khi chạy để gán đúng người làm PR #22. Bản sao lưu nằm trong `tools/github/backup/`.

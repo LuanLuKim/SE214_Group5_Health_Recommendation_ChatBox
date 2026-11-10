@@ -1,15 +1,15 @@
 # Bản đồ sáu module
 
-Đây là phân chia do nhóm cung cấp. Chủ module chưa được gán tên trong repository. Mỗi thành viên nhận một hàng và phụ trách cả frontend, backend và thay đổi dữ liệu thuộc module đó.
+Đây là phân chia do nhóm cung cấp. Mỗi thành viên nhận một hàng và phụ trách cả frontend, backend và thay đổi dữ liệu thuộc module đó. Người phụ trách được gán issue trên GitHub và Jira; hàng "Chưa gán" sẽ cập nhật khi nhóm xác nhận.
 
-| Mã  | Thư mục     | Use case                   | Phạm vi sở hữu                                                                      | Người phụ trách |
-| --- | ----------- | -------------------------- | ----------------------------------------------------------------------------------- | --------------- |
-| M1  | `safety`    | UC-07, UC-16               | Bộ đánh giá theo quy tắc, soạn quy tắc cảnh báo                                     | Chưa gán        |
-| M2  | `knowledge` | UC-10, UC-11, UC-15, UC-17 | Tra cứu kiến thức/cơ sở, soạn nội dung, phê duyệt bài/mẫu/quy tắc, rà soát feedback | Chưa gán        |
-| M3  | `health`    | UC-04, UC-05, UC-19        | Hồ sơ, chỉ số theo ngày, biểu đồ và thống kê hệ thống                               | Chưa gán        |
-| M4  | `chat`      | UC-06, UC-08, UC-09        | Điều phối hội thoại, lịch sử, ghi nhận phản hồi                                     | Chưa gán        |
-| M5  | `accounts`  | UC-01, UC-02, UC-03, UC-18 | Tài khoản, consent, phiên, phân quyền, khóa/mở khóa người dùng                      | Chưa gán        |
-| M6  | `lifestyle` | UC-12, UC-13, UC-14        | Chọn lộ trình, hoàn thành hoạt động, streak, nhắc nhở                               | Chưa gán        |
+| Mã  | Thư mục     | Use case                   | Phạm vi sở hữu                                                                      | Người phụ trách              |
+| --- | ----------- | -------------------------- | ----------------------------------------------------------------------------------- | ---------------------------- |
+| M1  | `safety`    | UC-07, UC-16               | Bộ đánh giá theo quy tắc, soạn quy tắc cảnh báo                                     | Bảo Quỳnh (`DontMadWhenBad`) |
+| M2  | `knowledge` | UC-10, UC-11, UC-15, UC-17 | Tra cứu kiến thức/cơ sở, soạn nội dung, phê duyệt bài/mẫu/quy tắc, rà soát feedback | Chưa gán                     |
+| M3  | `health`    | UC-04, UC-05, UC-19        | Hồ sơ, chỉ số theo ngày, biểu đồ và thống kê hệ thống                               | Chưa gán                     |
+| M4  | `chat`      | UC-06, UC-08, UC-09        | Điều phối hội thoại, lịch sử, ghi nhận phản hồi                                     | Chưa gán                     |
+| M5  | `accounts`  | UC-01, UC-02, UC-03, UC-18 | Tài khoản, consent, phiên, phân quyền, khóa/mở khóa người dùng                      | Chưa gán                     |
+| M6  | `lifestyle` | UC-12, UC-13, UC-14        | Chọn lộ trình, hoàn thành hoạt động, streak, nhắc nhở                               | Lữ Kim Luân (`LuanLuKim`)    |
 
 ## Cấu trúc giống nhau ở hai phía
 

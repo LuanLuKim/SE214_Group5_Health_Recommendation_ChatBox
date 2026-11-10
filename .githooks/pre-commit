@@ -1,0 +1,17 @@
+#!/bin/sh
+# Chặn commit ngoài nhánh issue (<số-issue>-<mô-tả>). Bật bằng npm install (script prepare).
+branch=$(git symbolic-ref --quiet --short HEAD) || exit 0 # detached HEAD khi rebase: bỏ qua
+number=${branch%%-*}
+case "$number" in '' | *[!0-9]*) ;; *) [ "$number" != "$branch" ] && exit 0 ;; esac
+
+cat >&2 <<EOF
+Không commit trên nhánh '$branch'.
+Mỗi thay đổi phải nằm trên nhánh của issue, dạng <số-issue>-<mô-tả>, ví dụ 41-m1-uc07-safety-gate.
+
+  gh issue develop --list <số-issue>    # xem nhánh của issue
+  git fetch origin && git switch <tên-nhánh>
+
+Đã lỡ sửa ở nhánh này: git stash && git switch <tên-nhánh> && git stash pop
+Chưa có issue: nhờ trưởng nhóm tạo và gán issue, nhánh sẽ được tạo tự động.
+EOF
+exit 1

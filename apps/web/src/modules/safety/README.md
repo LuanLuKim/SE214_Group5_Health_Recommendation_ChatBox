@@ -1,6 +1,6 @@
 # M1 Safety Gate & quy tắc cảnh báo
 
-Use cases: **UC-07, UC-16**. Owner: unassigned.
+Use cases: **UC-07, UC-16**. Owner: Bảo Quỳnh (`DontMadWhenBad`).
 
 ## Navigation
 

@@ -1,6 +1,6 @@
 # M6 Lộ trình sinh hoạt & nhắc nhở
 
-Use cases: **UC-12, UC-13, UC-14**. Owner: unassigned.
+Use cases: **UC-12, UC-13, UC-14**. Owner: Lữ Kim Luân (`LuanLuKim`).
 
 ## Navigation
 
