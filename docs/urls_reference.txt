@@ -36,3 +36,9 @@ https://www.nhs.uk/medicines/ferrous-sulfate/how-and-when-to-take-ferrous-sulfat
 https://www.nhs.uk/medicines/omeprazole/                     medication
 https://www.nhs.uk/medicines/sertraline/                     medication
 https://www.nhs.uk/medicines/codeine/                        medication
+
+# Chuyển từ urls.txt (#87): trang thuốc không kê đơn có liều dùng — ngoài phạm vi RAG ("medication doses").
+https://www.nhs.uk/medicines/paracetamol-for-adults/        medication
+https://www.nhs.uk/medicines/ibuprofen-for-adults/          medication
+https://www.nhs.uk/medicines/antihistamines/                medication
+https://www.nhs.uk/conditions/antibiotics/                  medication

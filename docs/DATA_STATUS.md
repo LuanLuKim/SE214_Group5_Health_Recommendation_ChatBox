@@ -47,6 +47,24 @@ Trang thuốc chỉ để chuyên gia nội dung (R-03) đối chiếu khi viế
 
 **Ngân sách crawl: 168/200 request** (+50: 1 mục lục thuốc, 1 mục lục vitamin, 10 vitamin, 21 hub/trang thuốc, 12 trang con, 5 robots). Còn 32.
 
+## Bổ sung 10/11 khuya — nội dung lối sống NHS Live Well (issue #87)
+
+**Danh sách mới `docs/urls_lifestyle.txt`** (54 URL): cân nặng, ăn uống cân bằng, vận động, giấc ngủ, rượu, thuốc lá, xương, răng miệng, vệ sinh — phục vụ UC-12/13/14. Trang con chọn theo link của chính hub Live Well (`discover.py`), không đoán slug. Thêm 15 trang da/tóc và 12 hub/mục lục A–Z vào danh sách hiện có.
+
+**Ngân sách theo nhóm.** Mỗi danh sách `docs/urls*.txt` là một nhóm có trần riêng 200 request / 150 MiB (`crawler/budget.py`, `run.py --budget`); giới hạn đĩa 250 MiB, 20 request/lượt và 3 s/request vẫn dùng chung. Lịch sử cũ được chia lại theo nhóm (bản sao `.data/crawl/state.before-groups.json`). Đã dùng: `urls` 141 · `urls_lifestyle` 60 · `urls_reference` 34 · `urls_discovery` 30 (tổng 265).
+
+**Trang thuốc ra khỏi RAG.** `paracetamol-for-adults`, `ibuprofen-for-adults`, `antihistamines` và `conditions/antibiotics` (chuyển hướng tới `/medicines/antibiotics/`) chuyển sang `urls_reference.txt`. Không tốn request (đã có cache).
+
+**Template.** `nhs-livewell-v1` (mục "signpost" chỉ có link bị bỏ); chú thích ảnh `figure > :not(figcaption)` được giữ (triệu chứng, các bước rửa tay), dòng ghi công ảnh bị bỏ.
+
+**Rà soát bằng LLM (offline, không chạy trong pipeline).** `tools/normalize/review_interactions.py` (165 câu nghi tương tác thuốc–thức ăn) và `review_chunks.py` (546 chunk của cả hai corpus) gửi theo lô tới model cục bộ; kết quả lưu ở `.data/review/*.json` và normalizer chỉ đọc như dữ liệu. Thứ tự ưu tiên khi lệch: người duyệt > lượt phân xử > hai bên đồng ý > giữ cờ an toàn và đánh `needs_review`. Kết quả: 546/546 chunk đã duyệt, 0 tranh chấp mở, 0 `needs_review`. Luật `food_interaction` nay xét theo câu (cụm quan hệ), "prescriber/pharmacist" không còn là tên thuốc, "breast milk" không tính là sữa (dairy).
+
+**Sửa lỗi chunk thẻ cấp cứu.** Thẻ NHS "Immediate action required: Call 999 or go to A&E if…" có mục mở rộng "What we mean by severe pain" và ghi chú "Do not drive to A&E". Trước đây bộ gộp cắt sau danh sách dấu hiệu, nên chunk sau lặp tiêu đề 999 nhưng chỉ có định nghĩa mức đau (food poisoning, diarrhoea and vomiting). Nay thẻ cùng mục mở rộng và ghi chú là một khối không tách (`_units` trong `chunking.py`, chỉ tách khi thẻ dài hơn một chunk), có test riêng. Đã kiểm: mọi thẻ cấp cứu/khẩn trong RAG đều có danh sách dấu hiệu ngay sau.
+
+**Quyết định của người duyệt.** 15 chunk RAG bị LLM gắn `out_of_scope` (bài tập có số hiệp/lần lặp, số calo, giảm cân, thuốc trị mụn/chấy) được **giữ** trong RAG vì hữu ích cho người muốn giảm/tăng cân; ghi là mục `human` trong `chunk_verdicts.json`.
+
+**Kết quả.** RAG: 136 bài, 414 chunk (26 · 235 · 397 từ), 0 vượt trần; chủ đề mới: `exercise` 36, `weight` 11, `sleep` 11, `alcohol` 7, `bone_health` 7, `smoking` 4, `oral_health` 4, `hygiene` 2 chunk. Tham khảo: 31 bài, 132 chunk, 27 chunk `food_interaction`. Tất cả vẫn `DRAFT`, `rag_eligible=false`.
+
 ## Kho dữ liệu
 
 | Đường dẫn | Vai trò |
@@ -79,11 +97,14 @@ Chính sách nguồn (`tools/crawl/source_policies.json`): NHS và WHO đều `c
 - **90% chunk là tiếng Anh**, người dùng hỏi tiếng Việt → cần dịch (`tools/translate`, đang có lỗi ghi trong [M7_DATA_RAG_PLAN.md](M7_DATA_RAG_PLAN.md#p4-dịch-toolstranslate--lỗi-đã-thấy-khi-đọc-code)) hoặc embedding đa ngữ.
 - **Cờ `medication` và `paediatric` rộng** (125 và 85 chunk) vì NHS nhắc "medicine", "child" ở nhiều nơi. Cố ý nghiêng về an toàn; người duyệt có thể thu hẹp sau.
 - **Tiêu đề trang thuốc NHS dài** ("Ibuprofen for adults (Nurofen) - Other common brands: …") được giữ nguyên văn.
-- Trang thuốc NHS trong `urls.txt` (paracetamol, ibuprofen, antihistamines) đang ở kho RAG từ trước #85 và có liều dùng. Theo quy tắc "không drug lookup", nhóm cần quyết định có chuyển chúng sang `urls_reference.txt` không.
+- ~~Trang thuốc NHS trong `urls.txt` (paracetamol, ibuprofen, antihistamines) ở kho RAG~~ — đã chuyển sang `urls_reference.txt` ở #87, cùng trang antibiotics.
+- Massage/tinh dầu (aromatherapy) chưa có nguồn: NHS Live Well không có trang này, cần chọn nguồn khác.
+- Mục lục NHS A–Z không có link "hair loss" nên chưa có trang rụng tóc.
+- 88 chunk RAG bị LLM gắn `ui_leftover` (link điều hướng, tên dịch vụ UK còn sót); chưa xử lý, người duyệt UC-17 xem khi duyệt.
 - Từ điển chất (`SUBSTANCES` trong `tags.py`) là danh sách cố định; cần chuyên gia duyệt và bổ sung tên tiếng Việt khi có bản dịch.
 
 ## Kiểm thử
 
-- Crawler: 53 test (`python -B -m unittest discover -s tools/crawl -p "test_*.py"`), gồm 5 test `discover.py` trên dữ liệu tổng hợp.
-- Normalizer: 28 test (`python -B tools/normalize/test_normalize.py`), hai test chạy trên dữ liệu thật và tự bỏ qua trên bản clone mới.
+- Crawler: 59 test (`python -B -m unittest discover -s tools/crawl -p "test_*.py"`, cần `beautifulsoup4`), gồm 5 test `discover.py` trên dữ liệu tổng hợp.
+- Normalizer: 33 test (`python -B tools/normalize/test_normalize.py`), hai test chạy trên dữ liệu thật và tự bỏ qua trên bản clone mới.
 - Translator: 27 test, vẫn đạt với định dạng chunk mới.

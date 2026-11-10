@@ -127,11 +127,14 @@ class NormalizedArticle:
         min_words: int = DEFAULT_MIN_WORDS,
         as_of: str | None = None,
         medicine_names: frozenset[str] = frozenset(),
+        interaction_verdicts: dict | None = None,
+        chunk_verdicts: dict | None = None,
     ) -> list[dict[str, Any]]:
         from .chunking import build_chunks
 
         return build_chunks(self, max_words=max_words, min_words=min_words, as_of=as_of,
-                            medicine_names=medicine_names)[0]
+                            medicine_names=medicine_names, interaction_verdicts=interaction_verdicts,
+                            chunk_verdicts=chunk_verdicts)[0]
 
     def to_db_row(self) -> dict[str, Any]:
         """Map to ``knowledge.articles`` columns."""
@@ -154,13 +157,16 @@ class NormalizedArticle:
         min_words: int = DEFAULT_MIN_WORDS,
         as_of: str | None = None,
         medicine_names: frozenset[str] = frozenset(),
+        interaction_verdicts: dict | None = None,
+        chunk_verdicts: dict | None = None,
     ) -> dict[str, Any]:
         """Full serializable representation. Chunks use the same thresholds as
         ``chunks.jsonl`` so chunk ids match between the two outputs."""
         from .chunking import build_chunks
 
         chunks, dropped = build_chunks(self, max_words=max_words, min_words=min_words, as_of=as_of,
-                                       medicine_names=medicine_names)
+                                       medicine_names=medicine_names, interaction_verdicts=interaction_verdicts,
+                            chunk_verdicts=chunk_verdicts)
         data = asdict(self)
         data["uuid"] = self.uuid
         data["content_text"] = self.content_text
