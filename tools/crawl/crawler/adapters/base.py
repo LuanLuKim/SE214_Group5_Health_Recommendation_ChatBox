@@ -32,6 +32,12 @@ class TemplateAdapter:
         for node in root.select(",".join(["script", "style", "svg", "iframe", "img"] + template.get("remove", []))):
             if node.parent is not None:
                 node.decompose()
+        # Template-declared structure: e.g. accordion triggers that act as headings.
+        for selector, tag in template.get("headings", {}).items():
+            if tag not in {"h2", "h3", "h4", "h5", "h6"}:
+                raise ValueError("INVALID_TEMPLATE_HEADING")
+            for node in root.select(selector):
+                node.name = tag
         blocks = structured_blocks(root, url)
         if not blocks or not any(b["text"] != title for b in blocks):
             raise ValueError("EMPTY_CONTENT")
