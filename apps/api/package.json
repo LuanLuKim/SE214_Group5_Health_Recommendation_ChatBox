@@ -8,7 +8,7 @@
     "build": "tsc -p tsconfig.json",
     "start": "node --env-file-if-exists=.env dist/server.js",
     "typecheck": "tsc -p tsconfig.test.json --noEmit",
-    "test": "node --import tsx --test tests/api.test.ts tests/database.test.ts tests/llm.test.ts tests/safety.test.ts",
+    "test": "node --import tsx --test tests/api.test.ts tests/database.test.ts tests/health.test.ts tests/lifestyle.test.ts tests/llm.test.ts tests/safety.test.ts",
     "db:migrate": "node --env-file-if-exists=.env --import tsx scripts/migrate.ts",
     "db:seed": "node --env-file-if-exists=.env --import tsx scripts/seed.ts"
   },

@@ -1,0 +1,8 @@
+name: se214-crawler
+channels:
+  - conda-forge
+dependencies:
+  - python=3.12.10
+  - pip
+# After activation, install the pinned application dependencies:
+# python -m pip install -r tools/crawl/requirements.txt

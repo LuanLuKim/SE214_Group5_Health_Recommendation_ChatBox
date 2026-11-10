@@ -1,0 +1,91 @@
+"""Synthetic markup only; no clinical statements or copied source articles."""
+import copy
+from pathlib import Path
+import tempfile
+import unittest
+
+from crawler.config import load_sources, load_urls, validate_url
+from crawler.adapters import extract
+
+
+class AdapterTests(unittest.TestCase):
+    def setUp(self):
+        self.sources = load_sources()
+
+    def parse(self, body, source="nhs", path="/conditions/example/"):
+        config = self.sources[source]
+        return extract(body, "https://" + config["hosts"][0] + path, config)
+
+    def test_labels_inline_lists_tables_and_asides_survive(self):
+        doc = self.parse('''<html lang="vi"><nav>outside</nav><main><h1>Ví dụ</h1>
+          <p>A <strong>bold</strong> word.</p><strong>Label:</strong>
+          <ul><li>outer<ul><li>inner</li></ul>tail</li></ul>
+          <table><tr><th>Key</th><td>Value</td></tr></table>
+          <aside><h2>Warning</h2><p>Keep this.</p></aside>
+          <nav>inside navigation</nav></main><footer>outside footer</footer></html>''')
+        self.assertEqual([b["text"] for b in doc["blocks"]],
+                         ["Ví dụ", "A bold word.", "Label:", "outer", "inner", "tail", "Key", "Value", "Warning", "Keep this."])
+        self.assertEqual(doc["language"], "vi")
+        nested = next(b for b in doc["blocks"] if b["text"] == "inner")
+        self.assertEqual(nested["list_depth"], 2)
+        cells = [b for b in doc["blocks"] if b["tag"] in {"td", "th"}]
+        self.assertEqual([b["table"]["column"] for b in cells], [0, 1])
+        self.assertTrue(doc["body_text_coverage"])
+
+    def test_who_qa_keeps_button_question_and_hidden_answer(self):
+        doc = self.parse('''<html lang="vi"><h1>Hỏi đáp</h1><nav>menu</nav>
+          <div class="qa-details__wrapper"><div class="sf-accordion">
+          <button>Question?</button><div hidden><p>Answer.</p></div></div></div></html>''',
+                         "who", "/news/questions-and-answers/q-a-detail/example")
+        self.assertEqual(doc["title"], "Hỏi đáp")
+        self.assertEqual([b["text"] for b in doc["blocks"]], ["Question?", "Answer."])
+
+    def test_who_topic_and_links(self):
+        doc = self.parse('<h1>Topic</h1><article class="health-topic--detail"><h2>Section</h2><p>See <a href="/more">more</a>.</p></article>',
+                         "who", "/health-topics/example")
+        self.assertEqual(doc["blocks"][-1]["links"][0]["href"], "https://www.who.int/more")
+        self.assertIsNone(doc["language"])
+
+    def test_text_inside_malformed_br_is_preserved(self):
+        doc = self.parse('<main><h1>Example</h1><p>Before<br>After</br></p></main>')
+        self.assertEqual(doc['blocks'][-1]['text'], 'Before After')
+
+    def test_wrapped_table_cell_does_not_abort_extraction(self):
+        doc = self.parse('<main><h1>Example</h1><table><tr><div><td>Value</td></div></tr></table></main>')
+        self.assertEqual(doc['blocks'][-1]['text'], 'Value')
+        self.assertEqual(doc['blocks'][-1]['table']['column'], 0)
+
+    def test_unknown_or_ambiguous_template_fails_without_body_fallback(self):
+        for markup in ('<body><h1>Title</h1><p>Body</p></body>',
+                       '<main><h1>One</h1></main><main><h1>Two</h1></main>'):
+            with self.subTest(markup=markup), self.assertRaisesRegex(ValueError, "TEMPLATE|ROOT"):
+                self.parse(markup)
+
+    def test_metadata_dates_and_malformed_json_are_nonfatal(self):
+        doc = self.parse('''<script type="application/ld+json">{"@type":"MedicalWebPage","dateModified":"2026-10-01"}</script>
+          <script type="application/ld+json">oops</script><main><h1>Example</h1><p>Page last reviewed: 2 October 2025</p><p>Next review due: 2 October 2028</p></main>''')
+        self.assertEqual(doc["source_updated_at"], "2026-10-01")
+        self.assertEqual(doc["source_last_reviewed"], "2025-10-02")
+        self.assertEqual(doc["source_next_review_due"], "2028-10-02")
+        self.assertIn("INVALID_JSONLD", doc["warnings"])
+
+    def test_third_source_only_needs_configuration(self):
+        source = copy.deepcopy(self.sources["nhs"])
+        source.update(id="example", adapter="generic", hosts=["example.org"])
+        source["templates"] = [{"id": "article", "root": ".story", "title": "h1", "remove": [".toolbar"]}]
+        doc = extract('<h1>Example</h1><div class="story"><p>Keep me</p><div class="toolbar">UI</div></div>',
+                      "https://example.org/a", source)
+        self.assertEqual([b["text"] for b in doc["blocks"]], ["Keep me"])
+
+    def test_url_input_deduplicates_comments_but_preserves_queries(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "urls.txt"
+            path.write_text('\ufeff# comment\nhttps://www.nhs.uk/a?x=1#part\nhttps://www.nhs.uk/a?x=1\nhttps://www.nhs.uk/a?x=2 # note', encoding="utf-8")
+            self.assertEqual(load_urls(path, self.sources), ["https://www.nhs.uk/a?x=1", "https://www.nhs.uk/a?x=2"])
+        for url in ["http://www.nhs.uk/a", "https://www.nhs.uk:444/a", "https://x@www.nhs.uk/a", "https://evil.example/a", "https://www.nhs.uk/a b"]:
+            with self.subTest(url=url), self.assertRaises(ValueError):
+                validate_url(url, self.sources)
+
+
+if __name__ == "__main__":
+    unittest.main()

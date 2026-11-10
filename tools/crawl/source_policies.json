@@ -1,0 +1,23 @@
+{
+  "www.nhs.uk": {
+    "mode": "collect_text",
+    "usage_scope": "internal_review_only",
+    "public_release_allowed": false,
+    "policy_url": "https://www.nhs.uk/our-policies/terms-and-conditions/",
+    "note": "Pilot nội bộ: chỉ văn bản, không tải media. Contains public sector information licensed under the Open Government Licence v3.0. Bản chuyển thể/dịch và phát hành cần rà soát riêng mục 3 NHS."
+  },
+  "www.who.int": {
+    "mode": "collect_text",
+    "usage_scope": "internal_review_only",
+    "public_release_allowed": false,
+    "policy_url": "https://www.who.int/about/policies/terms-of-use",
+    "note": "Pilot nội bộ đồ án: trích xuất văn bản Q&A và Health Topic tiếng Việt phục vụ đối chiếu chéo và hỗ trợ RAG. Không tải media."
+  },
+  "www.cdc.gov": {
+    "mode": "metadata_only",
+    "usage_scope": "blocked_source",
+    "public_release_allowed": false,
+    "policy_url": "https://www.cdc.gov/other/agencymaterials.html",
+    "note": "Giữ nguyên trạng thái chặn trong checkpoint; chưa mở rộng bộ trích xuất CDC."
+  }
+}
