@@ -1,5 +1,7 @@
 # Bản đồ sáu module
 
+> Ngôn ngữ và framework của từng module (Spring Boot hay Python FastAPI/Django) xem [TECH_STACK.md](TECH_STACK.md). Bảng người phụ trách mới nhất nằm ở đó và trên Jira.
+
 Đây là phân chia do nhóm cung cấp. Mỗi thành viên nhận một hàng và phụ trách cả frontend, backend và thay đổi dữ liệu thuộc module đó. Người phụ trách được gán issue trên GitHub và Jira; hàng "Chưa gán" sẽ cập nhật khi nhóm xác nhận.
 
 | Mã  | Thư mục     | Use case                   | Phạm vi sở hữu                                                                      | Người phụ trách              |
