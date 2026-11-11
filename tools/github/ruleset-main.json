@@ -27,7 +27,10 @@
         "strict_required_status_checks_policy": true,
         "required_status_checks": [
           { "context": "check" },
+          { "context": "backend" },
+          { "context": "services" },
           { "context": "data-tools" },
+          { "context": "infra-smoke" },
           { "context": "branch-policy" }
         ]
       }
