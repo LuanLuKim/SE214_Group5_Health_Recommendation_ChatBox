@@ -22,18 +22,19 @@ apps/web/src/modules/<module>/
   components/      Thêm khi cần
   hooks/           Thêm khi cần
 
-apps/api/src/modules/<module>/
-  README.md        Phạm vi và phụ thuộc
-  router.ts        HTTP parsing, validation, access checks
-  service.ts       Nghiệp vụ
-  repository.ts    Thêm khi module cần persistence
+backend/src/main/java/vn/edu/uit/se214/health/<module>/
+  README.md             Phạm vi, phụ thuộc, cách mở rộng
+  <Module>Controller    HTTP: đọc request, trả ApiResponse, @RequiresSession cho route riêng tư
+  <...>Service          Nghiệp vụ
+  <...>Repository       SQL bằng JdbcClient, chỉ trên schema của module
+  api/                  Kiểu và interface công khai cho module khác
 ```
 
-Không tạo thư mục rỗng cho đủ cây. Thêm file khi có nhiệm vụ cụ thể. `knowledge/service.ts` hiện chứa truy vấn read-only nhỏ để kết nối bản khung; khi phát triển đầy đủ hãy tách SQL sang `repository.ts`.
+Không tạo thư mục rỗng cho đủ cây. Thêm file khi có nhiệm vụ cụ thể. Phần AI (M1 Safety Gate, M4 RAG/LLM) viết trong `services/ai`, phần thống kê (M3) trong `services/stats`; Spring Boot gọi sang qua `integrations/PythonServiceClient`.
 
 ## Hợp đồng tích hợp
 
-Các kiểu chung nằm tại `packages/contracts/src/index.ts`. Metadata module là nguồn chung cho menu frontend và danh sách backend.
+Các kiểu JSON chung cho frontend nằm tại `packages/contracts/src/index.ts`; backend có record Java tương ứng (ví dụ `system/ModuleRegistry`, `knowledge/api/*`). Đổi một bên thì đổi cả bên kia trong cùng PR.
 
 | Bên cung cấp | Bên dùng | Hợp đồng cần giữ                                                                                                                                                                   |
 | ------------ | -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |

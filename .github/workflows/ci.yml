@@ -23,8 +23,42 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
-      # Gồm typecheck, toàn bộ test (API, database, LLM, giao diện) và build.
+      # Frontend và contracts: typecheck, test giao diện, build.
       - run: npm run check
+
+  backend:
+    name: backend
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+      # Spring Boot: biên dịch, test API, test PostgreSQL nhúng (Flyway + seed), đóng gói jar.
+      - run: mvn -B -f backend/pom.xml verify
+
+  services:
+    name: services
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: services/*/requirements.txt
+      - run: python -m pip install -r services/ai/requirements.txt -r services/stats/requirements.txt
+      - name: FastAPI (services/ai)
+        working-directory: services/ai
+        run: python -m pytest
+      - name: Django (services/stats)
+        working-directory: services/stats
+        run: python manage.py test
+
   data-tools:
     name: data-tools
     runs-on: ubuntu-latest
@@ -39,3 +73,68 @@ jobs:
       - run: python -m pip install -r tools/crawl/requirements.txt
       - run: python -B -m unittest discover -s tools/crawl -p "test_*.py"
       - run: python -B tools/normalize/test_normalize.py
+
+  # SCRUM-45: kiểm thử hạ tầng. PostgreSQL thật, migration + seed chạy khi backend khởi động,
+  # ba service trả /healthz, backend đọc được dữ liệu đã seed.
+  infra-smoke:
+    name: infra-smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      db:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: health_dev
+          POSTGRES_PASSWORD: local_dev_only
+          POSTGRES_DB: health_assistant
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U health_dev -d health_assistant"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      DATA_MODE: postgres
+      SEED_SYNTHETIC: 'true'
+      DATABASE_URL: jdbc:postgresql://127.0.0.1:5432/health_assistant
+      DATABASE_USER: health_dev
+      DATABASE_PASSWORD: local_dev_only
+      DATABASE_DIR: ${{ github.workspace }}/database
+      AI_SERVICE_KEY: ci-smoke-key
+      STATS_SERVICE_KEY: ci-smoke-key
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: services/*/requirements.txt
+      - run: mvn -B -q -f backend/pom.xml -DskipTests package
+      - run: python -m pip install -r services/ai/requirements.txt -r services/stats/requirements.txt
+      - name: Khởi động ba service
+        run: |
+          java -jar backend/target/health-assistant-backend-0.1.0.jar > backend.log 2>&1 &
+          (cd services/ai && python -m uvicorn app.main:app --host 127.0.0.1 --port 8001 > ../../ai.log 2>&1 &)
+          (cd services/stats && python manage.py runserver 127.0.0.1:8002 --noreload > ../../stats.log 2>&1 &)
+      - name: Chờ /healthz
+        run: |
+          for url in http://127.0.0.1:4000/healthz http://127.0.0.1:8001/healthz http://127.0.0.1:8002/healthz; do
+            for i in $(seq 1 60); do curl -fs "$url" > /dev/null && break; sleep 2; done
+            curl -fs "$url" | jq -e '.data.status == "ok"'
+          done
+      - name: Backend đọc PostgreSQL đã migrate và seed
+        run: |
+          curl -fs http://127.0.0.1:4000/api/v1/knowledge/articles \
+            | jq -e '.meta.status == "DATABASE_RESULTS" and (.data | length) == 1'
+          curl -s http://127.0.0.1:4000/api/v1/accounts/me | jq -e '.error.code == "AUTH_NOT_CONFIGURED"'
+      - name: Service Python từ chối lời gọi không có khóa
+        run: |
+          test "$(curl -s -o /dev/null -w '%{http_code}' -X POST http://127.0.0.1:8001/v1/safety/evaluate -H 'Content-Type: application/json' -d '{"text":"ci"}')" = 401
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8002/v1/system/statistics)" = 401
+      - name: Log khi lỗi
+        if: failure()
+        run: tail -n 80 backend.log ai.log stats.log || true

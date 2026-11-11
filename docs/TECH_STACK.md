@@ -86,6 +86,7 @@ Trước khi code phần gọi nhau giữa hai module hoặc hai service, hai ng
 
 ## Tình trạng mã nguồn hiện tại
 
-- Khung đang có trong `apps/api`, `apps/web`, `packages/contracts` (Express + TypeScript, dựng ngày 29/10) **chưa phản ánh khuyến nghị này**.
-- Việc dựng khung Spring Boot, FastAPI, Django sẽ được giao qua issue riêng. Trước khi viết mã backend mới, xem issue đó hoặc hỏi Scrum Master.
+- Khung Express + TypeScript cũ (`apps/api`, dựng ngày 29/10) đã được thay bằng `backend/` (Spring Boot modular monolith), `services/ai` (FastAPI), `services/stats` (Django) trong issue #92 (Jira SCRUM-142). Logic đã có được port sang kèm test: BMI (UC-04), tiến độ và chuỗi ngày (UC-13), nháp quy tắc (UC-16), tìm kiếm M2.
+- Migration SQL giữ nguyên nội dung, đổi tên theo Flyway (`V001__…`) và chạy tự động khi backend khởi động với `DATA_MODE=postgres`.
+- CI chạy `check` (frontend), `backend` (Maven), `services` (pytest, Django), `data-tools`, `infra-smoke`; CD build image Docker lên GitHub Container Registry khi merge vào `main`.
 - Quy trình làm việc không đổi: issue → nhánh `<số-issue>-<mô-tả>` → PR, xem [CONTRIBUTING.md](../CONTRIBUTING.md).

@@ -1,0 +1,15 @@
+**/node_modules
+**/target
+**/dist
+**/.env
+**/.env.*
+**/__pycache__
+**/.pytest_cache
+**/.venv
+.git
+.data
+scratch
+docs
+tools
+apps
+packages

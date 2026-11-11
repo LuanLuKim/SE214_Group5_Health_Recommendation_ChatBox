@@ -1,0 +1,58 @@
+# Cấu hình mặc định: DATA_MODE=mock, không cần PostgreSQL.
+# Giá trị lấy từ biến môi trường hoặc file backend/.env (KEY=VALUE, Git bỏ qua).
+spring:
+  application:
+    name: health-assistant-backend
+  config:
+    import: optional:file:./.env[.properties]
+  profiles:
+    active: ${DATA_MODE:mock}
+  # Chế độ mock không có cơ sở dữ liệu: tắt tự cấu hình DataSource và Flyway.
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration
+      - org.springframework.boot.autoconfigure.flyway.FlywayAutoConfiguration
+  jackson:
+    deserialization:
+      fail-on-unknown-properties: true
+  mvc:
+    problemdetails:
+      enabled: false
+  web:
+    resources:
+      add-mappings: false
+  main:
+    banner-mode: off
+
+server:
+  address: ${HOST:127.0.0.1}
+  port: ${PORT:4000}
+  error:
+    whitelabel:
+      enabled: false
+  servlet:
+    encoding:
+      charset: UTF-8
+      force: true
+
+app:
+  data-mode: ${DATA_MODE:mock}
+  web-origin: ${WEB_ORIGIN:http://localhost:5173}
+  max-body-bytes: 32768
+  rate-limit-per-minute: 120
+  # Chạy dữ liệu tổng hợp trong database/seeds sau migration (chỉ máy phát triển).
+  seed-synthetic: ${SEED_SYNTHETIC:false}
+  database-dir: ${DATABASE_DIR:../database}
+  # Dịch vụ Python. Chỉ Spring Boot gọi tới, kèm khóa dịch vụ.
+  ai-service:
+    base-url: ${AI_SERVICE_URL:http://127.0.0.1:8001}
+    key: ${AI_SERVICE_KEY:}
+    timeout-ms: ${AI_SERVICE_TIMEOUT_MS:20000}
+  stats-service:
+    base-url: ${STATS_SERVICE_URL:http://127.0.0.1:8002}
+    key: ${STATS_SERVICE_KEY:}
+    timeout-ms: ${STATS_SERVICE_TIMEOUT_MS:10000}
+
+logging:
+  level:
+    root: INFO
