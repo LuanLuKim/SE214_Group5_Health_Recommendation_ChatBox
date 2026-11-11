@@ -58,21 +58,21 @@ flowchart LR
 
 ## Ngôn ngữ theo module (khuyến nghị)
 
-| Module                     | Người phụ trách          | Ưu tiên Java – Spring Boot                                                                                                           | Khuyến nghị Python                                             |
-| -------------------------- | ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------- |
-| M1 Safety Gate             | Tăng Nguyễn Bảo Quỳnh    | Soạn, gửi duyệt quy tắc (UC-16); kiểm duyệt đầu vào (UC-17a): duyệt quy tắc, duyệt tài liệu trong tiền xử lý trước khi đưa vào agent | FastAPI: bộ đánh giá Safety Gate (UC-07)                       |
-| M2 Tra cứu và nội dung     | Nguyễn Xuân Trường Giang | UC-10, 11, 15; kiểm duyệt đầu ra (UC-17b): duyệt bài viết, mẫu để công khai, kiểm tra kết quả của agent qua phản hồi                 | —                                                              |
-| M3 Hồ sơ, chỉ số, thống kê | Vũ Quang Dũng            | Hồ sơ, ghi chỉ số theo ngày (UC-04, UC-05)                                                                                           | Django: xu hướng chỉ số, thống kê hệ thống (UC-19)             |
-| M4 Hội thoại với trợ lý AI | Đặng Việt Thành          | Lịch sử hội thoại, đánh giá câu trả lời (UC-08, UC-09)                                                                               | FastAPI: điều phối chat, RAG, gọi LLM, kiểm tra đầu ra (UC-06) |
-| M5 Tài khoản, phân quyền   | Võ Ngọc Tài              | Toàn bộ (UC-01, 02, 03, 18), xác thực dùng chung                                                                                     | —                                                              |
-| M6 Lộ trình, nhắc nhở      | Lữ Kim Luân              | Toàn bộ (UC-12, 13, 14), bộ lập lịch gửi nhắc                                                                                        | —                                                              |
-| M7 Tiền xử lý dữ liệu      | Lữ Kim Luân              | —                                                                                                                                    | Script Python ngoài ứng dụng (không gắn FR/UC)                 |
+| Module                     | Người phụ trách          | Ưu tiên Java – Spring Boot                                                                                                                     | Khuyến nghị Python                                             |
+| -------------------------- | ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------- |
+| M1 Safety Gate             | Tăng Nguyễn Bảo Quỳnh    | Soạn, gửi duyệt quy tắc (UC-16); phần M1 của UC-17, kiểm duyệt đầu vào: duyệt quy tắc, duyệt tài liệu trong tiền xử lý trước khi đưa vào agent | FastAPI: bộ đánh giá Safety Gate (UC-07)                       |
+| M2 Tra cứu và nội dung     | Nguyễn Xuân Trường Giang | UC-10, 11, 15, 17; hàng đợi duyệt dùng chung; kiểm duyệt đầu ra: duyệt bài viết, mẫu để công khai, kiểm định kết quả của agent                 | —                                                              |
+| M3 Hồ sơ, chỉ số, thống kê | Vũ Quang Dũng            | Hồ sơ, ghi chỉ số theo ngày (UC-04, UC-05)                                                                                                     | Django: xu hướng chỉ số, thống kê hệ thống (UC-19)             |
+| M4 Hội thoại với trợ lý AI | Đặng Việt Thành          | Lịch sử hội thoại, đánh giá câu trả lời (UC-08, UC-09)                                                                                         | FastAPI: điều phối chat, RAG, gọi LLM, kiểm tra đầu ra (UC-06) |
+| M5 Tài khoản, phân quyền   | Võ Ngọc Tài              | Toàn bộ (UC-01, 02, 03, 18), xác thực dùng chung                                                                                               | —                                                              |
+| M6 Lộ trình, nhắc nhở      | Lữ Kim Luân              | Toàn bộ (UC-12, 13, 14), bộ lập lịch gửi nhắc                                                                                                  | —                                                              |
+| M7 Tiền xử lý dữ liệu      | Lữ Kim Luân              | —                                                                                                                                              | Script Python ngoài ứng dụng (không gắn FR/UC)                 |
 
-**UC-17 (rà soát và phê duyệt) chia theo giai đoạn thành UC-17a (M1) và UC-17b (M2):**
+**UC-17 (rà soát và phê duyệt) vẫn là một use case thuộc M2; chỉ phần việc được chia cho hai người theo giai đoạn:**
 
-- **UC-17a – M1, kiểm duyệt đầu vào (trước agent, trong tiền xử lý; Jira SCRUM-138, issue #91):** phê duyệt quy tắc cảnh báo; rà soát và duyệt tài liệu, chunk do M7 tiền xử lý trước khi được đưa vào kho RAG cho agent (từ `DRAFT` sang được dùng cho RAG).
-- **UC-17b – M2, kiểm duyệt đầu ra (sau tiền xử lý, sau agent; Jira SCRUM-29, issue #58):** duyệt bài viết và mẫu kế hoạch đã chuẩn hóa để công khai cho tra cứu; kiểm tra kết quả của agent qua phản hồi chưa hữu ích và mẫu câu trả lời, ghi chú cần sửa bài viết; lỗi do quy tắc thì chuyển lại M1.
-- Hai bước dùng chung một bản ghi duyệt và hàng đợi; mỗi người xử lý phần của mình. Bộ kiểm tra đầu ra tự động (không chẩn đoán, không tên thuốc) vẫn thuộc dịch vụ AI của M4.
+- **Phần M1 – kiểm duyệt đầu vào (trước agent, trong tiền xử lý; Jira SCRUM-138, issue #91):** phê duyệt quy tắc cảnh báo; rà soát và duyệt tài liệu, chunk do M7 tiền xử lý trước khi được đưa vào kho RAG cho agent (từ `DRAFT` sang được dùng cho RAG).
+- **Phần M2 – kiểm duyệt đầu ra (sau tiền xử lý, sau agent; Jira SCRUM-29, issue #58):** duyệt bài viết và mẫu kế hoạch đã chuẩn hóa để công khai cho tra cứu; kiểm định kết quả của agent qua bộ câu hỏi mẫu, mẫu câu trả lời và phản hồi chưa hữu ích; lỗi do nội dung thì sửa bài viết, do quy tắc thì chuyển lại M1, do cách trả lời thì chuyển M4.
+- **Code dùng chung:** một hàng đợi, một bản ghi quyết định (`knowledge.review_events`), một API `/api/v1/knowledge/reviews` và một màn hình Quản trị nội dung do M2 sở hữu; M1 cắm phần xử lý cho quy tắc và chunk M7 qua interface `ReviewSubjectHandler`, không làm hệ thống duyệt riêng; mỗi người xử lý phần của mình. Bộ kiểm tra đầu ra tự động (không chẩn đoán, không tên thuốc) vẫn thuộc dịch vụ AI của M4.
 
 ## Gợi ý giao tiếp giữa Spring Boot và service Python
 
