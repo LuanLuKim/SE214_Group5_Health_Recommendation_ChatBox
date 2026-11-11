@@ -1,5 +1,7 @@
 # SE214 Group 5 AI Health Assistant
 
+> **Công nghệ khuyến nghị:** backend ưu tiên **Java Spring Boot theo kiến trúc modular monolith**; các chức năng đặc thù về AI nên dùng **Python FastAPI**, về thống kê nên dùng **Python Django**. Đây là kiến trúc sơ bộ, chưa triển khai và kiểm thử hoàn tất toàn bộ module. Khung Express + TypeScript bên dưới là bản dựng ban đầu, chưa phản ánh khuyến nghị này. Xem [docs/TECH_STACK.md](docs/TECH_STACK.md) để biết module của bạn dùng gì.
+
 Nền tảng ban đầu để sáu thành viên phát triển song song frontend và backend theo SRS. Giao diện tiếng Việt, React + TypeScript, Express + TypeScript, PostgreSQL và hợp đồng API dùng chung.
 
 **Đây là bản khung phát triển.** Có điều hướng sáu module, API metadata, tìm kiếm dữ liệu tổng hợp, schema/migration/seed, adapter LLM và kiểm thử. Đăng nhập, dữ liệu cá nhân, Safety Gate y tế, RAG, phê duyệt và nhắc nhở chưa được triển khai. API riêng tư chủ động từ chối truy cập; không có tài khoản đăng nhập giả hoặc phân quyền bằng header.
