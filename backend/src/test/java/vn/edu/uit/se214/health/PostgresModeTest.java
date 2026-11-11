@@ -54,5 +54,9 @@ class PostgresModeTest {
     // LIKE wildcards in user input are matched literally.
     mvc.perform(get("/api/v1/knowledge/facilities").param("q", "%"))
         .andExpect(jsonPath("$.data.length()").value(0));
+    // PostgreSQL rejects NUL in text; the query must be refused before it reaches the database.
+    mvc.perform(get("/api/v1/knowledge/articles").param("q", "a\u0000b"))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.error.code").value("INVALID_QUERY"));
   }
 }

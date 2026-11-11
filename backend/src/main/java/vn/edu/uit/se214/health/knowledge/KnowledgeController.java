@@ -50,13 +50,17 @@ public class KnowledgeController {
     return ApiResponse.of(data, new ApiResponse.Meta(search.dataStatus(), data.size()));
   }
 
-  /** Optional single "q", trimmed, at most 200 characters. Repeated "q" is rejected. */
+  /**
+   * Optional single "q", trimmed, at most 200 characters. Repeated "q" and control characters
+   * are rejected (PostgreSQL refuses NUL in text, which would surface as a server error).
+   */
   private static String query(HttpServletRequest request) {
     String[] values = request.getParameterValues("q");
     if (values == null) return "";
-    if (values.length != 1 || values[0].trim().length() > 200)
+    String value = values.length == 1 ? values[0].trim() : null;
+    if (value == null || value.length() > 200 || value.chars().anyMatch(Character::isISOControl))
       throw ApiException.invalid("INVALID_QUERY", "Từ khóa phải là văn bản tối đa 200 ký tự.");
-    return values[0].trim();
+    return value;
   }
 
   @RequiresSession
