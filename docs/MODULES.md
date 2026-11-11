@@ -4,14 +4,14 @@
 
 Đây là phân chia do nhóm cung cấp. Mỗi thành viên nhận một hàng và phụ trách cả frontend, backend và thay đổi dữ liệu thuộc module đó. Người phụ trách được gán issue trên GitHub và Jira; hàng "Chưa gán" sẽ cập nhật khi nhóm xác nhận.
 
-| Mã  | Thư mục     | Use case                   | Phạm vi sở hữu                                                                      | Người phụ trách              |
-| --- | ----------- | -------------------------- | ----------------------------------------------------------------------------------- | ---------------------------- |
-| M1  | `safety`    | UC-07, UC-16               | Bộ đánh giá theo quy tắc, soạn quy tắc cảnh báo                                     | Bảo Quỳnh (`DontMadWhenBad`) |
-| M2  | `knowledge` | UC-10, UC-11, UC-15, UC-17 | Tra cứu kiến thức/cơ sở, soạn nội dung, phê duyệt bài/mẫu/quy tắc, rà soát feedback | Chưa gán                     |
-| M3  | `health`    | UC-04, UC-05, UC-19        | Hồ sơ, chỉ số theo ngày, biểu đồ và thống kê hệ thống                               | Chưa gán                     |
-| M4  | `chat`      | UC-06, UC-08, UC-09        | Điều phối hội thoại, lịch sử, ghi nhận phản hồi                                     | Chưa gán                     |
-| M5  | `accounts`  | UC-01, UC-02, UC-03, UC-18 | Tài khoản, consent, phiên, phân quyền, khóa/mở khóa người dùng                      | Chưa gán                     |
-| M6  | `lifestyle` | UC-12, UC-13, UC-14        | Chọn lộ trình, hoàn thành hoạt động, streak, nhắc nhở                               | Lữ Kim Luân (`LuanLuKim`)    |
+| Mã  | Thư mục     | Use case                                                  | Phạm vi sở hữu                                                              | Người phụ trách              |
+| --- | ----------- | --------------------------------------------------------- | --------------------------------------------------------------------------- | ---------------------------- |
+| M1  | `safety`    | UC-07, UC-16, UC-17 (phần quy tắc)                        | Bộ đánh giá theo quy tắc, soạn quy tắc cảnh báo, phê duyệt quy tắc          | Bảo Quỳnh (`DontMadWhenBad`) |
+| M2  | `knowledge` | UC-10, UC-11, UC-15, UC-17 (phần bài viết, mẫu, phản hồi) | Tra cứu kiến thức/cơ sở, soạn nội dung, phê duyệt bài/mẫu, rà soát feedback | Chưa gán                     |
+| M3  | `health`    | UC-04, UC-05, UC-19                                       | Hồ sơ, chỉ số theo ngày, biểu đồ và thống kê hệ thống                       | Chưa gán                     |
+| M4  | `chat`      | UC-06, UC-08, UC-09                                       | Điều phối hội thoại, lịch sử, ghi nhận phản hồi                             | Chưa gán                     |
+| M5  | `accounts`  | UC-01, UC-02, UC-03, UC-18                                | Tài khoản, consent, phiên, phân quyền, khóa/mở khóa người dùng              | Chưa gán                     |
+| M6  | `lifestyle` | UC-12, UC-13, UC-14                                       | Chọn lộ trình, hoàn thành hoạt động, streak, nhắc nhở                       | Lữ Kim Luân (`LuanLuKim`)    |
 
 ## Cấu trúc giống nhau ở hai phía
 
@@ -35,17 +35,17 @@ Không tạo thư mục rỗng cho đủ cây. Thêm file khi có nhiệm vụ c
 
 Các kiểu chung nằm tại `packages/contracts/src/index.ts`. Metadata module là nguồn chung cho menu frontend và danh sách backend.
 
-| Bên cung cấp | Bên dùng | Hợp đồng cần giữ                                                                                              |
-| ------------ | -------- | ------------------------------------------------------------------------------------------------------------- |
-| M5           | Tất cả   | Phiên đã xác thực, quyền và quyền sở hữu; consent trước chức năng sức khỏe. Không tin vai trò do client gửi.  |
-| M1           | M4       | `SafetyEvaluator` trả `SafetyDecision`; không có quy tắc thì `UNAVAILABLE` + `careLevel: null`.               |
-| M2           | M4       | `KnowledgeRetriever` chỉ trả nguồn đã duyệt, còn hiệu lực.                                                    |
-| M4           | M2       | `AnonymousFeedback` chỉ có cặp người dùng chủ động chia sẻ; không có user ID hoặc toàn bộ lịch sử.            |
-| M2           | M1, M6   | Quyết định duyệt quy tắc/mẫu. Soạn quy tắc ở M1, soạn mẫu ở luồng quản lý nội dung M2; chọn mẫu cá nhân ở M6. |
-| M3           | M6       | Hồ sơ/dị ứng của chính người dùng; truy cập qua service với kiểm tra quyền.                                   |
-| M4, M5       | M3       | Sự kiện tổng hợp cho UC-19, không truyền nội dung hội thoại/hồ sơ vào thống kê.                               |
+| Bên cung cấp | Bên dùng | Hợp đồng cần giữ                                                                                               |
+| ------------ | -------- | -------------------------------------------------------------------------------------------------------------- |
+| M5           | Tất cả   | Phiên đã xác thực, quyền và quyền sở hữu; consent trước chức năng sức khỏe. Không tin vai trò do client gửi.   |
+| M1           | M4       | `SafetyEvaluator` trả `SafetyDecision`; không có quy tắc thì `UNAVAILABLE` + `careLevel: null`.                |
+| M2           | M4       | `KnowledgeRetriever` chỉ trả nguồn đã duyệt, còn hiệu lực.                                                     |
+| M4           | M2       | `AnonymousFeedback` chỉ có cặp người dùng chủ động chia sẻ; không có user ID hoặc toàn bộ lịch sử.             |
+| M1, M2       | M1, M6   | Quyết định duyệt (UC-17): M1 duyệt quy tắc cảnh báo, M2 duyệt bài viết và mẫu kế hoạch; chọn mẫu cá nhân ở M6. |
+| M3           | M6       | Hồ sơ/dị ứng của chính người dùng; truy cập qua service với kiểm tra quyền.                                    |
+| M4, M5       | M3       | Sự kiện tổng hợp cho UC-19, không truyền nội dung hội thoại/hồ sơ vào thống kê.                                |
 
-UC-18 quản lý tài khoản thuộc M5. UC-19 thống kê hệ thống thuộc M3. UC-08 ghi nhận phản hồi thuộc M4; phần chuyên gia xem/xử lý nằm trong UC-17 của M2.
+UC-18 quản lý tài khoản thuộc M5. UC-19 thống kê hệ thống thuộc M3. UC-08 ghi nhận phản hồi thuộc M4; phần chuyên gia xem/xử lý nằm trong UC-17 của M2. UC-17 dùng chung cho hai module ở hai mức: M1 phê duyệt quy tắc cảnh báo (để Safety Gate chỉ dùng quy tắc đã duyệt), M2 phê duyệt bài viết, mẫu kế hoạch và xử lý phản hồi AI.
 
 ## Thứ tự tích hợp
 
