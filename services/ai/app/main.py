@@ -31,7 +31,9 @@ def _error(request: Request, status: int, code: str, message: str) -> JSONRespon
 
 class EvaluateRequest(BaseModel):
     model_config = {"extra": "forbid"}
-    text: str = Field(min_length=1, max_length=4000)
+    text: str | None = Field(default=None, min_length=1, max_length=4000)
+    facts: list[str] = Field(default_factory=list, max_length=100)
+    rules: list[safety.WarningRule] = Field(default_factory=list, max_length=100)
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
@@ -82,7 +84,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     @app.post("/v1/safety/evaluate", dependencies=[Depends(require_service_key)])
     def evaluate(body: EvaluateRequest):
-        return {"data": safety.evaluate(body.text).model_dump()}
+        return {"data": safety.evaluate_facts(set(body.facts), body.rules).model_dump()}
 
     @app.post("/v1/chat/answer", dependencies=[Depends(require_service_key)])
     def answer():

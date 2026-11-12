@@ -14,6 +14,7 @@ import org.springframework.jdbc.core.simple.JdbcClient;
 import vn.edu.uit.se214.health.safety.api.CareLevel;
 import vn.edu.uit.se214.health.shared.domain.Instants;
 import vn.edu.uit.se214.health.shared.domain.ReviewStatus;
+import vn.edu.uit.se214.health.shared.domain.SourceReference;
 
 /** Parameterized SQL for safety.rules. Only this module reads or writes its schema. */
 public class RuleRepository {
@@ -56,6 +57,43 @@ public class RuleRepository {
     return jdbc.sql("SELECT " + FIELDS + " FROM safety.rules ORDER BY created_at DESC, id")
         .query(this::map)
         .list();
+  }
+
+  /** The evaluator never sees draft, inactive, unverified or synthetic rules. */
+  public List<ApprovedSafetyRule> listEvaluable() {
+    return jdbc.sql(
+            """
+            SELECT id, conditions, required_fields, care_level, specialty_ids,
+                   source_name, source_url, source_verified_at
+              FROM safety.rules
+             WHERE review_status = 'APPROVED' AND is_active = true
+               AND is_synthetic = false AND source_verified_at IS NOT NULL
+               AND btrim(source_name) <> ''
+             ORDER BY id
+            """)
+        .query(
+            (rs, row) -> {
+              String id = rs.getString("id");
+              String url = rs.getString("source_url");
+              if (!RuleDraftInput.isHttpUrlWithoutCredentials(url)) return null;
+              return new ApprovedSafetyRule(
+                  id,
+                  fromJson(rs.getString("conditions")),
+                  strings(rs.getArray("required_fields")),
+                  CareLevel.valueOf(rs.getString("care_level")),
+                  strings(rs.getArray("specialty_ids")),
+                  new SourceReference(
+                      id,
+                      rs.getString("source_name"),
+                      url,
+                      Instants.iso(rs.getObject("source_verified_at", OffsetDateTime.class))),
+                  "APPROVED",
+                  true);
+            })
+        .list()
+        .stream()
+        .filter(java.util.Objects::nonNull)
+        .toList();
   }
 
   public Optional<SafetyRule> get(UUID id) {
