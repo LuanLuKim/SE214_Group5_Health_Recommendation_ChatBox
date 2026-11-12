@@ -13,6 +13,9 @@ COPY --from=build /src/backend/target/health-assistant-backend-0.1.0.jar app.jar
 # Flyway đọc migration và seed từ đây.
 COPY database database
 ENV HOST=0.0.0.0 PORT=4000 DATABASE_DIR=/app/database
+# Heap theo giới hạn bộ nhớ của container (mặc định JVM chỉ dùng 25%); hết bộ nhớ thì thoát để được khởi động lại.
+ENV JAVA_TOOL_OPTIONS="-XX:MaxRAMPercentage=75 -XX:+ExitOnOutOfMemoryError"
 USER app
-EXPOSE 4000
+EXPOSE ${PORT}
+HEALTHCHECK --interval=10s --timeout=5s --start-period=60s --retries=6 CMD curl -fsS "http://127.0.0.1:${PORT}/healthz" > /dev/null || exit 1
 ENTRYPOINT ["java", "-jar", "/app/app.jar"]
