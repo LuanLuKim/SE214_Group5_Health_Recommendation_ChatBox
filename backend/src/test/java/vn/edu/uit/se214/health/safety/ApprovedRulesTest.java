@@ -47,7 +47,7 @@ class ApprovedRulesTest {
   @Test
   void fixtureCoversAllFiveCareLevelsAndAllReviewStates() {
     List<SafetyRule> all = repository.list();
-    assertThat(all).hasSize(11);
+    assertThat(all).hasSize(15);
     assertThat(all).extracting(SafetyRule::careLevel).contains(CareLevel.values());
     assertThat(all).extracting(SafetyRule::reviewStatus).contains(ReviewStatus.values());
   }
@@ -59,6 +59,20 @@ class ApprovedRulesTest {
     assertThat(loaded).extracting(ApprovedSafetyRule::careLevel).containsExactlyInAnyOrder(CareLevel.values());
     assertThat(loaded.get(1).conditions().any()).hasSize(2);
     assertThat(loaded.get(4).requiredFields()).containsExactly("__SYNTHETIC_ONLY__onset");
+  }
+
+  @Test
+  void malformedApprovedRulesAreSkippedSoTheyCannotDisableTheWholeGate() {
+    // 311-314 are approved, active and verified, but services/ai would reject them.
+    assertThat(evaluableIds())
+        .doesNotContain(PREFIX + "311", PREFIX + "312", PREFIX + "313", PREFIX + "314")
+        .containsExactlyElementsOf(EVALUABLE);
+    assertThat(repository.listEvaluable())
+        .allSatisfy(
+            rule -> {
+              assertThat(rule.conditions().all()).isNotEmpty().hasSizeLessThanOrEqualTo(20);
+              assertThat(rule.conditions().any()).isNotNull().hasSizeLessThanOrEqualTo(20);
+            });
   }
 
   @Test

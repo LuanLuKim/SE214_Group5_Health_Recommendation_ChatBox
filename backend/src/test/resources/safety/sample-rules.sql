@@ -53,5 +53,22 @@ VALUES
  ('00000000-0000-4000-8000-000000000310','[TEST] Đã duyệt nhưng là dữ liệu giả lập',
   '{"all":["__SYNTHETIC_ONLY__synthetic"],"any":[]}',
   '{}','GENERAL_SELF_CARE_INFO','{}','[TEST] Nguồn kiểm thử','https://example.invalid/rules/310',
-  'APPROVED',true,'2026-11-01T00:00:00Z',true,'2026-11-01T00:00:10Z')
+  'APPROVED',true,'2026-11-01T00:00:00Z',true,'2026-11-01T00:00:10Z'),
+ -- Approved and active but malformed: services/ai would reject the whole request with them.
+ ('00000000-0000-4000-8000-000000000311','[TEST] Không có điều kiện all',
+  '{"all":[],"any":["__SYNTHETIC_ONLY__any_only"]}',
+  '{}','GENERAL_SELF_CARE_INFO','{}','[TEST] Nguồn kiểm thử','https://example.invalid/rules/311',
+  'APPROVED',true,'2026-11-01T00:00:00Z',false,'2026-11-01T00:00:11Z'),
+ ('00000000-0000-4000-8000-000000000312','[TEST] Điều kiện kiểu cũ',
+  '{"test_only":true,"token":"__SYNTHETIC_ONLY__"}',
+  '{}','GENERAL_SELF_CARE_INFO','{}','[TEST] Nguồn kiểm thử','https://example.invalid/rules/312',
+  'APPROVED',true,'2026-11-01T00:00:00Z',false,'2026-11-01T00:00:12Z'),
+ ('00000000-0000-4000-8000-000000000313','[TEST] Thiếu danh sách any',
+  '{"all":["__SYNTHETIC_ONLY__no_any"]}',
+  '{}','GENERAL_SELF_CARE_INFO','{}','[TEST] Nguồn kiểm thử','https://example.invalid/rules/313',
+  'APPROVED',true,'2026-11-01T00:00:00Z',false,'2026-11-01T00:00:13Z'),
+ ('00000000-0000-4000-8000-000000000314','[TEST] Quá 20 điều kiện',
+  '{"all":["t1","t2","t3","t4","t5","t6","t7","t8","t9","t10","t11","t12","t13","t14","t15","t16","t17","t18","t19","t20","t21"],"any":[]}',
+  '{}','GENERAL_SELF_CARE_INFO','{}','[TEST] Nguồn kiểm thử','https://example.invalid/rules/314',
+  'APPROVED',true,'2026-11-01T00:00:00Z',false,'2026-11-01T00:00:14Z')
 ON CONFLICT DO NOTHING;
