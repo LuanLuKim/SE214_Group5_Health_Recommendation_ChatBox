@@ -1,0 +1,71 @@
+# Chạy hệ thống từ image do CD build (ghcr.io), không cần mã nguồn hay công cụ build.
+# Dùng cho máy demo hoặc một server có Docker. Hướng dẫn: docs/DEPLOY.md
+#
+#   cp deploy/.env.example deploy/.env      # điền giá trị, không commit
+#   docker compose -f deploy/compose.yaml up -d --wait
+#
+# Chỉ backend mở cổng ra ngoài container. PostgreSQL, dịch vụ AI và thống kê chỉ có trong mạng nội bộ.
+name: health-assistant
+
+services:
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DATABASE_USER:?Thiếu DATABASE_USER trong deploy/.env}
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD:?Thiếu DATABASE_PASSWORD trong deploy/.env}
+      POSTGRES_DB: health_assistant
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U "$$POSTGRES_USER" -d "$$POSTGRES_DB"']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    image: ${IMAGE_PREFIX:?Thiếu IMAGE_PREFIX trong deploy/.env}-backend:${IMAGE_TAG:-latest}
+    restart: unless-stopped
+    environment:
+      APP_ENV: ${APP_ENV:-production}
+      DATA_MODE: postgres
+      SEED_SYNTHETIC: ${SEED_SYNTHETIC:-false}
+      DATABASE_URL: jdbc:postgresql://db:5432/health_assistant
+      DATABASE_USER: ${DATABASE_USER}
+      DATABASE_PASSWORD: ${DATABASE_PASSWORD}
+      WEB_ORIGIN: ${WEB_ORIGIN:?Thiếu WEB_ORIGIN trong deploy/.env}
+      FORWARD_HEADERS: ${FORWARD_HEADERS:-none}
+      AI_SERVICE_URL: http://ai:8001
+      AI_SERVICE_KEY: ${AI_SERVICE_KEY:?Thiếu AI_SERVICE_KEY trong deploy/.env}
+      STATS_SERVICE_URL: http://stats:8002
+      STATS_SERVICE_KEY: ${STATS_SERVICE_KEY:?Thiếu STATS_SERVICE_KEY trong deploy/.env}
+    ports:
+      - '${BACKEND_BIND:-127.0.0.1}:${BACKEND_PORT:-4000}:4000'
+    depends_on:
+      db:
+        condition: service_healthy
+      ai:
+        condition: service_healthy
+      stats:
+        condition: service_healthy
+
+  ai:
+    image: ${IMAGE_PREFIX}-ai:${IMAGE_TAG:-latest}
+    restart: unless-stopped
+    environment:
+      AI_SERVICE_KEY: ${AI_SERVICE_KEY}
+      LLM_ENABLED: ${LLM_ENABLED:-false}
+      LLM_BASE_URL: ${LLM_BASE_URL:-https://api.openai.com/v1}
+      LLM_API_KEY: ${LLM_API_KEY:-}
+      LLM_MODEL: ${LLM_MODEL:-}
+
+  stats:
+    image: ${IMAGE_PREFIX}-stats:${IMAGE_TAG:-latest}
+    restart: unless-stopped
+    environment:
+      STATS_SERVICE_KEY: ${STATS_SERVICE_KEY}
+      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:?Thiếu DJANGO_SECRET_KEY trong deploy/.env}
+      DJANGO_ALLOWED_HOSTS: stats,localhost,127.0.0.1
+
+volumes:
+  postgres_data:

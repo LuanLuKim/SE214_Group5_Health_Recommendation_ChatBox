@@ -16,7 +16,7 @@ services:
       retries: 10
 
   # Cả stack trong Docker (chỉ dùng thử/demo trên máy): docker compose --profile full up --build
-  # Khóa dịch vụ dưới đây chỉ dùng cục bộ. Không dùng cấu hình này để triển khai công khai.
+  # Khóa dịch vụ dưới đây chỉ dùng cục bộ. Triển khai từ image đã build: deploy/compose.yaml (docs/DEPLOY.md).
   backend:
     profiles: [full]
     build:
@@ -37,6 +37,10 @@ services:
       - '127.0.0.1:4000:4000'
     depends_on:
       db:
+        condition: service_healthy
+      ai:
+        condition: service_healthy
+      stats:
         condition: service_healthy
 
   ai:

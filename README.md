@@ -62,7 +62,8 @@ services/stats/                Django: stats_api/ và tests
 database/migrations/           V001__… đến V008__… (Flyway)
 database/seeds/                Dữ liệu tổng hợp, chạy lặp được
 tools/                         Crawler, chuẩn hóa, dịch (M7)
-.github/workflows/             CI (check, backend, services, data-tools, infra-smoke), CD (image Docker)
+deploy/                        compose.yaml và .env.example để chạy từ image trên ghcr.io
+.github/workflows/             CI (check, backend, services, data-tools, infra-smoke, compose-smoke), CD (image Docker)
 ```
 
 ## PostgreSQL với dữ liệu tổng hợp
@@ -75,7 +76,7 @@ $env:DATA_MODE="postgres"; $env:SEED_SYNTHETIC="true"; mvn spring-boot:run
 
 Khi chạy với `DATA_MODE=postgres`, Flyway tự áp dụng migration chưa chạy; `SEED_SYNTHETIC=true` nạp dữ liệu giả lập sau đó. Seed gồm ba tài khoản **không có mật khẩu đăng nhập**, hồ sơ/chỉ số giả, một bài viết công khai và một bản nháp, một cơ sở giả, một quy tắc nháp, hội thoại/feedback giả và nhắc nhở đang tắt. Xem [database/README.md](database/README.md).
 
-Chạy cả stack trong Docker để demo trên máy: `docker compose --profile full up --build`.
+Chạy cả stack trong Docker để demo trên máy: `docker compose --profile full up --build --wait`. Chạy từ image đã build sẵn trên máy demo hoặc server: [docs/DEPLOY.md](docs/DEPLOY.md).
 
 ## Điền API key
 
@@ -90,7 +91,7 @@ cd services/ai;    python -m pytest
 cd services/stats; python manage.py test
 ```
 
-CI trên GitHub Actions chạy các bước trên cho mọi nhánh được push, cùng job `infra-smoke` (PostgreSQL thật, ba service trả `/healthz`). Khi merge vào `main`, workflow CD build image Docker của backend, dịch vụ AI, dịch vụ thống kê lên GitHub Container Registry. Quy trình nhánh, PR và review: [CONTRIBUTING.md](CONTRIBUTING.md).
+CI trên GitHub Actions chạy các bước trên cho mọi nhánh được push, cùng job `infra-smoke` (PostgreSQL thật, ba service trả `/healthz`) và `compose-smoke` (dựng cả stack bằng Docker Compose, chờ healthcheck). Khi merge vào `main`, workflow CD build image Docker của backend, dịch vụ AI, dịch vụ thống kê lên GitHub Container Registry. Quy trình nhánh, PR và review: [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Thu thập và chuẩn hóa dữ liệu
 

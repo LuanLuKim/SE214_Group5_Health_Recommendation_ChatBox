@@ -138,3 +138,66 @@ jobs:
       - name: Log khi lỗi
         if: failure()
         run: tail -n 80 backend.log ai.log stats.log || true
+
+  # Dựng cả stack bằng Docker Compose, rồi chạy bản triển khai (deploy/compose.yaml) theo docs/DEPLOY.md
+  # với chính các image vừa build. Phần kiểm tra nằm trong .github/scripts/compose-smoke.sh.
+  compose-smoke:
+    name: compose-smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      DEV: docker compose --profile full
+      DEPLOY: docker compose -f deploy/compose.yaml
+    steps:
+      - uses: actions/checkout@v4
+      - name: File .env mẫu chưa điền bí mật thì bản triển khai không khởi động
+        run: |
+          if $DEPLOY --env-file deploy/.env.example config --quiet 2> missing.log; then
+            echo "deploy/compose.yaml chấp nhận file .env chưa điền bí mật"; exit 1
+          fi
+          cat missing.log
+          # Thông báo lỗi phải nêu tên một biến đang để trống trong file mẫu.
+          grep -qE "$(grep -E '^[A-Z_]+=$' deploy/.env.example | cut -d= -f1 | paste -sd '|')" missing.log
+      - name: Dựng stack phát triển (build image) và chờ healthy
+        run: $DEV up --build --detach --wait --wait-timeout 420
+      - name: Kiểm tra stack phát triển
+        run: bash .github/scripts/compose-smoke.sh backend,db --profile full
+      - name: Điền deploy/.env từ file mẫu
+        run: |
+          cp deploy/.env.example deploy/.env
+          fill() { grep -q "^$1=" deploy/.env && sed -i "s|^$1=.*|$1=$2|" deploy/.env; }
+          fill IMAGE_TAG ci
+          fill WEB_ORIGIN https://ci.invalid
+          fill APP_ENV demo
+          fill SEED_SYNTHETIC true
+          # Biến bắt buộc (cú pháp :? trong deploy/compose.yaml) còn trống thì nhận một chuỗi ngẫu nhiên.
+          for name in $(grep -oE '\$\{[A-Z_]+:\?' deploy/compose.yaml | tr -d '${:?' | sort -u); do
+            if grep -q "^$name=$" deploy/.env; then fill "$name" "$(openssl rand -hex 16)"; fi
+          done
+      - name: Gắn cho image vừa build tên mà bản triển khai sẽ dùng
+        run: |
+          # PR chưa đẩy image lên registry, nên lấy image của stack phát triển thay cho bước "pull".
+          for name in $($DEV config --format json | jq -r '.services | to_entries[] | select(.value.build) | .key'); do
+            built=$(docker inspect --format '{{.Image}}' "$($DEV ps -q "$name")")
+            wanted=$($DEPLOY config --format json | jq -r --arg name "$name" '.services[$name].image')
+            docker tag "$built" "$wanted"
+          done
+          $DEV down --volumes
+      - name: Bản triển khai khởi động theo docs/DEPLOY.md
+        run: $DEPLOY up --detach --wait --wait-timeout 300 --pull never
+      - name: Kiểm tra bản triển khai
+        run: bash .github/scripts/compose-smoke.sh backend -f deploy/compose.yaml
+      - name: Trạng thái và log khi lỗi
+        if: failure()
+        run: |
+          $DEV ps
+          $DEV logs --tail 80
+          if [ -f deploy/.env ]; then
+            $DEPLOY ps
+            $DEPLOY logs --tail 80
+          fi
+      - name: Dọn dẹp
+        if: always()
+        run: |
+          $DEV down --volumes
+          if [ -f deploy/.env ]; then $DEPLOY down --volumes; fi
