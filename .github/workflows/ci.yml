@@ -139,105 +139,65 @@ jobs:
         if: failure()
         run: tail -n 80 backend.log ai.log stats.log || true
 
-  # Dựng cả stack bằng Docker Compose như trên máy demo: build ba image, chờ healthcheck của từng
-  # container, gọi API qua backend và gọi hai service Python từ trong mạng compose.
+  # Dựng cả stack bằng Docker Compose, rồi chạy bản triển khai (deploy/compose.yaml) theo docs/DEPLOY.md
+  # với chính các image vừa build. Phần kiểm tra nằm trong .github/scripts/compose-smoke.sh.
   compose-smoke:
     name: compose-smoke
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    env:
+      DEV: docker compose --profile full
+      DEPLOY: docker compose -f deploy/compose.yaml
     steps:
       - uses: actions/checkout@v4
-      - name: Cấu hình compose hợp lệ (máy phát triển và bản triển khai)
-        env:
-          DATABASE_PASSWORD: ci-only
-          WEB_ORIGIN: https://ci.invalid
-          AI_SERVICE_KEY: ci-only
-          STATS_SERVICE_KEY: ci-only
-          DJANGO_SECRET_KEY: ci-only
+      - name: File .env mẫu chưa điền bí mật thì bản triển khai không khởi động
         run: |
-          docker compose --profile full config --quiet
-          docker compose -f deploy/compose.yaml --env-file deploy/.env.example config --quiet
-      - name: Thiếu bí mật thì bản triển khai không khởi động
-        run: |
-          if docker compose -f deploy/compose.yaml --env-file deploy/.env.example config --quiet 2> missing.log; then
+          if $DEPLOY --env-file deploy/.env.example config --quiet 2> missing.log; then
             echo "deploy/compose.yaml chấp nhận file .env chưa điền bí mật"; exit 1
           fi
-          grep -q "DATABASE_PASSWORD" missing.log
-      - name: Dựng stack và chờ healthy
-        run: docker compose --profile full up --build --detach --wait --wait-timeout 420
-      - name: Gọi API qua backend
-        run: |
-          curl -fsS http://127.0.0.1:4000/healthz | jq -e '.data.status == "ok"'
-          articles=$(curl -fsS http://127.0.0.1:4000/api/v1/knowledge/articles)
-          echo "$articles" | jq -e '.meta.status == "DATABASE_RESULTS" and (.data | length) == 1'
-      - name: Backend gọi được hai service Python trong mạng compose
-        env:
-          IN_BACKEND: docker compose --profile full exec -T backend
-          KEY: 'X-Service-Key: local_dev_only_key'
-        run: |
-          decision=$($IN_BACKEND curl -fsS -X POST http://ai:8001/v1/safety/evaluate -H "$KEY" -H 'Content-Type: application/json' -d '{"text":"ci"}')
-          echo "$decision" | jq -e '.data.status == "UNAVAILABLE"'
-          code=$($IN_BACKEND curl -s -o /dev/null -w '%{http_code}' -H "$KEY" http://stats:8002/v1/system/statistics)
-          test "$code" = 501
-      - name: Service Python không mở cổng ra máy chủ
-        run: |
-          for port in 8001 8002; do
-            if curl -s -m 3 -o /dev/null "http://127.0.0.1:$port/healthz"; then
-              echo "Cổng $port đang mở ra ngoài mạng compose"; exit 1
-            fi
-          done
-      # Từ đây chạy deploy/compose.yaml đúng các bước trong docs/DEPLOY.md. Image vừa build được gắn
-      # tên ghcr.io với tag "ci" để không phải kéo từ registry (PR chưa đẩy image).
-      - name: Gắn tag image vừa build cho bản triển khai
-        run: |
-          for name in backend ai stats; do
-            image=$(docker inspect --format '{{.Image}}' "$(docker compose --profile full ps -q "$name")")
-            docker tag "$image" "ghcr.io/luanlukim/se214-health-$name:ci"
-          done
-          docker compose --profile full down --volumes
-      - name: Bản triển khai khởi động theo docs/DEPLOY.md
+          cat missing.log
+          # Thông báo lỗi phải nêu tên một biến đang để trống trong file mẫu.
+          grep -qE "$(grep -E '^[A-Z_]+=$' deploy/.env.example | cut -d= -f1 | paste -sd '|')" missing.log
+      - name: Dựng stack phát triển (build image) và chờ healthy
+        run: $DEV up --build --detach --wait --wait-timeout 420
+      - name: Kiểm tra stack phát triển
+        run: bash .github/scripts/compose-smoke.sh backend,db --profile full
+      - name: Điền deploy/.env từ file mẫu
         run: |
           cp deploy/.env.example deploy/.env
           fill() { grep -q "^$1=" deploy/.env && sed -i "s|^$1=.*|$1=$2|" deploy/.env; }
           fill IMAGE_TAG ci
-          fill DATABASE_PASSWORD "$(openssl rand -hex 16)"
           fill WEB_ORIGIN https://ci.invalid
-          fill AI_SERVICE_KEY "$(openssl rand -hex 16)"
-          fill STATS_SERVICE_KEY "$(openssl rand -hex 16)"
-          fill DJANGO_SECRET_KEY "$(openssl rand -hex 16)"
           fill APP_ENV demo
           fill SEED_SYNTHETIC true
-          docker compose -f deploy/compose.yaml up --detach --wait --wait-timeout 300 --pull never
-      - name: Bản triển khai trả dữ liệu, khóa dịch vụ khớp hai phía, chỉ backend mở cổng
-        env:
-          DEPLOY: docker compose -f deploy/compose.yaml
-        run: |
-          curl -fsS http://127.0.0.1:4000/healthz | jq -e '.data.status == "ok"'
-          curl -fsS http://127.0.0.1:4000/api/v1/knowledge/articles \
-            | jq -e '.meta.status == "DATABASE_RESULTS" and (.data | length) == 1'
-          $DEPLOY exec -T backend sh -c 'curl -fsS -X POST http://ai:8001/v1/safety/evaluate \
-            -H "X-Service-Key: $AI_SERVICE_KEY" -H "Content-Type: application/json" -d "{\"text\":\"ci\"}"' \
-            | jq -e '.data.status == "UNAVAILABLE"'
-          code=$($DEPLOY exec -T backend sh -c 'curl -s -o /dev/null -w "%{http_code}" \
-            -H "X-Service-Key: $STATS_SERVICE_KEY" http://stats:8002/v1/system/statistics')
-          test "$code" = 501
-          for name in db ai stats; do
-            published=$(docker port "$($DEPLOY ps -q "$name")")
-            if [ -n "$published" ]; then
-              echo "Container $name mở cổng ra máy chủ: $published"; exit 1
-            fi
+          # Biến bắt buộc (cú pháp :? trong deploy/compose.yaml) còn trống thì nhận một chuỗi ngẫu nhiên.
+          for name in $(grep -oE '\$\{[A-Z_]+:\?' deploy/compose.yaml | tr -d '${:?' | sort -u); do
+            if grep -q "^$name=$" deploy/.env; then fill "$name" "$(openssl rand -hex 16)"; fi
           done
+      - name: Gắn cho image vừa build tên mà bản triển khai sẽ dùng
+        run: |
+          # PR chưa đẩy image lên registry, nên lấy image của stack phát triển thay cho bước "pull".
+          for name in $($DEV config --format json | jq -r '.services | to_entries[] | select(.value.build) | .key'); do
+            built=$(docker inspect --format '{{.Image}}' "$($DEV ps -q "$name")")
+            wanted=$($DEPLOY config --format json | jq -r --arg name "$name" '.services[$name].image')
+            docker tag "$built" "$wanted"
+          done
+          $DEV down --volumes
+      - name: Bản triển khai khởi động theo docs/DEPLOY.md
+        run: $DEPLOY up --detach --wait --wait-timeout 300 --pull never
+      - name: Kiểm tra bản triển khai
+        run: bash .github/scripts/compose-smoke.sh backend -f deploy/compose.yaml
       - name: Trạng thái và log khi lỗi
         if: failure()
         run: |
-          docker compose --profile full ps
-          docker compose --profile full logs --tail 80
+          $DEV ps
+          $DEV logs --tail 80
           if [ -f deploy/.env ]; then
-            docker compose -f deploy/compose.yaml ps
-            docker compose -f deploy/compose.yaml logs --tail 80
+            $DEPLOY ps
+            $DEPLOY logs --tail 80
           fi
       - name: Dọn dẹp
         if: always()
         run: |
-          docker compose --profile full down --volumes
-          if [ -f deploy/.env ]; then docker compose -f deploy/compose.yaml down --volumes; fi
+          $DEV down --volumes
+          if [ -f deploy/.env ]; then $DEPLOY down --volumes; fi

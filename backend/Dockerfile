@@ -16,6 +16,6 @@ ENV HOST=0.0.0.0 PORT=4000 DATABASE_DIR=/app/database
 # Heap theo giới hạn bộ nhớ của container (mặc định JVM chỉ dùng 25%); hết bộ nhớ thì thoát để được khởi động lại.
 ENV JAVA_TOOL_OPTIONS="-XX:MaxRAMPercentage=75 -XX:+ExitOnOutOfMemoryError"
 USER app
-EXPOSE 4000
-HEALTHCHECK --interval=10s --timeout=5s --start-period=60s --retries=6 CMD curl -fsS http://127.0.0.1:4000/healthz > /dev/null || exit 1
+EXPOSE ${PORT}
+HEALTHCHECK --interval=10s --timeout=5s --start-period=60s --retries=6 CMD curl -fsS "http://127.0.0.1:${PORT}/healthz" > /dev/null || exit 1
 ENTRYPOINT ["java", "-jar", "/app/app.jar"]

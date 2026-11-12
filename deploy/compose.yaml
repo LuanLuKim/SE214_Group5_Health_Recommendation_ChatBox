@@ -18,13 +18,13 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U "$$POSTGRES_USER" -d health_assistant']
+      test: ['CMD-SHELL', 'pg_isready -U "$$POSTGRES_USER" -d "$$POSTGRES_DB"']
       interval: 5s
       timeout: 5s
       retries: 10
 
   backend:
-    image: ghcr.io/luanlukim/se214-health-backend:${IMAGE_TAG:-latest}
+    image: ${IMAGE_PREFIX:?Thiếu IMAGE_PREFIX trong deploy/.env}-backend:${IMAGE_TAG:-latest}
     restart: unless-stopped
     environment:
       APP_ENV: ${APP_ENV:-production}
@@ -50,7 +50,7 @@ services:
         condition: service_healthy
 
   ai:
-    image: ghcr.io/luanlukim/se214-health-ai:${IMAGE_TAG:-latest}
+    image: ${IMAGE_PREFIX}-ai:${IMAGE_TAG:-latest}
     restart: unless-stopped
     environment:
       AI_SERVICE_KEY: ${AI_SERVICE_KEY}
@@ -60,7 +60,7 @@ services:
       LLM_MODEL: ${LLM_MODEL:-}
 
   stats:
-    image: ghcr.io/luanlukim/se214-health-stats:${IMAGE_TAG:-latest}
+    image: ${IMAGE_PREFIX}-stats:${IMAGE_TAG:-latest}
     restart: unless-stopped
     environment:
       STATS_SERVICE_KEY: ${STATS_SERVICE_KEY}
