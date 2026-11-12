@@ -14,6 +14,7 @@ import org.springframework.jdbc.core.simple.JdbcClient;
 import vn.edu.uit.se214.health.safety.api.CareLevel;
 import vn.edu.uit.se214.health.shared.domain.Instants;
 import vn.edu.uit.se214.health.shared.domain.ReviewStatus;
+import vn.edu.uit.se214.health.shared.domain.SourceReference;
 
 /** Parameterized SQL for safety.rules. Only this module reads or writes its schema. */
 public class RuleRepository {
@@ -58,24 +59,41 @@ public class RuleRepository {
         .list();
   }
 
-  /**
-   * The only read the Safety Gate may load rules from (UC-07): APPROVED rules with at least one
-   * required condition. Drafts, pending, returned and retired rules never reach evaluation, and a
-   * rule without conditions is skipped so it can never match every input.
-   */
-  public List<SafetyRule> listApproved() {
+  /** The evaluator never sees draft, inactive, unverified or synthetic rules. */
+  public List<ApprovedSafetyRule> listEvaluable() {
     return jdbc.sql(
-            "SELECT "
-                + FIELDS
-                + """
-                 FROM safety.rules
-                WHERE review_status = 'APPROVED'
-                  AND jsonb_typeof(conditions -> 'all') = 'array'
-                  AND jsonb_array_length(conditions -> 'all') > 0
-                ORDER BY created_at, id
-                """)
-        .query(this::map)
-        .list();
+            """
+            SELECT id, conditions, required_fields, care_level, specialty_ids,
+                   source_name, source_url, source_verified_at
+              FROM safety.rules
+             WHERE review_status = 'APPROVED' AND is_active = true
+               AND is_synthetic = false AND source_verified_at IS NOT NULL
+               AND btrim(source_name) <> ''
+             ORDER BY id
+            """)
+        .query(
+            (rs, row) -> {
+              String id = rs.getString("id");
+              String url = rs.getString("source_url");
+              if (!RuleDraftInput.isHttpUrlWithoutCredentials(url)) return null;
+              return new ApprovedSafetyRule(
+                  id,
+                  fromJson(rs.getString("conditions")),
+                  strings(rs.getArray("required_fields")),
+                  CareLevel.valueOf(rs.getString("care_level")),
+                  strings(rs.getArray("specialty_ids")),
+                  new SourceReference(
+                      id,
+                      rs.getString("source_name"),
+                      url,
+                      Instants.iso(rs.getObject("source_verified_at", OffsetDateTime.class))),
+                  "APPROVED",
+                  true);
+            })
+        .list()
+        .stream()
+        .filter(java.util.Objects::nonNull)
+        .toList();
   }
 
   public Optional<SafetyRule> get(UUID id) {

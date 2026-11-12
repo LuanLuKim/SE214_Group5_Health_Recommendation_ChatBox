@@ -1,7 +1,7 @@
 # Đồng bộ GitHub theo kế hoạch Jira
 
 - `plan.json`: 6 milestone (theo sprint), nhãn, 11 issue đã xong (kèm nhánh, PR, commit, người làm) và 40 issue chưa xong (kèm điều kiện kiểm thử).
-- `ruleset-main.json`: nhánh main cần PR, **1 reviewer**, CI `check` và `data-tools` xanh mới merge được. Chủ repo (admin) được bỏ qua yêu cầu reviewer ở chế độ pull request để tự merge khi làm một mình.
+- `ruleset-main.json`: nhánh main cần PR, **1 reviewer** và sáu check xanh mới merge được: `check` (frontend), `backend` (Maven), `services` (FastAPI, Django), `data-tools`, `infra-smoke` (PostgreSQL thật + ba service), `branch-policy`. Chủ repo (admin) được bỏ qua yêu cầu reviewer ở chế độ pull request để tự merge khi làm một mình.
 - `sync.mjs`: sao lưu issue đang mở, xóa chúng (issue đã đóng được giữ), tạo milestone, nhãn, issue, đóng issue đã xong và áp ruleset.
 
 ```powershell
@@ -20,7 +20,7 @@ node tools/github/sync.mjs --apply    # thực hiện
 
 ```powershell
 gh api repos/LuanLuKim/SE214_Group5_Health_Recommendation_ChatBox/rulesets --input tools/github/ruleset-branches.json
-# Sau khi issue-flow.yml đã nằm trên main, cập nhật ruleset main để bắt buộc check branch-policy:
+# Sau khi sửa ruleset-main.json (ví dụ thêm job CI mới vào check bắt buộc), cập nhật ruleset main:
 gh api -X PUT repos/LuanLuKim/SE214_Group5_Health_Recommendation_ChatBox/rulesets/25446752 --input tools/github/ruleset-main.json
 ```
 

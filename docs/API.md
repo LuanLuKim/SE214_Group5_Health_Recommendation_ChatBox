@@ -4,6 +4,26 @@ Base path: `/api/v1`. Contract dùng chung: `packages/contracts/src/index.ts`. �
 
 Thành công: `{ "data": ..., "meta": { "status": "...", "total": 0 } }` (`meta` tùy route). Lỗi: `{ "error": { "code": "...", "message": "...", "requestId": "..." } }`. `X-Request-ID` được server tạo. Dữ liệu JSON tối đa 32 KiB; giới hạn baseline 120 request/phút/IP.
 
+Mã lỗi chung, mọi phản hồi lỗi đều là JSON dù client gửi `Accept` nào:
+
+| HTTP | `code`                 | Khi nào                                        |
+| ---- | ---------------------- | ---------------------------------------------- |
+| 400  | `INVALID_REQUEST`      | JSON hỏng, sai kiểu dữ liệu, thiếu tham số     |
+| 400  | `INVALID_QUERY`        | Từ khóa tìm kiếm không hợp lệ                  |
+| 404  | `NOT_FOUND`            | Không có route (kể cả `/error`)                |
+| 405  | `METHOD_NOT_ALLOWED`   | Sai phương thức                                |
+| 406  | `NOT_ACCEPTABLE`       | Client chỉ nhận định dạng khác JSON            |
+| 413  | `PAYLOAD_TOO_LARGE`    | Body vượt 32 KiB                               |
+| 429  | `RATE_LIMITED`         | Quá 120 request/phút từ một IP                 |
+| 500  | `INTERNAL_ERROR`       | Lỗi chưa lường trước; tra log theo `requestId` |
+| 501  | `NOT_IMPLEMENTED`      | Route đã dành chỗ, chưa có nghiệp vụ           |
+| 503  | `AUTH_NOT_CONFIGURED`  | Route riêng tư khi chưa có xác thực (M5)       |
+| 503  | `DATABASE_UNAVAILABLE` | Không kết nối được PostgreSQL; thử lại sau     |
+
+Lỗi 500 và 503 `DATABASE_UNAVAILABLE` được ghi log một dòng gồm `requestId`, phương thức, đường dẫn (không có query string), tên lớp ngoại lệ và vị trí trong code. Thông điệp của ngoại lệ không được ghi vì có thể chứa dữ liệu người dùng.
+
+Hai trường hợp không qua khuôn lỗi trên vì bị chặn trước khi vào ứng dụng: URL mã hóa sai hoặc header quá dài (Tomcat trả trang 400 tối giản) và request có `Origin` không được phép (bộ lọc CORS trả 403 dạng văn bản).
+
 ## Các route đã chạy
 
 | Method | Route                                                       | Kết quả                                                                       |
@@ -14,7 +34,7 @@ Thành công: `{ "data": ..., "meta": { "status": "...", "total": 0 } }` (`meta`
 | GET    | `/api/v1/knowledge/articles?q=`                             | Public: fixture synthetic hoặc tối đa 20 bài đã duyệt từ PostgreSQL           |
 | GET    | `/api/v1/knowledge/facilities?q=`                           | Public: fixture synthetic hoặc tối đa 20 cơ sở có ngày xác minh từ PostgreSQL |
 
-`q` là một chuỗi tối đa 200 ký tự. Danh sách và search metadata không chứa private user data. Fixture `[TEST]` chỉ dành kiểm thử; không trộn fixture vào kho kiến thức y tế thật.
+`q` là một chuỗi tối đa 200 ký tự, không chứa ký tự điều khiển (tab, xuống dòng, NUL…); sai thì trả 400 `INVALID_QUERY`. Danh sách và search metadata không chứa private user data. Fixture `[TEST]` chỉ dành kiểm thử; không trộn fixture vào kho kiến thức y tế thật.
 
 ## Các route đã dành chỗ
 

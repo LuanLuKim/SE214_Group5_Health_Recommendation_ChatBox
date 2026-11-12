@@ -67,6 +67,9 @@ class ApiTest {
     mvc.perform(get("/api/v1/knowledge/articles").param("q", "x".repeat(201)))
         .andExpect(status().isBadRequest())
         .andExpect(jsonPath("$.error.code").value("INVALID_QUERY"));
+    mvc.perform(get("/api/v1/knowledge/facilities").param("q", "a\u0000b"))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.error.code").value("INVALID_QUERY"));
   }
 
   @Test

@@ -27,6 +27,9 @@ spring:
 server:
   address: ${HOST:127.0.0.1}
   port: ${PORT:4000}
+  # Sau reverse proxy đặt FORWARD_HEADERS=native: IP người dùng lấy từ X-Forwarded-For (chỉ tin proxy
+  # ở dải địa chỉ nội bộ), nếu không giới hạn tần suất sẽ tính chung mọi người vào IP của proxy.
+  forward-headers-strategy: ${FORWARD_HEADERS:none}
   error:
     whitelabel:
       enabled: false
