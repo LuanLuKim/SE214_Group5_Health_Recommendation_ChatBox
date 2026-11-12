@@ -90,6 +90,21 @@ public class RuleRepository {
         .optional();
   }
 
+  /** Only an unchanged editable rule can enter review; submission never activates it. */
+  public Optional<SafetyRule> submit(UUID id, String sourceName, String sourceUrl) {
+    return jdbc.sql(
+            """
+            UPDATE safety.rules SET review_status = 'PENDING_REVIEW', updated_at = now()
+            WHERE id = ? AND review_status IN ('DRAFT', 'RETURNED')
+              AND source_name = ? AND source_url = ?
+            RETURNING
+            """
+                + FIELDS)
+        .params(id, sourceName, sourceUrl)
+        .query(this::map)
+        .optional();
+  }
+
   private SafetyRule map(ResultSet rs, int row) throws SQLException {
     return new SafetyRule(
         rs.getString("id"),

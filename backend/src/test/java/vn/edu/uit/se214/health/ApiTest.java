@@ -75,6 +75,10 @@ class ApiTest {
         List.of(
             new Object[] {HttpMethod.POST, "/safety/evaluate"},
             new Object[] {HttpMethod.GET, "/safety/rules"},
+            new Object[] {HttpMethod.POST, "/safety/rules"},
+            new Object[] {HttpMethod.GET, "/safety/rules/00000000-0000-0000-0000-000000000000"},
+            new Object[] {HttpMethod.PATCH, "/safety/rules/00000000-0000-0000-0000-000000000000"},
+            new Object[] {HttpMethod.POST, "/safety/rules/00000000-0000-0000-0000-000000000000/submit"},
             new Object[] {HttpMethod.POST, "/knowledge/articles"},
             new Object[] {HttpMethod.GET, "/knowledge/reviews"},
             new Object[] {HttpMethod.GET, "/knowledge/feedback"},
