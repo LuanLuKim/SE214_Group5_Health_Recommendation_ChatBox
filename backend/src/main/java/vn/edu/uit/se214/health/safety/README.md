@@ -18,6 +18,8 @@ Use case: **UC-07, UC-16 (+ phần M1 của UC-17)**. Phụ trách: Bảo Quỳn
 
 Bộ đánh giá Safety Gate thật đặt trong `services/ai` (FastAPI); module này giữ quy tắc, nháp UC-16 (`RuleDraftService`, `RuleRepository`) và lớp gọi sang FastAPI. Chưa có quy tắc được duyệt thì trả `UNAVAILABLE`, không bao giờ tự trả mức thấp.
 
+Điểm nạp quy tắc duy nhất cho Safety Gate là `RuleRepository.listApproved()`: chỉ quy tắc `APPROVED` có ít nhất một điều kiện `all`. Bộ quy tắc mẫu giả lập cho test (đủ 5 mức, đủ 5 trạng thái) ở `backend/src/test/resources/safety/sample-rules.sql`; seed dev không chứa quy tắc đã duyệt.
+
 Phần M1 của UC-17 (kiểm duyệt đầu vào): cài `knowledge.review.ReviewSubjectHandler` cho `RULE` và chunk M7, cắm vào hàng đợi duyệt chung của M2. Không làm hàng đợi hay màn hình duyệt riêng.
 
 ## Cách mở rộng

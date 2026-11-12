@@ -42,6 +42,10 @@ class DatabaseMigrationTest {
     assertThat(count(db, "SELECT count(*) FROM accounts.users")).isEqualTo(3);
     assertThat(count(db, "SELECT count(*) FROM knowledge.articles WHERE review_status = 'APPROVED'")).isEqualTo(1);
     assertThat(count(db, "SELECT count(*) FROM safety.rules WHERE review_status = 'APPROVED'")).isZero();
+    // UC-16: one rule per authoring state for the UI, all synthetic, none loadable.
+    assertThat(count(db, "SELECT count(*) FROM safety.rules")).isEqualTo(4);
+    assertThat(count(db, "SELECT count(*) FROM safety.rules WHERE NOT is_synthetic")).isZero();
+    assertThat(count(db, "SELECT count(DISTINCT review_status) FROM safety.rules")).isEqualTo(3);
 
     assertRejected(db, "INSERT INTO accounts.user_roles VALUES ('00000000-0000-4000-8000-999999999999','USER')");
     assertRejected(db, "INSERT INTO health.daily_metrics VALUES ('00000000-0000-4000-8000-000000000001','2026-10-26',65,30)");

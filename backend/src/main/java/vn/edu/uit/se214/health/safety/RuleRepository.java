@@ -58,6 +58,26 @@ public class RuleRepository {
         .list();
   }
 
+  /**
+   * The only read the Safety Gate may load rules from (UC-07): APPROVED rules with at least one
+   * required condition. Drafts, pending, returned and retired rules never reach evaluation, and a
+   * rule without conditions is skipped so it can never match every input.
+   */
+  public List<SafetyRule> listApproved() {
+    return jdbc.sql(
+            "SELECT "
+                + FIELDS
+                + """
+                 FROM safety.rules
+                WHERE review_status = 'APPROVED'
+                  AND jsonb_typeof(conditions -> 'all') = 'array'
+                  AND jsonb_array_length(conditions -> 'all') > 0
+                ORDER BY created_at, id
+                """)
+        .query(this::map)
+        .list();
+  }
+
   public Optional<SafetyRule> get(UUID id) {
     return jdbc.sql("SELECT " + FIELDS + " FROM safety.rules WHERE id = ?")
         .param(id)
