@@ -44,7 +44,7 @@ Nếu bạn còn file `apps/api/.env` từ khung Express cũ: chuyển `DATA_MOD
 
 `DATA_MODE=mock` là mặc định, dùng fixture công khai nhỏ trong bộ nhớ. `DATA_MODE=postgres` bật DataSource và Flyway: khi khởi động, backend áp dụng các migration chưa chạy trong `database/migrations`; `SEED_SYNTHETIC=true` nạp thêm dữ liệu tổng hợp. Compose chỉ mở cổng database ở `127.0.0.1`.
 
-Mật khẩu trong ví dụ chỉ dành cho máy phát triển. Không dùng compose hay mật khẩu này để triển khai công khai. Không dùng lệnh xóa volume để reset database của thành viên khác.
+Mật khẩu trong ví dụ chỉ dành cho máy phát triển. Không dùng `compose.yaml` ở thư mục gốc hay mật khẩu này để triển khai công khai; bản triển khai dùng `deploy/compose.yaml`, xem [DEPLOY.md](DEPLOY.md). Không dùng lệnh xóa volume để reset database của thành viên khác.
 
 Docker phải chạy trước `npm run db:up`; đợi trạng thái healthy bằng `docker compose ps`. Nếu dùng PostgreSQL có sẵn, bỏ qua Docker và sửa `DATABASE_URL`. Test backend dùng PostgreSQL nhúng (thư viện zonky), không cần Docker; job CI `infra-smoke` chạy trên PostgreSQL 17 thật.
 
