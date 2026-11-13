@@ -2,16 +2,19 @@
 
 Một PostgreSQL instance, sáu schema cùng tên module. Không cần sáu database hoặc sáu server.
 
-| Migration                       | Schema    | Bảng nền tảng                                                             |
-| ------------------------------- | --------- | ------------------------------------------------------------------------- |
-| `V001__safety.sql`              | safety    | rules                                                                     |
-| `V002__knowledge.sql`           | knowledge | articles, facilities, review_events                                       |
-| `V003__health.sql`              | health    | profiles, daily_metrics, usage_events                                     |
-| `V004__chat.sql`                | chat      | sessions, messages, feedback                                              |
-| `V005__accounts.sql`            | accounts  | users, user_roles, consents; thêm ownership FK cho các schema trước       |
-| `V006__lifestyle.sql`           | lifestyle | templates, plans, completions, reminders                                  |
-| `V007__safety_drafts.sql`       | safety    | thêm nguồn, trường bắt buộc, chuyên khoa cho rules                        |
-| `V008__lifestyle_reminders.sql` | lifestyle | reminders: ngày áp dụng, activity_id; reminder_deliveries chống gửi trùng |
+| Migration                               | Schema    | Bảng nền tảng                                                                   |
+| --------------------------------------- | --------- | ------------------------------------------------------------------------------- |
+| `V001__safety.sql`                      | safety    | rules                                                                           |
+| `V002__knowledge.sql`                   | knowledge | articles, facilities, review_events                                             |
+| `V003__health.sql`                      | health    | profiles, daily_metrics, usage_events                                           |
+| `V004__chat.sql`                        | chat      | sessions, messages, feedback                                                    |
+| `V005__accounts.sql`                    | accounts  | users, user_roles, consents; thêm ownership FK cho các schema trước             |
+| `V006__lifestyle.sql`                   | lifestyle | templates, plans, completions, reminders                                        |
+| `V007__safety_drafts.sql`               | safety    | thêm nguồn, trường bắt buộc, chuyên khoa cho rules                              |
+| `V008__lifestyle_reminders.sql`         | lifestyle | reminders: ngày áp dụng, activity_id; reminder_deliveries chống gửi trùng       |
+| `V009__safety_rule_activation.sql`      | safety    | bật trạng thái kích hoạt cho quy tắc đã duyệt                                   |
+| `V010__accounts_registration.sql`       | accounts  | chuẩn hóa unique email; consent xử lý dữ liệu/không chẩn đoán; OAuth identities |
+| `V011__accounts_email_verification.sql` | accounts  | đăng ký email chờ OTP; lưu challenge đã băm, hạn dùng và số lần thử             |
 
 Đây là schema khởi đầu, chưa đủ để tuyên bố hoàn thành SRS. Khi triển khai nghiệp vụ, cần versioning/audit và reviewer metadata đầy đủ; thông tin bản quyền và ngày nguồn; session/token/OAuth/email state; dữ liệu eligibility/allergy phù hợp; lịch retry/delivery idempotency; chính sách retention và deletion cho feedback/backup.
 

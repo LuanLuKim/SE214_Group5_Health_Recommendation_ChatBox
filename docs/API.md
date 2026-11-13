@@ -2,23 +2,27 @@
 
 Base path: `/api/v1`. Contract dùng chung: `packages/contracts/src/index.ts`. Đây là API nền tảng, chưa phải bản hoàn thiện của các use case. Backend không lưu request body/prompt vào log.
 
+Swagger UI: `/swagger-ui.html`; OpenAPI JSON: `/v3/api-docs`. Có thể tắt cả hai bằng `SWAGGER_ENABLED=false`.
+
 Thành công: `{ "data": ..., "meta": { "status": "...", "total": 0 } }` (`meta` tùy route). Lỗi: `{ "error": { "code": "...", "message": "...", "requestId": "..." } }`. `X-Request-ID` được server tạo. Dữ liệu JSON tối đa 32 KiB; giới hạn baseline 120 request/phút/IP.
 
 Mã lỗi chung, mọi phản hồi lỗi đều là JSON dù client gửi `Accept` nào:
 
-| HTTP | `code`                 | Khi nào                                        |
-| ---- | ---------------------- | ---------------------------------------------- |
-| 400  | `INVALID_REQUEST`      | JSON hỏng, sai kiểu dữ liệu, thiếu tham số     |
-| 400  | `INVALID_QUERY`        | Từ khóa tìm kiếm không hợp lệ                  |
-| 404  | `NOT_FOUND`            | Không có route (kể cả `/error`)                |
-| 405  | `METHOD_NOT_ALLOWED`   | Sai phương thức                                |
-| 406  | `NOT_ACCEPTABLE`       | Client chỉ nhận định dạng khác JSON            |
-| 413  | `PAYLOAD_TOO_LARGE`    | Body vượt 32 KiB                               |
-| 429  | `RATE_LIMITED`         | Quá 120 request/phút từ một IP                 |
-| 500  | `INTERNAL_ERROR`       | Lỗi chưa lường trước; tra log theo `requestId` |
-| 501  | `NOT_IMPLEMENTED`      | Route đã dành chỗ, chưa có nghiệp vụ           |
-| 503  | `AUTH_NOT_CONFIGURED`  | Route riêng tư khi chưa có xác thực (M5)       |
-| 503  | `DATABASE_UNAVAILABLE` | Không kết nối được PostgreSQL; thử lại sau     |
+| HTTP | `code`                              | Khi nào                                        |
+| ---- | ----------------------------------- | ---------------------------------------------- |
+| 400  | `INVALID_REQUEST`                   | JSON hỏng, sai kiểu dữ liệu, thiếu tham số     |
+| 400  | `INVALID_QUERY`                     | Từ khóa tìm kiếm không hợp lệ                  |
+| 404  | `NOT_FOUND`                         | Không có route (kể cả `/error`)                |
+| 405  | `METHOD_NOT_ALLOWED`                | Sai phương thức                                |
+| 406  | `NOT_ACCEPTABLE`                    | Client chỉ nhận định dạng khác JSON            |
+| 413  | `PAYLOAD_TOO_LARGE`                 | Body vượt 32 KiB                               |
+| 429  | `RATE_LIMITED`                      | Quá 120 request/phút từ một IP                 |
+| 500  | `INTERNAL_ERROR`                    | Lỗi chưa lường trước; tra log theo `requestId` |
+| 501  | `NOT_IMPLEMENTED`                   | Route đã dành chỗ, chưa có nghiệp vụ           |
+| 503  | `AUTH_NOT_CONFIGURED`               | Route riêng tư khi chưa có xác thực (M5)       |
+| 503  | `DATABASE_UNAVAILABLE`              | Không kết nối được PostgreSQL; thử lại sau     |
+| 409  | `EMAIL_ALREADY_REGISTERED`          | Email đã được đăng ký                          |
+| 409  | `OAUTH_IDENTITY_ALREADY_REGISTERED` | Tài khoản OAuth đã được đăng ký                |
 
 Lỗi 500 và 503 `DATABASE_UNAVAILABLE` được ghi log một dòng gồm `requestId`, phương thức, đường dẫn (không có query string), tên lớp ngoại lệ và vị trí trong code. Thông điệp của ngoại lệ không được ghi vì có thể chứa dữ liệu người dùng.
 
@@ -38,7 +42,11 @@ Hai trường hợp không qua khuôn lỗi trên vì bị chặn trước khi v
 
 ## Các route đã dành chỗ
 
-Các public account action sau trả **501 NOT_IMPLEMENTED**: POST `/accounts/register`, `/accounts/login`, `/accounts/forgot-password`, `/accounts/reset-password`, `/accounts/confirm-deletion`.
+`POST /accounts/register` (email/mật khẩu) bắt đầu quy trình đăng ký và gửi OTP qua SMTP; trả 202, chưa tạo account. `POST /accounts/register/verify` nhận email và OTP, chỉ tạo account/role/consent sau khi xác minh; mã có hiệu lực 10 phút, tối đa 5 lần nhập sai. `POST /accounts/register/resend` gửi mã mới sau cooldown 60 giây. OTP chỉ dùng cho email/mật khẩu, được lưu dạng HMAC hash và secret `EMAIL_OTP_HASH_SECRET` phải có ít nhất 32 byte. SMTP dùng `SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD`, `SMTP_AUTH`, `SMTP_STARTTLS`, `MAIL_FROM`.
+
+`POST /accounts/register/oauth` (Google ID token/Facebook access token) tiếp tục xác minh với provider rồi tạo account cùng consent, không dùng OTP hệ thống. Cả hai luồng yêu cầu đủ đồng ý, xác nhận đủ 18 tuổi và đúng `TERMS_VERSION`. Email trùng trả 409. Chế độ mock không lưu tài khoản và trả 503 `REGISTRATION_UNAVAILABLE`. Đăng ký không tạo session. Cấu hình OAuth qua `GOOGLE_CLIENT_ID`, `FACEBOOK_APP_ID`, `FACEBOOK_APP_SECRET`; nếu thiếu, provider tương ứng không khả dụng.
+
+Các public account action sau vẫn trả **501 NOT_IMPLEMENTED**: POST `/accounts/login`, `/accounts/forgot-password`, `/accounts/reset-password`, `/accounts/confirm-deletion`.
 
 Tất cả route dưới đây hiện trả **503 AUTH_NOT_CONFIGURED**, kể cả khi client giả `Authorization`, `X-User-ID` hoặc `X-Role`. Guard không nhận những header này làm phiên thật. Sau M5, thay guard bằng xác thực, rồi bổ sung role/consent/ownership trước khi thay handler 501 bằng nghiệp vụ. Thứ tự phải được giữ.
 

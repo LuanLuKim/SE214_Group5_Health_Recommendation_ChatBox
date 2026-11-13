@@ -23,6 +23,23 @@ spring:
       add-mappings: false
   main:
     banner-mode: off
+  mail:
+    host: ${SMTP_HOST:}
+    port: ${SMTP_PORT:587}
+    username: ${SMTP_USERNAME:}
+    password: ${SMTP_PASSWORD:}
+    properties:
+      mail.smtp.auth: ${SMTP_AUTH:true}
+      mail.smtp.starttls.enable: ${SMTP_STARTTLS:true}
+      mail.smtp.connectiontimeout: 5000
+      mail.smtp.timeout: 5000
+      mail.smtp.writetimeout: 5000
+springdoc:
+  api-docs:
+    enabled: ${SWAGGER_ENABLED:true}
+  swagger-ui:
+    enabled: ${SWAGGER_ENABLED:true}
+    path: /swagger-ui.html
 
 server:
   address: ${HOST:127.0.0.1}
@@ -43,6 +60,14 @@ app:
   web-origin: ${WEB_ORIGIN:http://localhost:5173}
   max-body-bytes: 32768
   rate-limit-per-minute: 120
+  accounts:
+    terms-version: ${TERMS_VERSION:v1}
+    google-client-id: ${GOOGLE_CLIENT_ID:}
+    facebook-app-id: ${FACEBOOK_APP_ID:}
+    facebook-app-secret: ${FACEBOOK_APP_SECRET:}
+    email-otp:
+      hash-secret: ${EMAIL_OTP_HASH_SECRET:}
+      from-address: ${MAIL_FROM:}
   # Chạy dữ liệu tổng hợp trong database/seeds sau migration (chỉ máy phát triển).
   seed-synthetic: ${SEED_SYNTHETIC:false}
   database-dir: ${DATABASE_DIR:../database}

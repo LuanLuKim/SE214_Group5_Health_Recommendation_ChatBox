@@ -1,6 +1,8 @@
 package vn.edu.uit.se214.health.accounts;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -23,14 +25,43 @@ import vn.edu.uit.se214.health.system.ModuleRegistry;
 @RestController
 @RequestMapping("/api/v1/accounts")
 public class AccountsController {
+  private final AccountRegistrationUseCase registration;
+
+  public AccountsController(AccountRegistrationUseCase registration) {
+    this.registration = registration;
+  }
+
   @GetMapping
   public ApiResponse.Success<ModuleDescriptor> module() {
     return ApiResponse.of(ModuleRegistry.get("accounts"));
   }
 
   @PostMapping("/register")
-  public Object register(@RequestBody(required = false) JsonNode body) {
-    throw ApiException.notImplemented();
+  public ResponseEntity<ApiResponse.Success<RegistrationInitiation>> register(
+      @RequestBody EmailRegistrationRequest body) {
+    RegistrationInitiation result = registration.startEmailRegistration(body);
+    return ResponseEntity.accepted().body(ApiResponse.of(result));
+  }
+
+  @PostMapping("/register/verify")
+  public ResponseEntity<ApiResponse.Success<RegistrationResult>> verifyEmail(
+      @RequestBody EmailOtpVerifyRequest body) {
+    return ResponseEntity.status(HttpStatus.CREATED)
+        .body(ApiResponse.of(registration.verifyEmailRegistration(body)));
+  }
+
+  @PostMapping("/register/resend")
+  public ResponseEntity<ApiResponse.Success<RegistrationInitiation>> resendEmailVerification(
+      @RequestBody EmailOtpResendRequest body) {
+    return ResponseEntity.accepted()
+        .body(ApiResponse.of(registration.resendEmailVerification(body)));
+  }
+
+  @PostMapping("/register/oauth")
+  public ResponseEntity<ApiResponse.Success<RegistrationResult>> registerOAuth(
+      @RequestBody OAuthRegistrationRequest body) {
+    return ResponseEntity.status(HttpStatus.CREATED)
+        .body(ApiResponse.of(registration.registerOAuth(body)));
   }
 
   @PostMapping("/login")

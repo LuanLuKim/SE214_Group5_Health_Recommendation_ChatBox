@@ -15,6 +15,18 @@ import org.springframework.web.filter.OncePerRequestFilter;
 @Component
 @Order(Ordered.HIGHEST_PRECEDENCE)
 public class RequestIdFilter extends OncePerRequestFilter {
+  private static final String DEFAULT_CSP = "default-src 'none'; frame-ancestors 'none'";
+  private static final String SWAGGER_CSP =
+      "default-src 'self';"
+          + " script-src 'self' 'unsafe-inline';"
+          + " style-src 'self' 'unsafe-inline';"
+          + " img-src 'self' data:;"
+          + " font-src 'self' data:;"
+          + " connect-src 'self';"
+          + " object-src 'none';"
+          + " base-uri 'self';"
+          + " frame-ancestors 'none'";
+
   @Override
   protected void doFilterInternal(
       HttpServletRequest request, HttpServletResponse response, FilterChain chain)
@@ -26,8 +38,14 @@ public class RequestIdFilter extends OncePerRequestFilter {
     response.setHeader("X-Content-Type-Options", "nosniff");
     response.setHeader("X-Frame-Options", "DENY");
     response.setHeader("Referrer-Policy", "no-referrer");
-    response.setHeader("Content-Security-Policy", "default-src 'none'; frame-ancestors 'none'");
+    response.setHeader(
+        "Content-Security-Policy", isSwaggerUiRequest(request) ? SWAGGER_CSP : DEFAULT_CSP);
     response.setHeader("Cross-Origin-Resource-Policy", "same-site");
     chain.doFilter(request, response);
+  }
+
+  private static boolean isSwaggerUiRequest(HttpServletRequest request) {
+    String path = request.getRequestURI();
+    return "/swagger-ui.html".equals(path) || path.startsWith("/swagger-ui/");
   }
 }
