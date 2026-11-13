@@ -61,7 +61,11 @@ public class PythonServiceClient {
                   new BufferedReader(new InputStreamReader(response.getBody(), StandardCharsets.UTF_8))) {
                 String line;
                 while ((line = reader.readLine()) != null) {
-                  consumer.onLine(line);
+                  try {
+                    consumer.onLine(line);
+                  } catch (Exception e) {
+                    throw new RuntimeException(e);
+                  }
                 }
               }
               return null;

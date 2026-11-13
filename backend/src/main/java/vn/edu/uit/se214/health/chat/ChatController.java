@@ -66,7 +66,7 @@ public class ChatController {
     UUID userId = resolveUserId(request);
     UUID sessionId = parseUuid(id);
     chatService.deleteSession(sessionId, userId);
-    return ApiResponse.empty();
+    return ApiResponse.of(null);
   }
 
   @RequiresSession
