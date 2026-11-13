@@ -8,11 +8,11 @@ from pathlib import Path
 
 from fastapi import Depends, FastAPI, Request
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel, Field
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from . import safety
+from . import chat, safety
 from .config import Settings, load_settings, read_dotenv
 
 
@@ -87,9 +87,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         return {"data": safety.evaluate_facts(set(body.facts), body.rules).model_dump()}
 
     @app.post("/v1/chat/answer", dependencies=[Depends(require_service_key)])
-    def answer():
+    def answer(body: chat.ChatAnswerRequest):
         # M4: Safety Gate first, then approved RAG sources, LLM, output checks, SSE streaming.
-        raise ApiError(501, "NOT_IMPLEMENTED", "Chức năng này đang chờ triển khai.")
+        return StreamingResponse(
+            chat.orchestrate_chat(body, settings),
+            media_type="text/event-stream",
+            headers={"Cache-Control": "no-cache", "Connection": "keep-alive"},
+        )
 
     return app
 

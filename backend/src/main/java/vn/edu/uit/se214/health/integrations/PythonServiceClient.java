@@ -1,5 +1,8 @@
 package vn.edu.uit.se214.health.integrations;
 
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 import org.springframework.http.MediaType;
 import org.springframework.web.client.RestClient;
 import vn.edu.uit.se214.health.shared.AppProperties;
@@ -11,6 +14,10 @@ import vn.edu.uit.se214.health.shared.AppProperties;
  */
 public class PythonServiceClient {
   public static final String KEY_HEADER = "X-Service-Key";
+
+  public interface StreamConsumer {
+    void onLine(String line) throws Exception;
+  }
 
   private final RestClient http;
   private final boolean configured;
@@ -39,6 +46,26 @@ public class PythonServiceClient {
   public <T> T get(String path, Class<T> type) {
     requireConfigured();
     return http.get().uri(path).retrieve().body(type);
+  }
+
+  public void postStream(String path, Object body, StreamConsumer consumer) {
+    requireConfigured();
+    http.post()
+        .uri(path)
+        .contentType(MediaType.APPLICATION_JSON)
+        .accept(MediaType.TEXT_EVENT_STREAM)
+        .body(body)
+        .exchange(
+            (request, response) -> {
+              try (var reader =
+                  new BufferedReader(new InputStreamReader(response.getBody(), StandardCharsets.UTF_8))) {
+                String line;
+                while ((line = reader.readLine()) != null) {
+                  consumer.onLine(line);
+                }
+              }
+              return null;
+            });
   }
 
   private void requireConfigured() {

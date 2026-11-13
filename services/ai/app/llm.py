@@ -6,7 +6,8 @@ output checks before any answer reaches a user.
 
 from __future__ import annotations
 
-from typing import Literal, TypedDict
+import json
+from typing import Iterator, Literal, TypedDict
 
 import httpx
 
@@ -52,4 +53,42 @@ class LlmClient:
         except LlmError:
             raise
         except Exception as error:  # Network, JSON or shape errors: no details leave this function.
+            raise LlmError("LLM_REQUEST_FAILED") from error
+
+    def stream(self, messages: list[LlmMessage]) -> Iterator[str]:
+        """Stream completion tokens. Transport only; caller must validate output before display."""
+        s = self._settings
+        if not s.llm_enabled or not s.llm_api_key or not s.llm_model:
+            raise LlmError("LLM_NOT_CONFIGURED")
+        url = s.llm_base_url.rstrip("/") + "/chat/completions"
+        try:
+            with httpx.Client(
+                transport=self._transport,
+                timeout=s.llm_timeout_ms / 1000,
+                follow_redirects=False,
+            ) as client:
+                with client.stream(
+                    "POST",
+                    url,
+                    headers={"Authorization": f"Bearer {s.llm_api_key}"},
+                    json={"model": s.llm_model, "messages": messages, "stream": True},
+                ) as response:
+                    if response.status_code != 200:
+                        raise LlmError("LLM_REQUEST_FAILED")
+                    for line in response.iter_lines():
+                        if line.startswith("data: "):
+                            raw_chunk = line[6:].strip()
+                            if raw_chunk == "[DONE]":
+                                break
+                            try:
+                                payload = json.loads(raw_chunk)
+                                delta = payload["choices"][0].get("delta", {})
+                                token = delta.get("content")
+                                if token:
+                                    yield token
+                            except Exception:
+                                continue
+        except LlmError:
+            raise
+        except Exception as error:
             raise LlmError("LLM_REQUEST_FAILED") from error
