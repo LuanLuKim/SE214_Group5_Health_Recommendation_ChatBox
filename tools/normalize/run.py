@@ -1,7 +1,7 @@
 """Normalize extracted documents into articles, RAG chunks and DB rows.
 
 Usage (from repo root, inside conda env):
-    python -B tools/normalize/run.py                  # URLs in docs/urls.txt + docs/urls_lifestyle.txt
+    python -B tools/normalize/run.py                  # URLs in docs/urls.txt + urls_lifestyle.txt + urls_who.txt
     python -B tools/normalize/run.py --all-extracted  # every extracted document (e.g. the example)
     python -B tools/normalize/run.py --status         # show current output summary
     python -B tools/normalize/run.py --corpus expert_reference
@@ -39,7 +39,7 @@ VERDICTS = ROOT / ".data" / "review" / "interaction_verdicts.json"
 CHUNK_VERDICTS = ROOT / ".data" / "review" / "chunk_verdicts.json"  # review_chunks.py
 # corpus -> (URL lists read together, output directory). Each list is its own crawl group.
 CORPORA = {
-    "rag": ((ROOT / "docs" / "urls.txt", ROOT / "docs" / "urls_lifestyle.txt"), OUTPUT_DIR),
+    "rag": ((ROOT / "docs" / "urls.txt", ROOT / "docs" / "urls_lifestyle.txt", ROOT / "docs" / "urls_who.txt"), OUTPUT_DIR),
     "expert_reference": ((ROOT / "docs" / "urls_reference.txt",), ROOT / ".data" / "normalized_reference"),
 }
 

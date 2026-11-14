@@ -376,7 +376,7 @@ def test_load_url_topics():
 
 def test_rag_corpus_reads_several_lists_and_rejects_topic_conflicts():
     lists, _ = CORPORA["rag"]
-    assert [p.name for p in lists] == ["urls.txt", "urls_lifestyle.txt"]
+    assert [p.name for p in lists] == ["urls.txt", "urls_lifestyle.txt", "urls_who.txt"]
     tmp = Path(tempfile.mkdtemp())
     try:
         (tmp / "a.txt").write_text("https://www.nhs.uk/a/ skin\nhttps://www.nhs.uk/b/ sleep\n", encoding="utf-8")
