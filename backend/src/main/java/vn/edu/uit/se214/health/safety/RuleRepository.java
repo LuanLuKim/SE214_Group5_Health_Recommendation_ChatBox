@@ -59,7 +59,12 @@ public class RuleRepository {
         .list();
   }
 
-  /** The evaluator never sees draft, inactive, unverified or synthetic rules. */
+  /**
+   * The evaluator never sees draft, inactive, unverified or synthetic rules. Every rule goes to
+   * services/ai in one request, so a rule its schema would reject (no "all" condition, a missing
+   * list or more than 20 terms, legacy JSON shape) is skipped here instead of making the whole
+   * Safety Gate UNAVAILABLE.
+   */
   public List<ApprovedSafetyRule> listEvaluable() {
     return jdbc.sql(
             """
@@ -76,9 +81,11 @@ public class RuleRepository {
               String id = rs.getString("id");
               String url = rs.getString("source_url");
               if (!RuleDraftInput.isHttpUrlWithoutCredentials(url)) return null;
+              RuleDraftInput.Conditions conditions = fromJson(rs.getString("conditions"));
+              if (!evaluable(conditions)) return null;
               return new ApprovedSafetyRule(
                   id,
-                  fromJson(rs.getString("conditions")),
+                  conditions,
                   strings(rs.getArray("required_fields")),
                   CareLevel.valueOf(rs.getString("care_level")),
                   strings(rs.getArray("specialty_ids")),
@@ -128,6 +135,21 @@ public class RuleRepository {
         .optional();
   }
 
+  /** Only an unchanged editable rule can enter review; submission never activates it. */
+  public Optional<SafetyRule> submit(UUID id, String sourceName, String sourceUrl) {
+    return jdbc.sql(
+            """
+            UPDATE safety.rules SET review_status = 'PENDING_REVIEW', updated_at = now()
+            WHERE id = ? AND review_status IN ('DRAFT', 'RETURNED')
+              AND source_name = ? AND source_url = ?
+            RETURNING
+            """
+                + FIELDS)
+        .params(id, sourceName, sourceUrl)
+        .query(this::map)
+        .optional();
+  }
+
   private SafetyRule map(ResultSet rs, int row) throws SQLException {
     return new SafetyRule(
         rs.getString("id"),
@@ -142,6 +164,20 @@ public class RuleRepository {
         rs.getBoolean("is_synthetic"),
         Instants.iso(rs.getObject("created_at", OffsetDateTime.class)),
         Instants.iso(rs.getObject("updated_at", OffsetDateTime.class)));
+  }
+
+  /** Mirrors services/ai Conditions: 1..20 "all" terms and at most 20 "any" terms, no blanks. */
+  static boolean evaluable(RuleDraftInput.Conditions conditions) {
+    return conditions != null
+        && terms(conditions.all(), 1)
+        && terms(conditions.any(), 0);
+  }
+
+  private static boolean terms(List<String> values, int min) {
+    return values != null
+        && values.size() >= min
+        && values.size() <= 20
+        && values.stream().allMatch(v -> v != null && !v.isBlank());
   }
 
   private static List<String> strings(Array array) throws SQLException {

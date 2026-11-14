@@ -23,4 +23,8 @@ public final class ApiResponse {
   public static <T> Success<T> of(T data, Meta meta) {
     return new Success<>(data, meta);
   }
+
+  public static <T> Success<T> empty() {
+    return new Success<>(null, null);
+  }
 }

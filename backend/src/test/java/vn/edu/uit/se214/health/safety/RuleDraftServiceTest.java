@@ -88,4 +88,44 @@ class RuleDraftServiceTest {
         .isInstanceOf(ApiException.class);
     assertThat(service.list()).isEmpty();
   }
+
+  @Test
+  void submittingDraftRequiresSourceAndNeverApprovesIt() {
+    SafetyRule draft = service.create(DRAFT);
+    UUID id = UUID.fromString(draft.id());
+
+    jdbc.sql("UPDATE safety.rules SET source_name = '' WHERE id = ?").param(id).update();
+    assertThatThrownBy(() -> service.submit(id))
+        .isInstanceOf(ApiException.class)
+        .satisfies(error -> assertThat(((ApiException) error).code()).isEqualTo("RULE_SOURCE_REQUIRED"));
+    assertThat(service.get(id)).get().extracting(SafetyRule::reviewStatus).isEqualTo(ReviewStatus.DRAFT);
+
+    jdbc.sql("UPDATE safety.rules SET source_name = ?, source_url = '' WHERE id = ?")
+        .params(DRAFT.sourceName(), id)
+        .update();
+    assertThatThrownBy(() -> service.submit(id))
+        .isInstanceOf(ApiException.class)
+        .satisfies(error -> assertThat(((ApiException) error).code()).isEqualTo("RULE_SOURCE_REQUIRED"));
+    assertThat(service.get(id)).get().extracting(SafetyRule::reviewStatus).isEqualTo(ReviewStatus.DRAFT);
+
+    jdbc.sql("UPDATE safety.rules SET source_url = ? WHERE id = ?")
+        .params(DRAFT.sourceUrl(), id)
+        .update();
+    SafetyRule pending = service.submit(id).orElseThrow();
+    assertThat(pending.reviewStatus()).isEqualTo(ReviewStatus.PENDING_REVIEW);
+    assertThat(service.submit(id)).isEmpty();
+    assertThat(service.get(id)).get().extracting(SafetyRule::reviewStatus)
+        .isEqualTo(ReviewStatus.PENDING_REVIEW);
+  }
+
+  @Test
+  void returnedRuleCanBeResubmittedButApprovedRuleCannot() {
+    UUID id = UUID.fromString(service.create(DRAFT).id());
+    jdbc.sql("UPDATE safety.rules SET review_status = 'RETURNED' WHERE id = ?").param(id).update();
+    assertThat(service.submit(id).orElseThrow().reviewStatus()).isEqualTo(ReviewStatus.PENDING_REVIEW);
+
+    jdbc.sql("UPDATE safety.rules SET review_status = 'APPROVED' WHERE id = ?").param(id).update();
+    assertThat(service.submit(id)).isEmpty();
+    assertThat(service.get(id)).get().extracting(SafetyRule::reviewStatus).isEqualTo(ReviewStatus.APPROVED);
+  }
 }
