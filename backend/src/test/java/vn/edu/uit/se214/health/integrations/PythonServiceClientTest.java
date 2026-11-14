@@ -35,6 +35,28 @@ class PythonServiceClientTest {
   }
 
   @Test
+  void streamsLinesFromEndpoint() {
+    RestClient.Builder builder = RestClient.builder();
+    MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+    var client =
+        new PythonServiceClient(
+            new AppProperties.PythonService("http://ai.internal:8001", "synthetic-key", 1000), builder);
+    server
+        .expect(requestTo("http://ai.internal:8001/v1/chat/answer"))
+        .andExpect(method(HttpMethod.POST))
+        .andExpect(header(PythonServiceClient.KEY_HEADER, "synthetic-key"))
+        .andRespond(
+            withSuccess(
+                "data: {\"type\":\"token\",\"data\":\"Hello\"}\n\ndata: {\"type\":\"done\"}\n\n",
+                MediaType.TEXT_EVENT_STREAM));
+
+    java.util.List<String> lines = new java.util.ArrayList<>();
+    client.postStream("/v1/chat/answer", Map.of("message", "hi"), lines::add);
+    assertThat(lines).contains("data: {\"type\":\"token\",\"data\":\"Hello\"}", "data: {\"type\":\"done\"}");
+    server.verify();
+  }
+
+  @Test
   void refusesToCallWithoutAKey() {
     var client =
         new PythonServiceClient(new AppProperties.PythonService("http://ai.internal:8001", "", 1000), RestClient.builder());

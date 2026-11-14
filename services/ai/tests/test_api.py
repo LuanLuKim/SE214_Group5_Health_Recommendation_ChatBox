@@ -52,9 +52,9 @@ def test_invalid_input_is_rejected_without_echoing_it():
         assert "private-test-sentinel" not in response.text
 
 
-def test_chat_answer_is_not_implemented_and_unknown_paths_are_json_404():
+def test_chat_answer_rejects_empty_payload_and_unknown_paths_are_json_404():
     c = client()
-    assert c.post("/v1/chat/answer", json={}, headers=KEY).status_code == 501
+    assert c.post("/v1/chat/answer", json={}, headers=KEY).status_code == 400
     missing = c.get("/missing")
     assert missing.status_code == 404
     assert missing.json()["error"]["code"] == "NOT_FOUND"

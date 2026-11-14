@@ -58,3 +58,29 @@ def test_provider_failures_and_malformed_output_do_not_leak_provider_details():
         load_settings({"LLM_BASE_URL": "https://user:secret@example.invalid/v1"})
     with pytest.raises(ConfigError):
         load_settings({"LLM_BASE_URL": "http://insecure.example.invalid/v1"})
+
+
+def test_llm_stream_works():
+    sse_body = (
+        b'data: {"choices":[{"delta":{"content":"Hel"}}]}\n\n'
+        b'data: {"choices":[{"delta":{"content":"lo"}}]}\n\n'
+        b"data: [DONE]\n\n"
+    )
+
+    def handler(request: httpx.Request):
+        assert request.headers["Authorization"] == "Bearer synthetic-test-key"
+        body = json.loads(request.content)
+        assert body["stream"] is True
+        return httpx.Response(200, content=sse_body)
+
+    settings = load_settings(ENABLED)
+    client = LlmClient(settings, httpx.MockTransport(handler))
+    tokens = list(client.stream([{"role": "user", "content": "Hi"}]))
+    assert tokens == ["Hel", "lo"]
+
+
+def test_llm_stream_error_handling():
+    settings = load_settings(ENABLED)
+    bad_status = LlmClient(settings, httpx.MockTransport(lambda r: httpx.Response(500, text="error")))
+    with pytest.raises(LlmError, match="LLM_REQUEST_FAILED"):
+        list(bad_status.stream([]))
