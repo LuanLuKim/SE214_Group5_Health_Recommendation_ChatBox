@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Stream;
@@ -91,8 +92,9 @@ class ProgressCalculatorTest {
 
   @Test
   void localMidnightSeparatesConsecutiveDaysEvenOneSecondApart() {
-    LocalDate beforeMidnight = ProgressCalculator.localDate(Instant.parse("2026-10-29T16:59:59Z"));
-    LocalDate midnight = ProgressCalculator.localDate(Instant.parse("2026-10-29T17:00:00Z"));
+    ZoneId vietnam = ZoneId.of("Asia/Ho_Chi_Minh");
+    LocalDate beforeMidnight = ProgressCalculator.localDate(Instant.parse("2026-10-29T16:59:59Z"), vietnam);
+    LocalDate midnight = ProgressCalculator.localDate(Instant.parse("2026-10-29T17:00:00Z"), vietnam);
     List<LocalDate> dates = List.of(beforeMidnight, midnight, TODAY);
     assertThat(ProgressCalculator.currentStreak(dates, beforeMidnight)).isEqualTo(1);
     assertThat(ProgressCalculator.currentStreak(dates, midnight)).isEqualTo(2);

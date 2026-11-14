@@ -183,3 +183,33 @@ export interface AnonymousFeedback {
   attachment: { question: string; answer: string } | null;
   createdAt: string;
 }
+// M6 UC-13: dates are local calendar days (yyyy-mm-dd) in the backend's app.lifestyle.zone.
+export interface DailyProgress {
+  totalActivities: number;
+  completedActivities: number;
+  completionRate: number;
+}
+export interface ActivityToday {
+  id: string;
+  title: string;
+  completed: boolean;
+  streak: number;
+}
+export interface TodayPlan {
+  planId: string;
+  templateId: string;
+  templateTitle: string;
+  startedOn: string;
+  date: string;
+  progress: DailyProgress;
+  planStreak: number;
+  activities: ActivityToday[];
+}
+// Read back from the database after PUT/DELETE /lifestyle/completions/:activityId/:date.
+export interface CompletionResult {
+  activityId: string;
+  date: string;
+  completed: boolean;
+  streak: number;
+  progress: DailyProgress;
+}
