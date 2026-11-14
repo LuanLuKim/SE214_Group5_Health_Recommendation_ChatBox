@@ -111,6 +111,9 @@ class ApiTest {
             new Object[] {HttpMethod.GET, "/accounts/me"},
             new Object[] {HttpMethod.GET, "/accounts/users"},
             new Object[] {HttpMethod.GET, "/lifestyle/templates"},
+            new Object[] {HttpMethod.GET, "/lifestyle/plan"},
+            new Object[] {HttpMethod.PUT, "/lifestyle/completions/demo/2026-11-14"},
+            new Object[] {HttpMethod.DELETE, "/lifestyle/completions/demo/2026-11-14"},
             new Object[] {HttpMethod.GET, "/lifestyle/reminders"});
     for (Object[] path : paths) {
       mvc.perform(
