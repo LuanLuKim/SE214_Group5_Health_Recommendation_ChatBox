@@ -33,6 +33,9 @@ services:
       AI_SERVICE_KEY: local_dev_only_key
       STATS_SERVICE_URL: http://stats:8002
       STATS_SERVICE_KEY: local_dev_only_key
+      # Chỉ dùng trên máy phát triển, đủ 32 byte. Không dùng lại trên server.
+      AUTH_TOKEN_SECRET: local_dev_only_auth_token_secret_32b
+      EMAIL_OTP_HASH_SECRET: local_dev_only_email_otp_secret_32b
     ports:
       - '127.0.0.1:4000:4000'
     depends_on:

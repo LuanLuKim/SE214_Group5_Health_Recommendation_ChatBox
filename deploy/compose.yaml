@@ -39,6 +39,21 @@ services:
       AI_SERVICE_KEY: ${AI_SERVICE_KEY:?Thiếu AI_SERVICE_KEY trong deploy/.env}
       STATS_SERVICE_URL: http://stats:8002
       STATS_SERVICE_KEY: ${STATS_SERVICE_KEY:?Thiếu STATS_SERVICE_KEY trong deploy/.env}
+      # M5: ký access token và băm OTP. Thiếu thì backend không khởi động.
+      AUTH_TOKEN_SECRET: ${AUTH_TOKEN_SECRET:?Thiếu AUTH_TOKEN_SECRET trong deploy/.env}
+      EMAIL_OTP_HASH_SECRET: ${EMAIL_OTP_HASH_SECRET:?Thiếu EMAIL_OTP_HASH_SECRET trong deploy/.env}
+      TERMS_VERSION: ${TERMS_VERSION:-v1}
+      # Để trống thì đăng ký/khôi phục bằng email và đăng nhập Google/Facebook trả 503, không tạo tài khoản.
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USERNAME: ${SMTP_USERNAME:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      MAIL_FROM: ${MAIL_FROM:-}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      FACEBOOK_APP_ID: ${FACEBOOK_APP_ID:-}
+      FACEBOOK_APP_SECRET: ${FACEBOOK_APP_SECRET:-}
+      # Bản triển khai không công khai Swagger UI và /v3/api-docs, trừ khi đặt true.
+      SWAGGER_ENABLED: ${SWAGGER_ENABLED:-false}
     ports:
       - '${BACKEND_BIND:-127.0.0.1}:${BACKEND_PORT:-4000}:4000'
     depends_on:

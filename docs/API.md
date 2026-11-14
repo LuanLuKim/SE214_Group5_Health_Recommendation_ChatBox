@@ -8,25 +8,25 @@ Thành công: `{ "data": ..., "meta": { "status": "...", "total": 0 } }` (`meta`
 
 Mã lỗi chung, mọi phản hồi lỗi đều là JSON dù client gửi `Accept` nào:
 
-| HTTP | `code`                              | Khi nào                                        |
-| ---- | ----------------------------------- | ---------------------------------------------- |
-| 400  | `INVALID_REQUEST`                   | JSON hỏng, sai kiểu dữ liệu, thiếu tham số     |
-| 400  | `INVALID_QUERY`                     | Từ khóa tìm kiếm không hợp lệ                  |
-| 404  | `NOT_FOUND`                         | Không có route (kể cả `/error`)                |
-| 405  | `METHOD_NOT_ALLOWED`                | Sai phương thức                                |
-| 406  | `NOT_ACCEPTABLE`                    | Client chỉ nhận định dạng khác JSON            |
-| 413  | `PAYLOAD_TOO_LARGE`                 | Body vượt 32 KiB                               |
-| 429  | `RATE_LIMITED`                      | Quá 120 request/phút từ một IP                 |
+| HTTP | `code`                              | Khi nào                                           |
+| ---- | ----------------------------------- | ------------------------------------------------- |
+| 400  | `INVALID_REQUEST`                   | JSON hỏng, sai kiểu dữ liệu, thiếu tham số        |
+| 400  | `INVALID_QUERY`                     | Từ khóa tìm kiếm không hợp lệ                     |
+| 404  | `NOT_FOUND`                         | Không có route (kể cả `/error`)                   |
+| 405  | `METHOD_NOT_ALLOWED`                | Sai phương thức                                   |
+| 406  | `NOT_ACCEPTABLE`                    | Client chỉ nhận định dạng khác JSON               |
+| 413  | `PAYLOAD_TOO_LARGE`                 | Body vượt 32 KiB                                  |
+| 429  | `RATE_LIMITED`                      | Quá 120 request/phút từ một IP                    |
 | 403  | `CSRF_INVALID`                      | Thiếu/sai CSRF token cho request thay đổi dữ liệu |
-| 403  | `ACCESS_DENIED`                     | Request bị từ chối quyền                        |
-| 500  | `INTERNAL_ERROR`                    | Lỗi chưa lường trước; tra log theo `requestId` |
-| 501  | `NOT_IMPLEMENTED`                   | Route đã dành chỗ, chưa có nghiệp vụ           |
-| 401  | `SESSION_INVALID`                   | Access JWT thiếu/không hợp lệ/hết hạn          |
-| 401  | `REFRESH_TOKEN_INVALID`             | Refresh token không hợp lệ/hết hạn/đã thu hồi    |
-| 503  | `AUTH_NOT_CONFIGURED`               | Chế độ mock không có authentication provider     |
-| 503  | `DATABASE_UNAVAILABLE`              | Không kết nối được PostgreSQL; thử lại sau     |
-| 409  | `EMAIL_ALREADY_REGISTERED`          | Email đã được đăng ký                          |
-| 409  | `OAUTH_IDENTITY_ALREADY_REGISTERED` | Tài khoản OAuth đã được đăng ký                |
+| 403  | `ACCESS_DENIED`                     | Request bị từ chối quyền                          |
+| 500  | `INTERNAL_ERROR`                    | Lỗi chưa lường trước; tra log theo `requestId`    |
+| 501  | `NOT_IMPLEMENTED`                   | Route đã dành chỗ, chưa có nghiệp vụ              |
+| 401  | `SESSION_INVALID`                   | Access JWT thiếu/không hợp lệ/hết hạn             |
+| 401  | `REFRESH_TOKEN_INVALID`             | Refresh token không hợp lệ/hết hạn/đã thu hồi     |
+| 503  | `AUTH_NOT_CONFIGURED`               | Chế độ mock không có authentication provider      |
+| 503  | `DATABASE_UNAVAILABLE`              | Không kết nối được PostgreSQL; thử lại sau        |
+| 409  | `EMAIL_ALREADY_REGISTERED`          | Email đã được đăng ký                             |
+| 409  | `OAUTH_IDENTITY_ALREADY_REGISTERED` | Tài khoản OAuth đã được đăng ký                   |
 
 Lỗi 500 và 503 `DATABASE_UNAVAILABLE` được ghi log một dòng gồm `requestId`, phương thức, đường dẫn (không có query string), tên lớp ngoại lệ và vị trí trong code. Thông điệp của ngoại lệ không được ghi vì có thể chứa dữ liệu người dùng.
 
@@ -62,7 +62,7 @@ Các route riêng tư yêu cầu `HA_ACCESS`, xác minh chữ ký, issuer và h�
 
 | Module | Routes sau `/api/v1`                                                                                                                                                                             | Quyền cần thực hiện                                                   |
 | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------- |
-| M1     | POST `/safety/evaluate`; GET/POST `/safety/rules`; GET/PATCH `/safety/rules/:id`; POST `/safety/rules/:id/submit`                                                                                | Yêu cầu authentication; consent và CONTENT_EXPERT chưa được kiểm tra   |
+| M1     | POST `/safety/evaluate`; GET/POST `/safety/rules`; GET/PATCH `/safety/rules/:id`; POST `/safety/rules/:id/submit`                                                                                | Yêu cầu authentication; consent và CONTENT_EXPERT chưa được kiểm tra  |
 | M2     | POST `/knowledge/articles`; PATCH/DELETE `/knowledge/articles/:id`; GET `/knowledge/reviews`; POST `/knowledge/reviews/:id/decision`; GET `/knowledge/feedback`; PATCH `/knowledge/feedback/:id` | CONTENT_EXPERT; quyền soạn bài của ADMIN còn phải thống nhất theo SRS |
 | M3     | GET/PUT/DELETE `/health/profile`; GET `/health/metrics`; PUT/DELETE `/health/metrics/:date`                                                                                                      | Dữ liệu của chính người dùng, consent                                 |
 | M3     | GET `/health/statistics`                                                                                                                                                                         | ADMIN, chỉ số tổng hợp                                                |

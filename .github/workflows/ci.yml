@@ -101,6 +101,8 @@ jobs:
       DATABASE_DIR: ${{ github.workspace }}/database
       AI_SERVICE_KEY: ci-smoke-key
       STATS_SERVICE_KEY: ci-smoke-key
+      AUTH_TOKEN_SECRET: ci-smoke-auth-token-secret-at-least-32-bytes
+      EMAIL_OTP_HASH_SECRET: ci-smoke-email-otp-secret-at-least-32-bytes
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
@@ -130,7 +132,9 @@ jobs:
         run: |
           curl -fs http://127.0.0.1:4000/api/v1/knowledge/articles \
             | jq -e '.meta.status == "DATABASE_RESULTS" and (.data | length) == 1'
-          curl -s http://127.0.0.1:4000/api/v1/accounts/me | jq -e '.error.code == "AUTH_NOT_CONFIGURED"'
+          # Route riêng tư không có cookie HA_ACCESS: 401 SESSION_INVALID (chế độ postgres).
+          test "$(curl -s -o me.json -w '%{http_code}' http://127.0.0.1:4000/api/v1/accounts/me)" = 401
+          jq -e '.error.code == "SESSION_INVALID"' me.json
       - name: Service Python từ chối lời gọi không có khóa
         run: |
           test "$(curl -s -o /dev/null -w '%{http_code}' -X POST http://127.0.0.1:8001/v1/safety/evaluate -H 'Content-Type: application/json' -d '{"text":"ci"}')" = 401
