@@ -18,14 +18,13 @@ import org.springframework.web.bind.annotation.RestController;
 import vn.edu.uit.se214.health.shared.domain.ReviewStatus;
 import vn.edu.uit.se214.health.shared.web.ApiException;
 import vn.edu.uit.se214.health.shared.web.ApiResponse;
-import vn.edu.uit.se214.health.shared.web.RequiresSession;
 import vn.edu.uit.se214.health.system.ModuleDescriptor;
 import vn.edu.uit.se214.health.system.ModuleRegistry;
 
 /**
- * M1 – UC-07, UC-16. Rule authoring routes are wired to {@link RuleDraftService} but stay closed
- * behind {@link RequiresSession} until M5 provides sessions; the CONTENT_EXPERT role check then
- * belongs here before any service call. Nothing in these routes approves or activates a rule.
+ * M1 – UC-07, UC-16. Rule authoring routes are wired to {@link RuleDraftService} and require
+ * authentication (SpringSecurityConfiguration); the CONTENT_EXPERT role check still belongs here
+ * before any service call. Nothing in these routes approves or activates a rule.
  */
 @RestController
 @RequestMapping("/api/v1/safety")
@@ -44,26 +43,22 @@ public class SafetyController {
     return ApiResponse.of(ModuleRegistry.get("safety"));
   }
 
-  @RequiresSession
   @PostMapping("/evaluate")
   public Object evaluate(@RequestBody(required = false) JsonNode body) {
     throw ApiException.notImplemented();
   }
 
-  @RequiresSession
   @GetMapping("/rules")
   public ApiResponse.Success<List<SafetyRule>> listRules() {
     List<SafetyRule> rules = service().list();
     return ApiResponse.of(rules, new ApiResponse.Meta(null, rules.size()));
   }
 
-  @RequiresSession
   @GetMapping("/rules/{id}")
   public ApiResponse.Success<SafetyRule> getRule(@PathVariable String id) {
     return ApiResponse.of(service().get(ruleId(id)).orElseThrow(SafetyController::notFound));
   }
 
-  @RequiresSession
   @PostMapping("/rules")
   @ResponseStatus(HttpStatus.CREATED)
   public ApiResponse.Success<SafetyRule> createRule(@RequestBody(required = false) JsonNode body) {
@@ -71,7 +66,6 @@ public class SafetyController {
     return ApiResponse.of(service.create(draft(body)));
   }
 
-  @RequiresSession
   @PatchMapping("/rules/{id}")
   public ApiResponse.Success<SafetyRule> updateRule(
       @PathVariable String id, @RequestBody(required = false) JsonNode body) {
@@ -82,7 +76,6 @@ public class SafetyController {
   }
 
   /** UC-16: hand a sourced draft to the shared UC-17 review queue. It stays inert until approved. */
-  @RequiresSession
   @PostMapping("/rules/{id}/submit")
   public ApiResponse.Success<SafetyRule> submitRule(@PathVariable String id) {
     RuleDraftService service = service();

@@ -17,6 +17,7 @@ import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.CannotGetJdbcConnectionException;
+import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -27,6 +28,7 @@ import org.springframework.web.bind.annotation.RestController;
 @AutoConfigureMockMvc
 @Import(ErrorHandlingTest.FailingController.class)
 @ExtendWith(OutputCaptureExtension.class)
+@ActiveProfiles("mock")
 class ErrorHandlingTest {
   private static final String SENTINEL = "private-test-sentinel";
 

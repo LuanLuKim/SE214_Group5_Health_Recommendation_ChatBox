@@ -10,6 +10,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.SpringBootTest.WebEnvironment;
 import org.springframework.boot.test.web.server.LocalServerPort;
+import org.springframework.test.context.ActiveProfiles;
 
 /**
  * FORWARD_HEADERS=native (behind a reverse proxy): the rate limit counts the client address
@@ -18,6 +19,7 @@ import org.springframework.boot.test.web.server.LocalServerPort;
 @SpringBootTest(
     webEnvironment = WebEnvironment.RANDOM_PORT,
     properties = {"server.forward-headers-strategy=native", "app.rate-limit-per-minute=1"})
+@ActiveProfiles("mock")
 class ForwardedClientIpTest {
   @LocalServerPort int port;
 

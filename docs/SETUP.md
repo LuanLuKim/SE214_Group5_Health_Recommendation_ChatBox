@@ -25,16 +25,20 @@
 
 Frontend dev proxy chuyển `/api` và `/healthz` tới port 4000. Đặt `VITE_API_ORIGIN` chỉ khi frontend cần gọi API ở địa chỉ khác; đây là biến công khai trong bundle, không được chứa bí mật. Trên Windows, dùng `npm.cmd` nếu PowerShell chặn `npm.ps1`.
 
+Swagger UI mở tại `http://127.0.0.1:4000/swagger-ui.html`; OpenAPI JSON ở `/v3/api-docs`. Tài liệu được bật mặc định để phát triển; đặt `SWAGGER_ENABLED=false` trong môi trường triển khai nếu không muốn công khai giao diện/tài liệu API.
+
 ## Cấu hình
 
 Mỗi service đọc biến môi trường, hoặc file `.env` cục bộ trong thư mục của nó (Git bỏ qua). Chép từ `.env.example` một lần rồi điền giá trị của bạn.
 
-| File                  | Biến chính                                                                                                                                                                                                                       |
-| --------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `backend/.env`        | `DATA_MODE` (`mock`/`postgres`), `DATABASE_URL` (dạng `jdbc:postgresql://…`), `DATABASE_USER`, `DATABASE_PASSWORD`, `SEED_SYNTHETIC`, `WEB_ORIGIN`, `AI_SERVICE_URL`, `AI_SERVICE_KEY`, `STATS_SERVICE_URL`, `STATS_SERVICE_KEY` |
-| `services/ai/.env`    | `AI_SERVICE_KEY`, `LLM_ENABLED`, `LLM_BASE_URL`, `LLM_API_KEY`, `LLM_MODEL`, `LLM_TIMEOUT_MS`                                                                                                                                    |
-| `services/stats/.env` | `STATS_SERVICE_KEY`, `DJANGO_SECRET_KEY`, `DJANGO_DEBUG`, `DJANGO_ALLOWED_HOSTS`                                                                                                                                                 |
-| `apps/web/.env`       | `VITE_API_ORIGIN` (thường để trống)                                                                                                                                                                                              |
+| File                  | Biến chính                                                                                                                                                                                                                                                                                                                                         |
+| --------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `backend/.env`        | `DATA_MODE` (`mock`/`postgres`), `DATABASE_URL` (dạng `jdbc:postgresql://…`), `DATABASE_USER`, `DATABASE_PASSWORD`, `SEED_SYNTHETIC`, `TERMS_VERSION`, `GOOGLE_CLIENT_ID`, `FACEBOOK_APP_ID`, `FACEBOOK_APP_SECRET`, `SMTP_*`, `EMAIL_OTP_HASH_SECRET`, `AUTH_TOKEN_SECRET`, `WEB_ORIGIN`, `AI_SERVICE_URL`, `AI_SERVICE_KEY`, `STATS_SERVICE_URL`, `STATS_SERVICE_KEY` |
+
+`AUTH_TOKEN_SECRET` và `EMAIL_OTP_HASH_SECRET` cần ít nhất 32 byte ngẫu nhiên, khác nhau, được tạo riêng cho từng môi trường và không commit. Có thể tạo từng giá trị cục bộ bằng `node -e "console.log(require('node:crypto').randomBytes(48).toString('base64'))"`.
+| `services/ai/.env`    | `AI_SERVICE_KEY`, `LLM_ENABLED`, `LLM_BASE_URL`, `LLM_API_KEY`, `LLM_MODEL`, `LLM_TIMEOUT_MS`                                                                                                                                                                                                                                                      |
+| `services/stats/.env` | `STATS_SERVICE_KEY`, `DJANGO_SECRET_KEY`, `DJANGO_DEBUG`, `DJANGO_ALLOWED_HOSTS`                                                                                                                                                                                                                                                                   |
+| `apps/web/.env`       | `VITE_API_ORIGIN` (thường để trống)                                                                                                                                                                                                                                                                                                                |
 
 `AI_SERVICE_KEY` và `STATS_SERVICE_KEY` phải giống nhau giữa backend và service tương ứng. Service Python để trống khóa thì mọi route `/v1` trả 503, không mở cho ai gọi.
 

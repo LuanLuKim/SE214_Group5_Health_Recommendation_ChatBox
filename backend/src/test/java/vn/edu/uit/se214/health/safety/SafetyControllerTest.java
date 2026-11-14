@@ -18,7 +18,7 @@ import vn.edu.uit.se214.health.shared.web.ApiException;
 import vn.edu.uit.se214.health.support.TestDatabase;
 
 /**
- * UC-16 routes called directly: over HTTP they stay behind SessionGuard until M5 (see ApiTest).
+ * UC-16 routes called directly: over HTTP they require authentication (see ApiTest).
  */
 class SafetyControllerTest {
   final ObjectMapper json = new ObjectMapper();

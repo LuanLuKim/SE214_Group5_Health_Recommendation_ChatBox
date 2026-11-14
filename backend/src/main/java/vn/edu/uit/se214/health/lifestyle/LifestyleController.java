@@ -12,7 +12,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import vn.edu.uit.se214.health.shared.web.ApiException;
 import vn.edu.uit.se214.health.shared.web.ApiResponse;
-import vn.edu.uit.se214.health.shared.web.RequiresSession;
 import vn.edu.uit.se214.health.system.ModuleDescriptor;
 import vn.edu.uit.se214.health.system.ModuleRegistry;
 
@@ -25,49 +24,41 @@ public class LifestyleController {
     return ApiResponse.of(ModuleRegistry.get("lifestyle"));
   }
 
-  @RequiresSession
   @GetMapping("/templates")
   public Object templates() {
     throw ApiException.notImplemented();
   }
 
-  @RequiresSession
   @GetMapping("/plan")
   public Object plan() {
     throw ApiException.notImplemented();
   }
 
-  @RequiresSession
   @PutMapping("/plan")
   public Object choosePlan(@RequestBody(required = false) JsonNode body) {
     throw ApiException.notImplemented();
   }
 
-  @RequiresSession
   @PutMapping("/completions/{activityId}/{date}")
   public Object complete(@PathVariable String activityId, @PathVariable String date) {
     throw ApiException.notImplemented();
   }
 
-  @RequiresSession
   @GetMapping("/reminders")
   public Object reminders() {
     throw ApiException.notImplemented();
   }
 
-  @RequiresSession
   @PostMapping("/reminders")
   public Object createReminder(@RequestBody(required = false) JsonNode body) {
     throw ApiException.notImplemented();
   }
 
-  @RequiresSession
   @PatchMapping("/reminders/{id}")
   public Object updateReminder(@PathVariable String id, @RequestBody(required = false) JsonNode body) {
     throw ApiException.notImplemented();
   }
 
-  @RequiresSession
   @DeleteMapping("/reminders/{id}")
   public Object deleteReminder(@PathVariable String id) {
     throw ApiException.notImplemented();

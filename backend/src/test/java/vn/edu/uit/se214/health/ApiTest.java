@@ -20,6 +20,7 @@ import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
+import org.springframework.test.context.ActiveProfiles;
 import vn.edu.uit.se214.health.safety.UnavailableSafetyEvaluator;
 import vn.edu.uit.se214.health.safety.api.CareLevel;
 import vn.edu.uit.se214.health.safety.api.SafetyDecision;
@@ -29,6 +30,7 @@ import vn.edu.uit.se214.health.system.ModuleRegistry;
 /** Port of apps/api/tests/api.test.ts (DATA_MODE=mock, no database). */
 @SpringBootTest
 @AutoConfigureMockMvc
+@ActiveProfiles("mock")
 class ApiTest {
   @Autowired MockMvc mvc;
   @Autowired ObjectMapper json;
@@ -73,6 +75,21 @@ class ApiTest {
   }
 
   @Test
+  void swaggerUiAndOpenApiDocumentAreAvailable() throws Exception {
+    mvc.perform(get("/swagger-ui.html")).andExpect(status().is3xxRedirection());
+    mvc.perform(get("/swagger-ui/index.html"))
+        .andExpect(status().isOk())
+        .andExpect(header().string("Content-Security-Policy", org.hamcrest.Matchers.containsString("style-src 'self'")));
+    mvc.perform(get("/swagger-ui/swagger-ui-bundle.js"))
+        .andExpect(status().isOk())
+        .andExpect(header().string("Content-Security-Policy", org.hamcrest.Matchers.containsString("script-src 'self'")));
+    mvc.perform(get("/v3/api-docs"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.info.title").value("Health Recommendation API"))
+        .andExpect(jsonPath("$.paths['/api/v1/knowledge/articles']").exists());
+  }
+
+  @Test
   void privateClinicalReviewAndAdminPathsFailClosedEvenWithForgedIdentity() throws Exception {
     List<Object[]> paths =
         List.of(
@@ -108,8 +125,14 @@ class ApiTest {
     mvc.perform(
             post("/api/v1/accounts/register")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"role\":\"ADMIN\"}"))
-        .andExpect(status().isNotImplemented());
+                .content(
+                    """
+                    {"email":"new@example.test","displayName":"Test User","password":"test-password-123",
+                     "consent":{"termsAccepted":true,"healthDataProcessingAccepted":true,
+                       "nonDiagnosticAcknowledged":true,"adultConfirmed":true,"termsVersion":"v1"}}
+                    """))
+        .andExpect(status().isServiceUnavailable())
+        .andExpect(jsonPath("$.error.code").value("REGISTRATION_UNAVAILABLE"));
   }
 
   @Test
@@ -117,6 +140,8 @@ class ApiTest {
     MvcResult missing = mvc.perform(get("/missing")).andExpect(status().isNotFound()).andReturn();
     assertThat(missing.getResponse().getHeader("X-Powered-By")).isNull();
     assertThat(missing.getResponse().getHeader("X-Content-Type-Options")).isEqualTo("nosniff");
+    assertThat(missing.getResponse().getHeader("Content-Security-Policy"))
+        .isEqualTo("default-src 'none'; frame-ancestors 'none'");
     assertThat(body(missing).at("/error/requestId").asText())
         .isEqualTo(missing.getResponse().getHeader("X-Request-ID"));
 

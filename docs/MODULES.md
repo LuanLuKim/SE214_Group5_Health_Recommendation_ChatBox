@@ -24,7 +24,7 @@ apps/web/src/modules/<module>/
 
 backend/src/main/java/vn/edu/uit/se214/health/<module>/
   README.md             Phạm vi, phụ thuộc, cách mở rộng
-  <Module>Controller    HTTP: đọc request, trả ApiResponse, @RequiresSession cho route riêng tư
+  <Module>Controller    HTTP: đọc request, trả ApiResponse; Spring Security bảo vệ route riêng tư
   <...>Service          Nghiệp vụ
   <...>Repository       SQL bằng JdbcClient, chỉ trên schema của module
   api/                  Kiểu và interface công khai cho module khác

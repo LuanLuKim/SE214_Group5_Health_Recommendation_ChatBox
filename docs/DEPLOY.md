@@ -30,18 +30,23 @@ docker compose -f deploy/compose.yaml up -d --wait
 
 ### Biến trong `deploy/.env`
 
-| Biến                                                      | Bắt buộc | Ý nghĩa                                                                                                       |
-| --------------------------------------------------------- | -------- | ------------------------------------------------------------------------------------------------------------- |
-| `IMAGE_PREFIX`                                            | Có       | Tiền tố tên image do CD đẩy lên, đã điền sẵn trong file mẫu. Chỉ sửa khi repo đổi chủ hoặc dùng registry khác |
-| `IMAGE_TAG`                                               |          | `latest` hoặc mã commit đầy đủ trên `main`. Dùng mã commit để cố định phiên bản                               |
-| `DATABASE_USER`, `DATABASE_PASSWORD`                      | Có       | Tài khoản PostgreSQL. Không dùng lại `local_dev_only`                                                         |
-| `WEB_ORIGIN`                                              | Có       | Địa chỉ frontend được phép gọi API (CORS), ví dụ `https://demo.example.vn`, không có `/` ở cuối               |
-| `AI_SERVICE_KEY`, `STATS_SERVICE_KEY`                     | Có       | Khóa giữa backend và từng dịch vụ Python. Chuỗi ngẫu nhiên, mỗi khóa một giá trị                              |
-| `DJANGO_SECRET_KEY`                                       | Có       | Khóa bí mật của Django                                                                                        |
-| `BACKEND_BIND`, `BACKEND_PORT`                            |          | Mặc định `127.0.0.1:4000`. Đặt `BACKEND_BIND=0.0.0.0` chỉ khi demo trong mạng nội bộ không có reverse proxy   |
-| `FORWARD_HEADERS`                                         |          | `native` khi có reverse proxy phía trước, `none` khi không có                                                 |
-| `APP_ENV`, `SEED_SYNTHETIC`                               |          | Mặc định `production` và `false`. Máy demo cần dữ liệu mẫu: `APP_ENV=demo`, `SEED_SYNTHETIC=true`             |
-| `LLM_ENABLED`, `LLM_BASE_URL`, `LLM_API_KEY`, `LLM_MODEL` |          | Chỉ dịch vụ AI đọc. Giữ `LLM_ENABLED=false` cho tới khi chat (M4) được nối                                    |
+| Biến                                                                    | Bắt buộc | Ý nghĩa                                                                                                       |
+| ----------------------------------------------------------------------- | -------- | ------------------------------------------------------------------------------------------------------------- |
+| `IMAGE_PREFIX`                                                          | Có       | Tiền tố tên image do CD đẩy lên, đã điền sẵn trong file mẫu. Chỉ sửa khi repo đổi chủ hoặc dùng registry khác |
+| `IMAGE_TAG`                                                             |          | `latest` hoặc mã commit đầy đủ trên `main`. Dùng mã commit để cố định phiên bản                               |
+| `DATABASE_USER`, `DATABASE_PASSWORD`                                    | Có       | Tài khoản PostgreSQL. Không dùng lại `local_dev_only`                                                         |
+| `WEB_ORIGIN`                                                            | Có       | Địa chỉ frontend được phép gọi API (CORS), ví dụ `https://demo.example.vn`, không có `/` ở cuối               |
+| `AI_SERVICE_KEY`, `STATS_SERVICE_KEY`                                   | Có       | Khóa giữa backend và từng dịch vụ Python. Chuỗi ngẫu nhiên, mỗi khóa một giá trị                              |
+| `DJANGO_SECRET_KEY`                                                     | Có       | Khóa bí mật của Django                                                                                        |
+| `AUTH_TOKEN_SECRET`, `EMAIL_OTP_HASH_SECRET`                            | Có       | Khóa ký access token và khóa băm mã OTP (M5). Mỗi khóa một chuỗi ngẫu nhiên, ít nhất 32 byte                  |
+| `TERMS_VERSION`                                                         |          | Phiên bản điều khoản người dùng phải đồng ý khi đăng ký. Mặc định `v1`                                        |
+| `SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD`, `MAIL_FROM` |          | Máy chủ gửi mã OTP. Để trống thì đăng ký/khôi phục bằng email trả 503 và không tạo tài khoản                  |
+| `GOOGLE_CLIENT_ID`, `FACEBOOK_APP_ID`, `FACEBOOK_APP_SECRET`            |          | Đăng nhập Google/Facebook. Để trống nhà cung cấp không dùng                                                   |
+| `SWAGGER_ENABLED`                                                       |          | Mặc định `false`: không công khai Swagger UI và `/v3/api-docs`                                                |
+| `BACKEND_BIND`, `BACKEND_PORT`                                          |          | Mặc định `127.0.0.1:4000`. Đặt `BACKEND_BIND=0.0.0.0` chỉ khi demo trong mạng nội bộ không có reverse proxy   |
+| `FORWARD_HEADERS`                                                       |          | `native` khi có reverse proxy phía trước, `none` khi không có                                                 |
+| `APP_ENV`, `SEED_SYNTHETIC`                                             |          | Mặc định `production` và `false`. Máy demo cần dữ liệu mẫu: `APP_ENV=demo`, `SEED_SYNTHETIC=true`             |
+| `LLM_ENABLED`, `LLM_BASE_URL`, `LLM_API_KEY`, `LLM_MODEL`               |          | Chỉ dịch vụ AI đọc. Giữ `LLM_ENABLED=false` cho tới khi chat (M4) được nối                                    |
 
 Tạo chuỗi ngẫu nhiên: `openssl rand -hex 32`. Bí mật chỉ nằm trong `deploy/.env` trên máy chạy (Git bỏ qua file này) hoặc trong kho secret của nền tảng. Không đưa vào commit, issue, chat.
 
