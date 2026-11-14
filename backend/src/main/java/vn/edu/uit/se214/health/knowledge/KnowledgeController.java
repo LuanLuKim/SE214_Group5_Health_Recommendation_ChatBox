@@ -16,13 +16,12 @@ import vn.edu.uit.se214.health.knowledge.api.FacilitySummary;
 import vn.edu.uit.se214.health.knowledge.api.KnowledgeSearch;
 import vn.edu.uit.se214.health.shared.web.ApiException;
 import vn.edu.uit.se214.health.shared.web.ApiResponse;
-import vn.edu.uit.se214.health.shared.web.RequiresSession;
 import vn.edu.uit.se214.health.system.ModuleDescriptor;
 import vn.edu.uit.se214.health.system.ModuleRegistry;
 
 /**
  * M2 – UC-10, UC-11, UC-15, UC-17. Public search is open; authoring, the shared review queue
- * (UC-17, both the M1 and M2 parts) and feedback stay closed until M5 provides expert sessions.
+ * (UC-17, both the M1 and M2 parts) and feedback require authentication. Role checks remain pending.
  */
 @RestController
 @RequestMapping("/api/v1/knowledge")
@@ -63,43 +62,36 @@ public class KnowledgeController {
     return value;
   }
 
-  @RequiresSession
   @PostMapping("/articles")
   public Object createArticle(@RequestBody(required = false) JsonNode body) {
     throw ApiException.notImplemented();
   }
 
-  @RequiresSession
   @PatchMapping("/articles/{id}")
   public Object updateArticle(@PathVariable String id, @RequestBody(required = false) JsonNode body) {
     throw ApiException.notImplemented();
   }
 
-  @RequiresSession
   @DeleteMapping("/articles/{id}")
   public Object deleteArticle(@PathVariable String id) {
     throw ApiException.notImplemented();
   }
 
-  @RequiresSession
   @GetMapping("/reviews")
   public Object reviewQueue() {
     throw ApiException.notImplemented();
   }
 
-  @RequiresSession
   @PostMapping("/reviews/{id}/decision")
   public Object decide(@PathVariable String id, @RequestBody(required = false) JsonNode body) {
     throw ApiException.notImplemented();
   }
 
-  @RequiresSession
   @GetMapping("/feedback")
   public Object feedback() {
     throw ApiException.notImplemented();
   }
 
-  @RequiresSession
   @PatchMapping("/feedback/{id}")
   public Object handleFeedback(@PathVariable String id, @RequestBody(required = false) JsonNode body) {
     throw ApiException.notImplemented();

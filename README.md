@@ -52,8 +52,9 @@ apps/web/                      Giao diện React (src/modules/<module>/Page.tsx 
 packages/contracts/            Kiểu dữ liệu dùng chung cho frontend (khớp JSON của backend)
 backend/                       Spring Boot modular monolith
   src/main/java/.../health/
+    accounts/                  auth/, oauth/, registration/, persistence/, web/, config/
     <module>/                  Controller, Service, Repository, package api/ công khai
-    shared/                    Phản hồi chuẩn, lỗi, request ID, giới hạn request, @RequiresSession
+    shared/                    Phản hồi chuẩn, lỗi, request ID, giới hạn request, Spring Security
     integrations/              Client gọi services/ai và services/stats
     system/                    /healthz, danh sách module, nạp dữ liệu giả lập
   src/test/java/               Test API, PostgreSQL nhúng, nghiệp vụ

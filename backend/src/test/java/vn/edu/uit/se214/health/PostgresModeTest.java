@@ -37,6 +37,7 @@ class PostgresModeTest {
     registry.add("spring.datasource.password", () -> "postgres");
     registry.add("app.data-mode", () -> "postgres");
     registry.add("app.seed-synthetic", () -> "true");
+    registry.add("app.accounts.auth-token.secret", () -> "test-only-auth-token-secret-at-least-32-bytes");
   }
 
   @Test

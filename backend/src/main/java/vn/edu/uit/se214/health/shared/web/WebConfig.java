@@ -2,23 +2,15 @@ package vn.edu.uit.se214.health.shared.web;
 
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.servlet.config.annotation.CorsRegistry;
-import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 import vn.edu.uit.se214.health.shared.AppProperties;
 
 @Configuration
 public class WebConfig implements WebMvcConfigurer {
-  private final SessionGuard sessionGuard;
   private final AppProperties properties;
 
-  public WebConfig(SessionGuard sessionGuard, AppProperties properties) {
-    this.sessionGuard = sessionGuard;
+  public WebConfig(AppProperties properties) {
     this.properties = properties;
-  }
-
-  @Override
-  public void addInterceptors(InterceptorRegistry registry) {
-    registry.addInterceptor(sessionGuard);
   }
 
   @Override
@@ -27,6 +19,6 @@ public class WebConfig implements WebMvcConfigurer {
         .addMapping("/**")
         .allowedOrigins(properties.webOrigin())
         .allowedMethods("GET", "POST", "PUT", "PATCH", "DELETE")
-        .allowCredentials(false);
+        .allowCredentials(true);
   }
 }

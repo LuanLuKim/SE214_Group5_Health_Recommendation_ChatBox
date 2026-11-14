@@ -11,6 +11,7 @@ export async function getJson<T>(path: string, signal?: AbortSignal): Promise<Ap
   const response = await fetch(`${origin}${path}`, {
     signal: signal ? AbortSignal.any([signal, timeout]) : timeout,
     headers: { Accept: 'application/json' },
+    credentials: 'include',
   });
   if (!response.ok) throw new Error('Không thể kết nối API. Kiểm tra backend và thử lại.');
   return (await response.json()) as ApiSuccess<T>;

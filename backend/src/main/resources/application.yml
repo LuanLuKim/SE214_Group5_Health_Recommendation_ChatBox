@@ -68,6 +68,8 @@ app:
     email-otp:
       hash-secret: ${EMAIL_OTP_HASH_SECRET:}
       from-address: ${MAIL_FROM:}
+    auth-token:
+      secret: ${AUTH_TOKEN_SECRET:}
   # Chạy dữ liệu tổng hợp trong database/seeds sau migration (chỉ máy phát triển).
   seed-synthetic: ${SEED_SYNTHETIC:false}
   database-dir: ${DATABASE_DIR:../database}

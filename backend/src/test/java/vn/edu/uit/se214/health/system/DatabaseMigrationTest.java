@@ -29,7 +29,7 @@ class DatabaseMigrationTest {
             .info()
             .applied()
             .length;
-    assertThat(applied).isEqualTo(11);
+    assertThat(applied).isEqualTo(12);
 
     List<Path> seeds = SyntheticSeedRunner.sqlFiles(TestDatabase.DATABASE_DIR.resolve("seeds"));
     for (int run = 0; run < 2; run++) {

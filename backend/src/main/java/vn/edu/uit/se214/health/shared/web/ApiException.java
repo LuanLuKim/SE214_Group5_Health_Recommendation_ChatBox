@@ -24,7 +24,7 @@ public class ApiException extends RuntimeException {
     return code;
   }
 
-  /** Private routes fail closed until M5 provides trusted sessions. */
+  /** Private routes are unavailable in mock mode because no authentication provider is configured. */
   public static ApiException authNotConfigured() {
     return new ApiException(
         HttpStatus.SERVICE_UNAVAILABLE,
@@ -90,6 +90,40 @@ public class ApiException extends RuntimeException {
         HttpStatus.SERVICE_UNAVAILABLE,
         "REGISTRATION_UNAVAILABLE",
         "Đăng ký tài khoản chưa khả dụng trong chế độ không có cơ sở dữ liệu.");
+  }
+
+  public static ApiException authenticationUnavailable() {
+    return new ApiException(
+        HttpStatus.SERVICE_UNAVAILABLE,
+        "AUTHENTICATION_UNAVAILABLE",
+        "Chức năng xác thực chưa khả dụng trong chế độ không có cơ sở dữ liệu.");
+  }
+
+  public static ApiException loginFailed() {
+    return new ApiException(
+        HttpStatus.UNAUTHORIZED,
+        "LOGIN_FAILED",
+        "Thông tin đăng nhập không hợp lệ hoặc tài khoản tạm thời không khả dụng.");
+  }
+
+  public static ApiException sessionInvalid() {
+    return new ApiException(
+        HttpStatus.UNAUTHORIZED, "SESSION_INVALID", "Phiên đăng nhập không hợp lệ hoặc đã hết hạn.");
+  }
+
+  public static ApiException refreshTokenInvalid() {
+    return new ApiException(
+        HttpStatus.UNAUTHORIZED,
+        "REFRESH_TOKEN_INVALID",
+        "Refresh token không hợp lệ, đã hết hạn hoặc đã bị thu hồi.");
+  }
+
+  public static ApiException recoveryCodeInvalid() {
+    return invalid("RECOVERY_CODE_INVALID", "Mã khôi phục không hợp lệ hoặc đã hết hạn.");
+  }
+
+  public static ApiException passwordRecoveryRequestInvalid() {
+    return invalid("PASSWORD_RECOVERY_REQUEST_INVALID", "Yêu cầu khôi phục mật khẩu không hợp lệ.");
   }
 
   public static ApiException emailVerificationUnavailable() {

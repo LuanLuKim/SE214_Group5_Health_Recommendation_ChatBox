@@ -10,11 +10,10 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import vn.edu.uit.se214.health.shared.web.ApiException;
 import vn.edu.uit.se214.health.shared.web.ApiResponse;
-import vn.edu.uit.se214.health.shared.web.RequiresSession;
 import vn.edu.uit.se214.health.system.ModuleDescriptor;
 import vn.edu.uit.se214.health.system.ModuleRegistry;
 
-/** M1 – UC-07, UC-16. Authoring routes stay closed until M5 provides sessions and expert roles. */
+/** M1 – UC-07, UC-16. Routes require authentication; role and consent checks remain unimplemented. */
 @RestController
 @RequestMapping("/api/v1/safety")
 public class SafetyController {
@@ -23,25 +22,21 @@ public class SafetyController {
     return ApiResponse.of(ModuleRegistry.get("safety"));
   }
 
-  @RequiresSession
   @PostMapping("/evaluate")
   public Object evaluate(@RequestBody(required = false) JsonNode body) {
     throw ApiException.notImplemented();
   }
 
-  @RequiresSession
   @GetMapping("/rules")
   public Object listRules() {
     throw ApiException.notImplemented();
   }
 
-  @RequiresSession
   @PostMapping("/rules")
   public Object createRule(@RequestBody(required = false) JsonNode body) {
     throw ApiException.notImplemented();
   }
 
-  @RequiresSession
   @PatchMapping("/rules/{id}")
   public Object updateRule(@PathVariable String id, @RequestBody(required = false) JsonNode body) {
     throw ApiException.notImplemented();

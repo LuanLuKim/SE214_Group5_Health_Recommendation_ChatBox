@@ -20,6 +20,7 @@ import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
+import org.springframework.test.context.ActiveProfiles;
 import vn.edu.uit.se214.health.safety.UnavailableSafetyEvaluator;
 import vn.edu.uit.se214.health.safety.api.CareLevel;
 import vn.edu.uit.se214.health.safety.api.SafetyDecision;
@@ -29,6 +30,7 @@ import vn.edu.uit.se214.health.system.ModuleRegistry;
 /** Port of apps/api/tests/api.test.ts (DATA_MODE=mock, no database). */
 @SpringBootTest
 @AutoConfigureMockMvc
+@ActiveProfiles("mock")
 class ApiTest {
   @Autowired MockMvc mvc;
   @Autowired ObjectMapper json;
