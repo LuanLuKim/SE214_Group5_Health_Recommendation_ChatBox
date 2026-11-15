@@ -13,7 +13,7 @@ Use case: **UC-12, UC-13, UC-14**. Phụ trách: Lữ Kim Luân (`LuanLuKim`).
 
 ## Giao diện công khai cho module khác
 
-(chưa có)
+(chưa có). Module này dùng `accounts.api.ConsentQuery`, `accounts.api.AccountContactQuery` (M5) và `health.api.HealthProfileQuery` (M3).
 
 ## Hiện trạng và ranh giới
 
@@ -27,7 +27,12 @@ UC-12 (`LifestylePlanService`): `GET /templates`, `GET /templates/{id}`, `PUT /p
 - **UC-13:** chỉ đọc lộ trình đang dùng (`ended_on IS NULL`).
 - **Thông tin xem trước** (`summary`, `duration_days`, `not_suitable_for`, `requires_profile`) là cột của `lifestyle.templates`. UC-15 (M2) nhập các cột này khi soạn mẫu.
 
-Nhắc nhở (UC-14) chạy bằng `@Scheduled` trong module này, ghi `reminder_deliveries` trước khi gửi để không gửi trùng.
+UC-14 (`LifestyleReminderService`, `ReminderRepository`): `GET`/`POST /reminders`, `PATCH`/`DELETE /reminders/{id}`.
+
+- **Kiểm tra đầu vào (A1):** giờ 24h `HH:mm`, nội dung 1–200 ký tự, ngày áp dụng ISO 1–7, múi giờ IANA (mặc định `app.lifestyle.zone`), kênh. `activity_id` không có FK nên service kiểm tra nó thuộc lộ trình đang dùng.
+- **Kênh (A2):** nhắc đang bật phải có kênh khả dụng. `EmailReminderChannel` dùng SMTP của M5 (`SMTP_*`, `MAIL_FROM`) và đọc email qua `accounts.api.AccountContactQuery` (bản tạm `JdbcAccountContactQuery` trong module M5, M5 tiếp quản). Web Push chưa có nên trả `REMINDER_CHANNEL_UNAVAILABLE`.
+- **Gửi (`ReminderDispatcher`, chạy bởi `ReminderScheduler` mỗi `app.lifestyle.reminders.poll`):** với mỗi nhắc đang bật, tính lần gửi theo `timezone` và `days_of_week` của nhắc (`ReminderSchedule`), giữ chỗ bằng `INSERT … ON CONFLICT DO NOTHING` vào `reminder_deliveries`, chỉ lần chạy giữ được chỗ mới gửi. Ghi `SENT` hoặc `FAILED` kèm mã lỗi; lỗi được thử lại trên cùng dòng tới `max-attempts`. Không gửi lần có giờ trước lúc lưu nhắc, không gửi bù quá `window`. Ghi `SENT` thất bại thì dòng giữ `PENDING` và không thử lại, nên không gửi trùng. Log chỉ có id và mã lỗi.
+- **Cấu hình:** `app.lifestyle.reminders.*` (`REMINDERS_ENABLED`, `REMINDERS_POLL`, `REMINDERS_WINDOW`, `REMINDERS_MAX_ATTEMPTS`, `REMINDERS_MAX_PER_USER`). `REMINDERS_ENABLED=false` chỉ tắt worker.
 
 ## Cách mở rộng
 

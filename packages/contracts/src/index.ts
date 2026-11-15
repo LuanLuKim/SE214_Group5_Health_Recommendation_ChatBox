@@ -260,3 +260,39 @@ export interface AppliedPlan {
   changed: boolean;
   previousPlanId: string | null;
 }
+// M6 UC-14: localTime is HH:mm (24 h) in timezone; daysOfWeek uses ISO 1 = Monday … 7 = Sunday.
+// Instants (nextSendAt, scheduledFor, sentAt) are ISO-8601 UTC.
+export type ReminderChannel = 'EMAIL' | 'WEB_PUSH';
+export interface ReminderDelivery {
+  scheduledFor: string;
+  status: 'PENDING' | 'SENT' | 'FAILED';
+  sentAt: string | null;
+}
+export interface Reminder {
+  id: string;
+  content: string;
+  activityId: string | null;
+  localTime: string;
+  daysOfWeek: number[];
+  timezone: string;
+  channel: ReminderChannel;
+  enabled: boolean;
+  nextSendAt: string | null;
+  lastDelivery: ReminderDelivery | null;
+}
+// GET /lifestyle/reminders. availableChannels: channels the user can turn on now (offer only these).
+export interface ReminderList {
+  reminders: Reminder[];
+  availableChannels: ReminderChannel[];
+}
+// POST /lifestyle/reminders (localTime and content or activityId required) and
+// PATCH /lifestyle/reminders/:id (only the fields sent change; activityId null unlinks).
+export interface ReminderInput {
+  content?: string;
+  activityId?: string | null;
+  localTime?: string;
+  daysOfWeek?: number[];
+  timezone?: string;
+  channel?: ReminderChannel;
+  enabled?: boolean;
+}
