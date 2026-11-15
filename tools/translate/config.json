@@ -1,0 +1,60 @@
+{
+  "paths": {
+    "input_chunks": ".data/normalized/chunks.jsonl",
+    "input_db_rows": ".data/normalized/db_rows.json",
+    "output_dir": ".data/translated",
+    "medicine_index_urls": "docs/urls_discovery.txt",
+    "collection_dir": ".data/collection"
+  },
+  "languages": {"source": "en", "target": "vi"},
+  "segments": {"max_words": 60},
+  "engines": {
+    "nllb": {
+      "kind": "nllb",
+      "model_id": "facebook/nllb-200-distilled-600M",
+      "src_lang": "eng_Latn",
+      "tgt_lang": "vie_Latn",
+      "batch_size": 32,
+      "num_beams": 4,
+      "max_new_tokens": 384
+    },
+    "vinai": {
+      "kind": "mbart",
+      "model_id": "vinai/vinai-translate-en2vi-v2",
+      "src_lang": "en_XX",
+      "tgt_lang": "vi_VN",
+      "batch_size": 32,
+      "num_beams": 5,
+      "max_new_tokens": 384
+    },
+    "medcrab": {
+      "kind": "medcrab",
+      "model_id": "pnnbao-ump/MedCrab-1.5B",
+      "batch_size": 16,
+      "max_new_tokens": 384
+    }
+  },
+  "engine_aliases": {"medev": "vinai"},
+  "default_engines": ["nllb", "vinai", "medcrab"],
+  "llm": {
+    "units_per_request": 4,
+    "extra_lines_per_unit": 40,
+    "workers": 3,
+    "timeout_seconds": 600,
+    "default_reasoning": "low",
+    "repair_rounds": 1
+  },
+  "quality": {
+    "min_length_ratio": 0.3,
+    "max_length_ratio": 3.0,
+    "min_words": 3,
+    "line_min_length_ratio": 0.25,
+    "line_max_length_ratio": 4.0,
+    "line_ratio_min_chars": 25,
+    "untranslated_min_words": 4,
+    "repeat_ngram": 4,
+    "repeat_times": 4,
+    "low_agreement_chrf": 0.25,
+    "always_review_tags": ["emergency"]
+  }
+}
