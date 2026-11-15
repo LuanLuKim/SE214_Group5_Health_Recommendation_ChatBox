@@ -154,13 +154,18 @@ export const ruleDraftInputSchema = z.strictObject({
   sourceUrl: z
     .url()
     .max(2000)
+    // zod v4 still runs this refine after .url() fails, so an invalid URL must not throw here.
     .refine((value) => {
-      const url = new URL(value);
-      return (
-        (url.protocol === 'https:' || url.protocol === 'http:') &&
-        !url.username &&
-        !url.password
-      );
+      try {
+        const url = new URL(value);
+        return (
+          (url.protocol === 'https:' || url.protocol === 'http:') &&
+          !url.username &&
+          !url.password
+        );
+      } catch {
+        return false;
+      }
     }),
 });
 export type RuleDraftInput = z.infer<typeof ruleDraftInputSchema>;
