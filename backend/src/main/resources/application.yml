@@ -73,6 +73,16 @@ app:
   lifestyle:
     # Múi giờ quyết định "hôm nay" khi ghi nhận thói quen (UC-13): qua nửa đêm giờ này là sang ngày mới.
     zone: ${LIFESTYLE_ZONE:Asia/Ho_Chi_Minh}
+    # UC-14: worker gửi nhắc nhở qua email (SMTP_* và MAIL_FROM như M5). REMINDERS_ENABLED=false
+    # chỉ dừng việc gửi, route nhắc nhở vẫn chạy.
+    reminders:
+      enabled: ${REMINDERS_ENABLED:true}
+      poll: ${REMINDERS_POLL:PT1M}
+      # Nhắc trễ quá khoảng này (backend dừng, mất kết nối) thì bỏ qua, không gửi bù hàng loạt.
+      window: ${REMINDERS_WINDOW:PT10M}
+      max-attempts: ${REMINDERS_MAX_ATTEMPTS:3}
+      max-per-user: ${REMINDERS_MAX_PER_USER:20}
+      from-address: ${MAIL_FROM:}
   # Chạy dữ liệu tổng hợp trong database/seeds sau migration (chỉ máy phát triển).
   seed-synthetic: ${SEED_SYNTHETIC:false}
   database-dir: ${DATABASE_DIR:../database}

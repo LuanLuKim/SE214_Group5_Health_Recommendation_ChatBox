@@ -3,6 +3,8 @@ package vn.edu.uit.se214.health.lifestyle;
 import com.fasterxml.jackson.databind.JsonNode;
 import java.util.Optional;
 import java.util.UUID;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -15,7 +17,6 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-import vn.edu.uit.se214.health.shared.web.ApiException;
 import vn.edu.uit.se214.health.shared.web.ApiResponse;
 import vn.edu.uit.se214.health.shared.web.CurrentUser;
 import vn.edu.uit.se214.health.system.ModuleDescriptor;
@@ -23,18 +24,23 @@ import vn.edu.uit.se214.health.system.ModuleRegistry;
 
 /**
  * M6 – UC-12, UC-13, UC-14. Every route except the module descriptor is private
- * (SpringSecurityConfiguration); the user is the verified access token's subject. Reminder sending
- * will run as a @Scheduled job inside this module.
+ * (SpringSecurityConfiguration); the user is the verified access token's subject. Reminders are
+ * sent by {@link ReminderScheduler}, a @Scheduled job inside this module.
  */
 @RestController
 @RequestMapping("/api/v1/lifestyle")
 public class LifestyleController {
   private final Optional<LifestyleService> lifestyle;
   private final Optional<LifestylePlanService> plans;
+  private final Optional<LifestyleReminderService> reminders;
 
-  public LifestyleController(Optional<LifestyleService> lifestyle, Optional<LifestylePlanService> plans) {
+  public LifestyleController(
+      Optional<LifestyleService> lifestyle,
+      Optional<LifestylePlanService> plans,
+      Optional<LifestyleReminderService> reminders) {
     this.lifestyle = lifestyle;
     this.plans = plans;
+    this.reminders = reminders;
   }
 
   @GetMapping
@@ -88,24 +94,38 @@ public class LifestyleController {
     return ApiResponse.of(service.uncomplete(CurrentUser.id(principal), activityId, date));
   }
 
+  /** UC-14: the user's reminders and the channels they can turn on now. */
   @GetMapping("/reminders")
-  public Object reminders() {
-    throw ApiException.notImplemented();
+  public ApiResponse.Success<ReminderList> reminders(@AuthenticationPrincipal Jwt principal) {
+    UUID userId = CurrentUser.id(principal);
+    return ApiResponse.of(reminderService().list(userId));
   }
 
+  /** UC-14: create a reminder; it is on unless {@code enabled} is false. */
   @PostMapping("/reminders")
-  public Object createReminder(@RequestBody(required = false) JsonNode body) {
-    throw ApiException.notImplemented();
+  public ResponseEntity<ApiResponse.Success<ReminderList.Reminder>> createReminder(
+      @AuthenticationPrincipal Jwt principal, @RequestBody(required = false) JsonNode body) {
+    UUID userId = CurrentUser.id(principal);
+    return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.of(reminderService().create(userId, body)));
   }
 
+  /** UC-14: change some fields; {@code {"enabled": false}} turns the reminder off. */
   @PatchMapping("/reminders/{id}")
-  public Object updateReminder(@PathVariable String id, @RequestBody(required = false) JsonNode body) {
-    throw ApiException.notImplemented();
+  public ApiResponse.Success<ReminderList.Reminder> updateReminder(
+      @AuthenticationPrincipal Jwt principal, @PathVariable String id, @RequestBody(required = false) JsonNode body) {
+    UUID userId = CurrentUser.id(principal);
+    return ApiResponse.of(reminderService().update(userId, id, body));
   }
 
   @DeleteMapping("/reminders/{id}")
-  public Object deleteReminder(@PathVariable String id) {
-    throw ApiException.notImplemented();
+  public ApiResponse.Success<Void> deleteReminder(@AuthenticationPrincipal Jwt principal, @PathVariable String id) {
+    UUID userId = CurrentUser.id(principal);
+    reminderService().delete(userId, id);
+    return ApiResponse.of(null);
+  }
+
+  private LifestyleReminderService reminderService() {
+    return reminders.orElseThrow(LifestyleErrors::unavailable);
   }
 
   private LifestyleService service() {

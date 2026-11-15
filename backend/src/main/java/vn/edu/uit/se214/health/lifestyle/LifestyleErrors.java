@@ -77,6 +77,29 @@ final class LifestyleErrors {
         "Mẫu lộ trình này cần hồ sơ sức khỏe. Hãy cập nhật hồ sơ trước khi áp dụng.");
   }
 
+  /** UC-14 A1: a field of a reminder is missing or not valid; {@code message} says which. */
+  static ApiException invalidReminder(String message) {
+    return ApiException.invalid("INVALID_REMINDER", message);
+  }
+
+  /** Unknown or someone else's: the same answer, so other users' reminders are never revealed. */
+  static ApiException reminderNotFound() {
+    return new ApiException(HttpStatus.NOT_FOUND, "REMINDER_NOT_FOUND", "Không tìm thấy nhắc nhở.");
+  }
+
+  /** UC-14 A2: the channel is not configured or not allowed for this user; choose another one. */
+  static ApiException channelUnavailable() {
+    return new ApiException(
+        HttpStatus.CONFLICT,
+        "REMINDER_CHANNEL_UNAVAILABLE",
+        "Kênh nhận nhắc nhở này chưa được cấu hình hoặc chưa được cho phép. Hãy chọn kênh khác.");
+  }
+
+  static ApiException reminderLimit(int max) {
+    return new ApiException(
+        HttpStatus.CONFLICT, "REMINDER_LIMIT_REACHED", "Bạn chỉ có thể tạo tối đa " + max + " nhắc nhở.");
+  }
+
   /** Two requests changed the plan at the same time; the client reloads and tries again. */
   static ApiException planConflict() {
     return new ApiException(
