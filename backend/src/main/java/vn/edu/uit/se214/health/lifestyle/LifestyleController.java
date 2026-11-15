@@ -2,6 +2,7 @@ package vn.edu.uit.se214.health.lifestyle;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import java.util.Optional;
+import java.util.UUID;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -12,6 +13,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import vn.edu.uit.se214.health.shared.web.ApiException;
 import vn.edu.uit.se214.health.shared.web.ApiResponse;
@@ -28,9 +30,11 @@ import vn.edu.uit.se214.health.system.ModuleRegistry;
 @RequestMapping("/api/v1/lifestyle")
 public class LifestyleController {
   private final Optional<LifestyleService> lifestyle;
+  private final Optional<LifestylePlanService> plans;
 
-  public LifestyleController(Optional<LifestyleService> lifestyle) {
+  public LifestyleController(Optional<LifestyleService> lifestyle, Optional<LifestylePlanService> plans) {
     this.lifestyle = lifestyle;
+    this.plans = plans;
   }
 
   @GetMapping
@@ -38,9 +42,20 @@ public class LifestyleController {
     return ApiResponse.of(ModuleRegistry.get("lifestyle"));
   }
 
+  /** UC-12: approved templates the user may apply, optionally for one goal (SLEEP, MAINTAIN, GAIN, LOSE). */
   @GetMapping("/templates")
-  public Object templates() {
-    throw ApiException.notImplemented();
+  public ApiResponse.Success<TemplateCatalog> templates(
+      @AuthenticationPrincipal Jwt principal, @RequestParam(required = false) String goal) {
+    UUID userId = CurrentUser.id(principal);
+    return ApiResponse.of(planService().templates(userId, goal));
+  }
+
+  /** UC-12: preview before applying; reading it changes nothing. */
+  @GetMapping("/templates/{id}")
+  public ApiResponse.Success<TemplatePreview> template(
+      @AuthenticationPrincipal Jwt principal, @PathVariable String id) {
+    UUID userId = CurrentUser.id(principal);
+    return ApiResponse.of(planService().preview(userId, id));
   }
 
   /** UC-13: today's activities of the active plan, progress and streaks. */
@@ -49,9 +64,12 @@ public class LifestyleController {
     return ApiResponse.of(service().today(CurrentUser.id(principal)));
   }
 
+  /** UC-12: apply or switch to an approved template, body {@code {"templateId": "<uuid>"}}. */
   @PutMapping("/plan")
-  public Object choosePlan(@RequestBody(required = false) JsonNode body) {
-    throw ApiException.notImplemented();
+  public ApiResponse.Success<AppliedPlan> choosePlan(
+      @AuthenticationPrincipal Jwt principal, @RequestBody(required = false) JsonNode body) {
+    UUID userId = CurrentUser.id(principal);
+    return ApiResponse.of(planService().apply(userId, body));
   }
 
   /** UC-13: mark an activity done on a day (yyyy-mm-dd). Sending it again changes nothing. */
@@ -92,5 +110,9 @@ public class LifestyleController {
 
   private LifestyleService service() {
     return lifestyle.orElseThrow(LifestyleErrors::unavailable);
+  }
+
+  private LifestylePlanService planService() {
+    return plans.orElseThrow(LifestyleErrors::unavailable);
   }
 }

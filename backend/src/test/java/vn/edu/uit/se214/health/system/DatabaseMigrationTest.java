@@ -29,7 +29,8 @@ class DatabaseMigrationTest {
             .info()
             .applied()
             .length;
-    assertThat(applied).isEqualTo(12);
+    // Every file in database/migrations is applied; the count follows the folder, not a literal.
+    assertThat(applied).isEqualTo(SyntheticSeedRunner.sqlFiles(TestDatabase.DATABASE_DIR.resolve("migrations")).size());
 
     List<Path> seeds = SyntheticSeedRunner.sqlFiles(TestDatabase.DATABASE_DIR.resolve("seeds"));
     for (int run = 0; run < 2; run++) {
@@ -50,6 +51,19 @@ class DatabaseMigrationTest {
     assertRejected(db, "INSERT INTO accounts.user_roles VALUES ('00000000-0000-4000-8000-999999999999','USER')");
     assertRejected(db, "INSERT INTO health.daily_metrics VALUES ('00000000-0000-4000-8000-000000000001','2026-10-26',65,30)");
     assertRejected(db, "INSERT INTO chat.feedback VALUES ('00000000-0000-4000-8000-000000000099','OTHER','', 'unpaired',NULL,now())");
+
+    // UC-12: dev templates are synthetic only; one goal value set; one active plan per user.
+    assertThat(count(db, "SELECT count(*) FROM lifestyle.templates WHERE NOT is_synthetic")).isZero();
+    assertThat(count(db, "SELECT count(DISTINCT goal) FROM lifestyle.templates WHERE review_status = 'APPROVED'")).isEqualTo(4);
+    assertRejected(
+        db,
+        "INSERT INTO lifestyle.templates (id, title, goal, activities, source_url) VALUES ('00000000-0000-4000-8000-000000000097','[TEST]','RUN','[]','https://example.invalid')");
+    assertRejected(
+        db,
+        "INSERT INTO lifestyle.plans (id, user_id, template_id, started_on) VALUES ('00000000-0000-4000-8000-000000000096','00000000-0000-4000-8000-000000000001','00000000-0000-4000-8000-000000000070','2026-11-15')");
+    assertRejected(
+        db,
+        "UPDATE lifestyle.plans SET ended_on = started_on - 1 WHERE id = '00000000-0000-4000-8000-000000000051'");
 
     // UC-14: seeded reminder gets every day by default; invalid schedules and duplicate sends are rejected.
     Map<String, Object> reminder =

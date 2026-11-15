@@ -37,4 +37,49 @@ final class LifestyleErrors {
     return new ApiException(
         HttpStatus.CONFLICT, "COMPLETION_LOCKED", "Chỉ bỏ đánh dấu được hoạt động của hôm nay.");
   }
+
+  /** UC-12 precondition: templates are filtered with the user's health data. */
+  static ApiException consentRequired() {
+    return new ApiException(
+        HttpStatus.FORBIDDEN,
+        "HEALTH_CONSENT_REQUIRED",
+        "Bạn cần đồng ý cho phép xử lý dữ liệu sức khỏe trước khi chọn lộ trình sinh hoạt.");
+  }
+
+  static ApiException invalidGoal() {
+    return ApiException.invalid(
+        "INVALID_GOAL", "Mục tiêu phải là SLEEP, MAINTAIN, GAIN hoặc LOSE.");
+  }
+
+  static ApiException invalidTemplateId() {
+    return ApiException.invalid("INVALID_TEMPLATE_ID", "Mã mẫu lộ trình không hợp lệ.");
+  }
+
+  /** Unknown, not approved or not offered here: the same answer, so drafts are never revealed. */
+  static ApiException templateNotFound() {
+    return new ApiException(
+        HttpStatus.NOT_FOUND, "LIFESTYLE_TEMPLATE_NOT_FOUND", "Không tìm thấy mẫu lộ trình đã được duyệt.");
+  }
+
+  /** UC-12 A2: the template contains a declared allergen and cannot be applied. */
+  static ApiException templateHasAllergen() {
+    return new ApiException(
+        HttpStatus.CONFLICT,
+        "TEMPLATE_HAS_ALLERGEN",
+        "Mẫu lộ trình này chứa tác nhân bạn đã khai báo dị ứng nên không thể áp dụng.");
+  }
+
+  /** UC-12 A1: this template needs a health profile. */
+  static ApiException profileRequired() {
+    return new ApiException(
+        HttpStatus.CONFLICT,
+        "HEALTH_PROFILE_REQUIRED",
+        "Mẫu lộ trình này cần hồ sơ sức khỏe. Hãy cập nhật hồ sơ trước khi áp dụng.");
+  }
+
+  /** Two requests changed the plan at the same time; the client reloads and tries again. */
+  static ApiException planConflict() {
+    return new ApiException(
+        HttpStatus.CONFLICT, "LIFESTYLE_PLAN_CONFLICT", "Lộ trình vừa được thay đổi ở nơi khác. Vui lòng thử lại.");
+  }
 }
