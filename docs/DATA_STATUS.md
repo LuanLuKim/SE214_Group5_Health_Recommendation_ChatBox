@@ -94,7 +94,7 @@ Chính sách nguồn (`tools/crawl/source_policies.json`): NHS và WHO đều `c
 
 - **`stale_source` gắn cho 13 bài (50 chunk)** vì ngày "Next review due" của NHS đã qua, kể cả các trang COVID-19 và trầm cảm vừa tải hôm nay. Đây là ngày rà soát của chính NHS, không phải bản sao cũ. Kế hoạch RAG ghi "chunk `stale_source` không được dùng"; nếu giữ quy tắc này thì các chủ đề trên mất khỏi RAG. Đề xuất: coi là cảnh báo cho người duyệt UC-17, không loại tự động.
 - **9 bài WHO không có ngày rà soát** nên không tính được `stale_source`.
-- **90% chunk là tiếng Anh**, người dùng hỏi tiếng Việt → cần dịch (`tools/translate`, đang có lỗi ghi trong [M7_DATA_RAG_PLAN.md](M7_DATA_RAG_PLAN.md#p4-dịch-toolstranslate--lỗi-đã-thấy-khi-đọc-code)) hoặc embedding đa ngữ.
+- **90% chunk là tiếng Anh**, người dùng hỏi tiếng Việt → cần dịch (`tools/translate`, issue #108, thiết kế ở [TRANSLATION_MODULE_DESIGN.md](TRANSLATION_MODULE_DESIGN.md)) hoặc embedding đa ngữ.
 - **Cờ `medication` và `paediatric` rộng** (125 và 85 chunk) vì NHS nhắc "medicine", "child" ở nhiều nơi. Cố ý nghiêng về an toàn; người duyệt có thể thu hẹp sau.
 - **Tiêu đề trang thuốc NHS dài** ("Ibuprofen for adults (Nurofen) - Other common brands: …") được giữ nguyên văn.
 - ~~Trang thuốc NHS trong `urls.txt` (paracetamol, ibuprofen, antihistamines) ở kho RAG~~ — đã chuyển sang `urls_reference.txt` ở #87, cùng trang antibiotics.
@@ -107,4 +107,4 @@ Chính sách nguồn (`tools/crawl/source_policies.json`): NHS và WHO đều `c
 
 - Crawler: 59 test (`python -B -m unittest discover -s tools/crawl -p "test_*.py"`, cần `beautifulsoup4`), gồm 5 test `discover.py` trên dữ liệu tổng hợp.
 - Normalizer: 33 test (`python -B tools/normalize/test_normalize.py`), hai test chạy trên dữ liệu thật và tự bỏ qua trên bản clone mới.
-- Translator: 27 test, vẫn đạt với định dạng chunk mới.
+- Translator: 187 test (`python -B tools/translate/test_translate.py`), dùng engine và LLM giả: không cần model, torch hay mạng.

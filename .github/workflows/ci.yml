@@ -73,6 +73,7 @@ jobs:
       - run: python -m pip install -r tools/crawl/requirements.txt
       - run: python -B -m unittest discover -s tools/crawl -p "test_*.py"
       - run: python -B tools/normalize/test_normalize.py
+      - run: python -B tools/translate/test_translate.py
 
   # SCRUM-45: kiểm thử hạ tầng. PostgreSQL thật, migration + seed chạy khi backend khởi động,
   # ba service trả /healthz, backend đọc được dữ liệu đã seed.
