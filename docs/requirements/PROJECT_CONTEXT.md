@@ -10,7 +10,7 @@ Prepared on 29 October 2026 for the SE214 Group 5 project. This file consolidate
 
 ## 1. Sources and authority
 
-All four sources are in `D:\Luan\Study\SE214`.
+S2 and S3 are in this folder (`docs/requirements/`), together with `Công cụ và kỹ thuật sử dụng - Trợ lý Sức khỏe AI Nhóm 5.docx` (tools and techniques of the current stack). S1 contains members' personal data and stays outside the public repository: ask the team for the copy on the group Drive. S4 is not in the repository.
 
 | Reference | File | How to use it |
 | --- | --- | --- |
