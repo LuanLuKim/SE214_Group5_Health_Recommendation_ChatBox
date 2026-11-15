@@ -1,5 +1,5 @@
 {
-  "version": "vn-3",
+  "version": "vn-4",
   "comment": "UK -> Viet Nam localisation. Service numbers (999, 111) match only as whole numbers, never inside 1,999 or 9.99; GPs is case-sensitive (GPS is a device). source_rewrites turn UK-only services into neutral English BEFORE machine translation (first match wins per position, rules run in order). forbidden_in_target must never appear in the Vietnamese text; discouraged_in_target only flags the chunk for a human reviewer. The tables are also shown to the LLM post-editor.",
   "source_rewrites": [
     {"pattern": "\\bcall 111 or get help from 111 online\\b", "replace": "contact a doctor or the nearest health facility for advice"},
@@ -23,6 +23,7 @@
     {"pattern": "\\ba GP\\b", "replace": "a doctor"},
     {"pattern": "\\bGP\\b", "replace": "doctor"}
   ],
+  "number_format": {"comment": "how the Vietnamese text writes numbers; a copied English 1,500 or 1.5 is rewritten from its source value", "decimal": ",", "thousands": " "},
   "number_map": {"999": "115", "111": null},
   "number_words": {"one": "1", "two": "2", "three": "3", "four": "4", "five": "5", "six": "6", "seven": "7", "eight": "8", "nine": "9", "ten": "10", "eleven": "11", "twelve": "12", "once": "1", "twice": "2"},
   "target_number_words": {"1": ["một"], "2": ["hai"], "3": ["ba"], "4": ["bốn"], "5": ["năm"], "6": ["sáu"], "7": ["bảy"], "8": ["tám"], "9": ["chín"], "10": ["mười"]},

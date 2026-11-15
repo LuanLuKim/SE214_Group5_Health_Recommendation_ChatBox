@@ -9,7 +9,8 @@ Hard checks (the chunk fails the gate):
   no_uk_services      999 / 111 / GP / A&E must have been localised
   no_artifacts        model control tokens, placeholders, broken characters
   no_untranslated     a line left in English
-  no_repetition       a generation loop
+  no_repetition       a generation loop: a short phrase said back to back, or a long phrase
+                      repeated until it fills most of the line
 
 Soft checks (the chunk passes but is flagged for a human reviewer):
   numbers_added, uk_reference_left, medicine_name_changed, line_length, low_support
@@ -29,6 +30,7 @@ from .glossary import Rules, name_kept
 from .segments import split_marker
 
 _ARTIFACT = re.compile(r"<\|[^|>]*\|>|«\s*DRUG_\d+\s*»|�|<unk>|</?s>", re.I)
+_LOOP_WORD = re.compile(r"[^\W_]+(?:[.,'’-][^\W_]+)*")
 _VIETNAMESE = re.compile(r"[ăâđêôơưàảãáạằẳẵắặầẩẫấậèẻẽéẹềểễếệìỉĩíịòỏõóọồổỗốộờởỡớợùủũúụừửữứựỳỷỹýỵ]", re.I)
 
 HARD_CHECKS = ("non_empty", "line_count", "bullet_count", "length_ratio", "min_words",
@@ -38,6 +40,7 @@ DEFAULTS: dict[str, Any] = {
     "min_length_ratio": 0.3, "max_length_ratio": 3.0, "min_words": 3,
     "line_min_length_ratio": 0.25, "line_max_length_ratio": 4.0, "line_ratio_min_chars": 25,
     "untranslated_min_words": 4, "repeat_ngram": 4, "repeat_times": 4,
+    "repeat_long_ngram": 8, "repeat_long_times": 3, "repeat_long_coverage": 0.5,
     "low_agreement_chrf": 0.25, "always_review_tags": ["emergency"],
 }
 
@@ -86,12 +89,47 @@ def count_bullets(text: str) -> int:
     return sum(1 for line in text.split("\n") if split_marker(line)[0])
 
 
-def _has_loop(text: str, n: int, times: int) -> bool:
-    words = text.casefold().split()
+def _loop_words(text: str) -> list[str]:
+    """Words for loop detection: punctuation and "/" separate words, "vi-rút" or "3,6" stay one."""
+    return _LOOP_WORD.findall(text.casefold())
+
+
+def _tandem_repeat(words: list[str], n: int, times: int) -> bool:
+    """A phrase of at most ``n`` words said ``times`` times back to back ("chanh chanh chanh chanh")."""
+    for period in range(1, n + 1):
+        if period * times < n:
+            continue
+        need, run = period * (times - 1), 0
+        for i in range(len(words) - period):
+            run = run + 1 if words[i] == words[i + period] else 0
+            if run >= need:
+                return True
+    return False
+
+
+def _long_repeat(words: list[str], n: int, times: int, min_coverage: float) -> bool:
+    """A longer phrase (``n`` words) said ``times`` times, with repeated phrases covering most of the line.
+
+    The coverage condition separates a loop (a sentence or a "/" list said over and over) from a
+    Vietnamese term that a long paragraph naturally repeats ("các nước thu nhập thấp và trung bình").
+    """
     if len(words) < n * times:
         return False
-    grams = Counter(tuple(words[i:i + n]) for i in range(len(words) - n + 1))
-    return max(grams.values()) >= times
+    grams = [tuple(words[i:i + n]) for i in range(len(words) - n + 1)]
+    counts = Counter(grams)
+    if max(counts.values()) < times:
+        return False
+    covered = [False] * len(words)
+    for i, gram in enumerate(grams):
+        if counts[gram] >= 2:
+            covered[i:i + n] = [True] * n
+    return sum(covered) / len(words) >= min_coverage
+
+
+def _has_loop(text: str, cfg: dict[str, Any]) -> bool:
+    words = _loop_words(text)
+    return _tandem_repeat(words, cfg["repeat_ngram"], cfg["repeat_times"]) or _long_repeat(
+        words, cfg["repeat_long_ngram"], cfg["repeat_long_times"], cfg["repeat_long_coverage"])
 
 
 def check_line(source: str, target: str, rules: Rules, settings: dict[str, Any] | None = None, *,
@@ -121,8 +159,7 @@ def check_line(source: str, target: str, rules: Rules, settings: dict[str, Any] 
     english_inputs = {" ".join(text.casefold().split()) for text in (source, rules.rewrite_source(source))}
     if words >= cfg["untranslated_min_words"] and not _VIETNAMESE.search(target) and flat in english_inputs:
         issues.append(Issue("no_untranslated", True, "line is still English", index))
-    if _has_loop(target, cfg["repeat_ngram"], cfg["repeat_times"]) and not _has_loop(
-            source, cfg["repeat_ngram"], cfg["repeat_times"]):
+    if _has_loop(target, cfg) and not _has_loop(source, cfg):
         issues.append(Issue("no_repetition", True, "repeated phrase (generation loop)", index))
     if len(source) >= cfg["line_ratio_min_chars"]:
         ratio = len(target) / len(source)

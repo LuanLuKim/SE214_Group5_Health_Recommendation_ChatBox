@@ -111,6 +111,7 @@ Toàn bộ quy tắc nằm trong `tools/translate/localisation.json`, không n�
 1. **Viết lại nguồn bằng tiếng Anh trung tính** trước khi đưa cho ba model (`source_rewrites`): `call 999` → `call the emergency number 115`, `A&E` → `the hospital emergency department`, `a GP` → `a doctor`, `call 111 or get help from 111 online` → `contact a doctor or the nearest health facility for advice`. Model vẫn nhận tiếng Anh sạch nên không bị nhiễu (cách cũ chèn cụm tiếng Việt vào giữa câu tiếng Anh làm model dịch sai cả câu).
 2. **Bảng hướng dẫn cho LLM biên tập** (các bảng A, B, C dưới đây).
 3. **Kiểm trên bản tiếng Việt:** `999`, `111`, `GP`, `A&E` không được còn lại (chặn); `NHS`, "nhũ nhi", số điện thoại của Anh thì gắn cờ rà soát.
+4. **Viết số theo kiểu Việt** (`number_format` trong `localisation.json`): dấu phẩy thập phân, dấu cách nhóm hàng nghìn, ví dụ `1.5mg (1,500 µg)` → `1,5mg (1 500 µg)`. Model hay chép nguyên số kiểu Anh, và người đọc Việt sẽ hiểu `1,500 µg` là 1,5 µg (sai 1000 lần). Bước này chạy sau khi chọn dòng cuối và không gọi lại LLM. Giá trị của số được lấy từ câu nguồn: token chép nguyên từ nguồn thì đọc theo kiểu Anh; token khác chỉ được viết lại khi đúng một cách đọc của nó khớp với một số trong nguồn. Token không khớp số nào, hoặc khớp hai số, được giữ nguyên. Tên phiên bản như `mhGAP 2.0` không đổi.
 
 #### A. Nguyên tắc Chuẩn hóa Độ tuổi Trẻ em
 Trong giao tiếp y tế tại Việt Nam, bác sĩ và phụ huynh dùng cấu trúc định lượng trực diện: **"trẻ dưới [X] tuổi"**, **"trẻ [X] ngày tuổi"**, **"trẻ [X] tháng tuổi"**. Không dùng danh từ Hán - Việt xa lạ (*"nhũ nhi"*, *"trẻ chập chững"*).
@@ -178,7 +179,7 @@ Với mỗi dòng, module tính chrF (điểm F trên n-gram ký tự, không c�
 | `no_uk_services` | Không còn `999`, `111`, `GP`, `A&E` |
 | `no_artifacts` | Không còn token điều khiển của model, placeholder, ký tự hỏng |
 | `no_untranslated` | Không có dòng còn nguyên tiếng Anh |
-| `no_repetition` | Không lặp cụm từ (model sinh vòng lặp) |
+| `no_repetition` | Không lặp cụm từ (model sinh vòng lặp): cụm ngắn lặp liền nhau từ 4 lần, hoặc cụm 8 từ lặp từ 3 lần và các cụm lặp phủ ít nhất một nửa dòng. Thuật ngữ tiếng Việt nhiều âm tiết được nhắc lại trong đoạn dài không tính là vòng lặp |
 
 **Phép kiểm cảnh báo** — chunk qua cổng (`auto_verified_with_warnings`) nhưng cần người rà:
 
@@ -339,3 +340,43 @@ Nhận xét khi đọc bản dịch:
 - MedCrab gần bản cuối nhất nhưng chậm nhất; VinAI nhanh và ít lỗi chặn nhất; NLLB lỗi nhiều nhất. Có thể bỏ NLLB nếu cần rút thời gian, sau khi có tập chuẩn để xác nhận.
 
 Ước lượng chạy toàn bộ (947 chunk tiếng Anh sau khi bỏ trích dẫn WHO, khoảng 13 nghìn dòng): ba model mất khoảng 1,5–2 giờ; LLM khoảng 250 request với 4 chunk mỗi request. Cache cho phép chạy nhiều lần và tiếp tục khi endpoint giới hạn tốc độ (mã thoát `3`).
+
+### 8.1. Chạy toàn bộ corpus `rag`
+
+Đầu vào: 984 chunk (947 `en` cần dịch, 37 `vi` giữ nguyên), 12 639 đoạn cho mỗi model, 12 524 dòng. Lệnh mặc định ở mục 6, LLM hợp nhất qua endpoint tự cấu hình, GPU 6 GB.
+
+| Bước | Lượt 1 | Ghi chú |
+| --- | --- | --- |
+| NLLB-200 | 1 166 s (10 488 đoạn mới) | phần còn lại lấy từ cache các lô thử |
+| VinAI Translate v2 | 1 236 s (11 288 đoạn mới) | |
+| MedCrab-1.5B | 7 083 s (11 288 đoạn mới) | chậm nhất, khoảng 1,6 đoạn/giây |
+| LLM hợp nhất | 243 request + 8 request sửa | khoảng 5 request/phút |
+| Tổng | khoảng 3 giờ 40 phút | lượt đầu hết bộ nhớ GPU ở lô NLLB dài nhất; đã hạ `batch_size` (NLLB, VinAI 16; MedCrab 8) |
+
+Lượt 1 cho 936/947 chunk qua cổng. 11 chunk bị chặn vì `no_repetition`, nhưng đọc lại thì cả 11 dòng đều dịch đúng: phép kiểm cũ đếm cụm 4 từ xuất hiện từ 4 lần ở bất kỳ đâu trong dòng, nên một thuật ngữ tiếng Việt nhiều âm tiết được nhắc lại trong đoạn dài ("ô nhiễm không khí trong nhà", "tỷ đô la Mỹ", "rối loạn lo âu") cũng bị coi là vòng lặp. Phép kiểm cũ lại bỏ sót vòng lặp thật ở dòng ngắn ("chanh chanh chanh chanh chanh", "cắn/xép/xép/xép…"). Phép kiểm mới (mục 3.6) được đối chiếu trên toàn bộ bản nháp của ba model: không chặn nhầm bản cuối nào (phép kiểm cũ chặn 32 dòng cuối đúng) và bắt thêm 14 dòng nháp lặp thật mà phép kiểm cũ bỏ sót (NLLB 6, MedCrab 8).
+
+Lượt 2 và 3 chạy lại từ cache (không dịch lại đoạn nào) để lấy nhãn đã rà ở #106, áp dụng phép kiểm lặp mới và cách viết số kiểu Việt. Kết quả cuối (`summary.json`, localisation `vn-4`):
+
+| Chỉ số | Giá trị |
+| --- | --- |
+| Qua cổng | **947/947** (`auto_verified` 800, `auto_verified_with_warnings` 147), 0 lỗi chặn |
+| Cách chọn dòng | 12 522 LLM, 2 lùi về đồng thuận |
+| Chunk `emergency` (luôn rà) | 78/78 qua cổng |
+| Cần người rà (`review_queue.md`) | 215 chunk |
+| Cảnh báo mềm | `numbers_added` 122, `uk_reference_left` 55 (57 dòng còn "NHS", 5 dòng số điện thoại của Anh), `low_support` 10 |
+| Bài (`db_rows_vi.json`) | 244, 0 dòng thiếu bản dịch |
+| Số kiểu Anh còn trong bản cuối | 0 dấu phẩy hàng nghìn (trước: 33); 4 dấu chấm, đều là tên phiên bản (`Gavi 6.0`, `mhGAP 2.0`) hoặc `41.0 triệu` (trước: 178) |
+
+So sánh model trên toàn corpus (`engine_vs_final`):
+
+| Model | Được chọn làm đồng thuận | Dòng vi phạm phép kiểm chặn | chrF trung bình so với bản cuối |
+| --- | --- | --- | --- |
+| NLLB-200 | 31,2% | 2,6% | 0,63 |
+| VinAI Translate v2 | 49,3% | 0,16% | 0,74 |
+| MedCrab-1.5B | 19,5% | 2,2% | 0,76 |
+
+Nhận xét:
+
+- `numbers_added` phần lớn là số LLM viết ra từ chữ trong nguồn ("in a month" → "sau 1 tháng") hoặc số thứ tự của Đại hội đồng Y tế Thế giới ("Seventy-fourth" → "74"). Đây là cảnh báo mềm; người rà xem khi duyệt.
+- Vòng lặp chỉ còn ở bản nháp của MedCrab và NLLB (lặp chữ, chuỗi "/", token `<|user|>`), không còn ở bản cuối. VinAI gần như không lặp.
+- Kết quả giống lô B: VinAI ít lỗi chặn nhất, MedCrab gần bản cuối nhất nhưng chậm gần 6 lần so với VinAI.

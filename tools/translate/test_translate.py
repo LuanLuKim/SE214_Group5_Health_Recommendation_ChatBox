@@ -292,6 +292,51 @@ class TestNumbers(unittest.TestCase):
     def test_invented_number_is_reported_as_added(self):
         self.assertEqual(self.added("Take the tablets with water", "Uống 3 viên với nước"), ["3"])
 
+    def test_space_grouped_thousands_are_one_number(self):
+        self.assertEqual(numbers_in("45 900 ca, 1 500 µg"), ["45900", "1500"])
+        self.assertEqual(self.missing("up to 1,500 µg a day", "tối đa 1 500 µg mỗi ngày"), [])
+        self.assertEqual(self.missing("an estimate of 45 900 deaths", "ước tính 45.900 ca tử vong"), [])
+        self.assertEqual(self.missing("an estimate of 45 900 deaths", "ước tính 45 900 ca tử vong"), [])
+        # REGRESSION: a full stop after the number hid the grouping ('chia cho 1 000.')
+        self.assertEqual(RULES.check_numbers("dividing the result by 1,000.", "rồi chia kết quả cho 1 000."),
+                         ([], []))
+
+    def test_space_grouped_source_may_be_two_numbers(self):
+        # '5 100' in a source list may be two numbers side by side: both parts are enough
+        self.assertEqual(self.missing("ages 5 100 and over", "từ 5 tuổi, 100 tuổi trở lên"), [])
+
+
+class TestLocaliseNumbers(unittest.TestCase):
+    """English number styles copied into the Vietnamese line are rewritten from the source value."""
+
+    def fix(self, source: str, target: str) -> str:
+        return RULES.localise_numbers(source, target)
+
+    def test_copied_decimal_and_thousands(self):
+        # REGRESSION: "1,500 µg" is 1,5 µg to a Vietnamese reader (a thousandfold dose error)
+        self.assertEqual(self.fix("more than 1.5mg (1,500 µg) of vitamin A", "hơn 1.5mg (1,500 µg) vitamin A"),
+                         "hơn 1,5mg (1 500 µg) vitamin A")
+
+    def test_vietnamese_style_is_kept_or_unified(self):
+        self.assertEqual(self.fix("37.5C", "37,5 độ C"), "37,5 độ C")
+        self.assertEqual(self.fix("up to 1,000mg", "tối đa 1.000mg"), "tối đa 1 000mg")
+        self.assertEqual(self.fix("45 900 deaths", "45 900 ca tử vong"), "45 900 ca tử vong")
+        self.assertEqual(self.fix("1,500,000 people", "1,500,000 người"), "1 500 000 người")
+
+    def test_value_not_in_the_source_is_left_alone(self):
+        self.assertEqual(self.fix("a small dose", "liều 1.5 mg"), "liều 1.5 mg")
+
+    def test_section_numbers_are_left_alone(self):
+        self.assertEqual(self.fix("see section 3.2.1", "xem mục 3.2.1"), "xem mục 3.2.1")
+
+    def test_ambiguous_token_is_left_alone(self):
+        # source has 1.5 and 1500; '1.500' was not copied from it, so its reading is unknown
+        self.assertEqual(self.fix("1.5 g or 1500 mg", "1.500 mg"), "1.500 mg")
+
+    def test_no_number_format_means_no_change(self):
+        rules = Rules.from_dict({"version": "t"})
+        self.assertEqual(rules.localise_numbers("1.5mg", "1.5mg"), "1.5mg")
+
 
 # =============================================================================
 # glossary: localisation rewrites (English -> neutral English)
@@ -824,6 +869,47 @@ class TestCheckLine(unittest.TestCase):
     def test_generation_loop(self):
         target = "Uống nhiều nước " * 8
         self.assertIn("no_repetition", hard(self.line("Drink plenty of fluids to stay hydrated.", target)))
+
+    def test_short_back_to_back_loop(self):
+        # the old n-gram count needed 16 words, so these short loops passed the gate
+        for target in ("đồ uống chanh chanh chanh chanh chanh để làm dịu đau họng",
+                       "bạn bị người nào cắn/xép/xép/xép/xép/xép"):
+            self.assertIn("no_repetition", hard(self.line("a hot lemon drink to soothe a sore throat", target)))
+
+    def test_repeated_sentence_loop(self):
+        sentence = "hãy nhớ rằng bạn không phải là một mình, và nhiều người đã tìm thấy sự giúp đỡ. "
+        source = "remember you are not alone, and that many people have found help"
+        self.assertIn("no_repetition", hard(self.line(source, sentence * 4)))
+
+    def test_slash_list_loop(self):
+        target = "đi bộ thay vì dùng thang máy" + "/chân cầu nâng người/chân cầu nâng đồ ăn" * 4
+        self.assertIn("no_repetition", hard(self.line("using the stairs instead of the lift", target)))
+
+    def test_term_repeated_in_a_long_paragraph_is_not_a_loop(self):
+        # REGRESSION: a 4-word Vietnamese term said 4 times in a long paragraph failed the gate
+        source = ("Each year, 2.9 million people die prematurely from illnesses attributable to household air "
+                  "pollution. Furthermore, 95 million DALYs were attributable to household air pollution "
+                  "exposure in 2021. Particulate matter and other pollutants in household air pollution "
+                  "inflame the airways and lungs, and household air pollution reduces oxygen in the blood.")
+        target = ("Mỗi năm, 2,9 triệu người chết sớm do các bệnh liên quan đến ô nhiễm không khí trong nhà. "
+                  "Ngoài ra, năm 2021, phơi nhiễm với ô nhiễm không khí trong nhà là nguyên nhân dẫn đến "
+                  "95 triệu DALYs. Các hạt vật chất và chất ô nhiễm khác trong ô nhiễm không khí trong nhà "
+                  "gây viêm đường hô hấp và phổi, và ô nhiễm không khí trong nhà làm giảm oxy trong máu.")
+        self.assertNotIn("no_repetition", hard(self.line(source, target)))
+
+    def test_long_term_repeated_three_times_is_not_a_loop(self):
+        term = "ở các nước thu nhập thấp và trung bình"
+        source = ("Over three quarters of CVD deaths take place in low- and middle-income countries. People "
+                  "living in low- and middle-income countries often do not have the benefit of integrated "
+                  "primary health care programmes for early detection and treatment of people with risk "
+                  "factors. As a result, many people in low- and middle-income countries are detected late "
+                  "in the course of the disease and die younger from CVDs, often in their most productive years.")
+        target = (f"Hơn ba phần tư số ca tử vong do bệnh tim mạch xảy ra {term}. Người dân sống {term} thường "
+                  "không được hưởng lợi từ các chương trình chăm sóc sức khỏe ban đầu lồng ghép để phát hiện "
+                  "sớm và điều trị cho những người có yếu tố nguy cơ. Vì vậy, nhiều người "
+                  f"{term} được phát hiện muộn trong quá trình bệnh và tử vong sớm hơn do bệnh tim mạch, "
+                  "thường vào những năm tháng làm việc hiệu quả nhất của cuộc đời.")
+        self.assertNotIn("no_repetition", hard(self.line(source, target)))
 
     def test_repetitive_source_is_not_a_loop(self):
         source = "wash your hands well " * 4

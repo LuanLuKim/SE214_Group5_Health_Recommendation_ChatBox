@@ -54,6 +54,9 @@
     "untranslated_min_words": 4,
     "repeat_ngram": 4,
     "repeat_times": 4,
+    "repeat_long_ngram": 8,
+    "repeat_long_times": 3,
+    "repeat_long_coverage": 0.5,
     "low_agreement_chrf": 0.25,
     "always_review_tags": ["emergency"]
   }
