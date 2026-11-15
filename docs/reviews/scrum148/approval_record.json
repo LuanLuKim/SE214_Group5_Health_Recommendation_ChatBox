@@ -1,0 +1,29 @@
+{
+  "status": "HUMAN_CONFIRMED",
+  "recorded_at_utc": "2026-11-15T15:37:06Z",
+  "recorded_at_local": "2026-11-15T22:37:06+07:00",
+  "timezone": "Asia/Saigon",
+  "reviewer": "Người dùng xác nhận trong cuộc hội thoại",
+  "confirmation_quote": "ok tôi đã đọc xong và tôi xác nhận",
+  "scope": {
+    "chunks": 79,
+    "corrected_chunks": 18,
+    "corrected_lines": 27,
+    "version": "corrected document text",
+    "optional_findings_applied": false
+  },
+  "approved_input_sha256": {
+    "duyet_79_chunk_cap_cuu_da_sua.md": "b2885d1c32d92b93fb646738588924cc28777cc449fda0fce422bc015048a70a",
+    "duyet_79_chunk_cap_cuu_da_sua.xlsx": "3c49826db161a199260b7d0cc957c65d51ce9d538b353684a5f63a4f22f6404c"
+  },
+  "confirmed_output_sha256": {
+    "duyet_79_chunk_cap_cuu_da_duyet.md": "11466fbec7a766649eb3f55fba6dfd746f4e4e1f4bb44cb85cd8269a37265e3e",
+    "duyet_79_chunk_cap_cuu_da_duyet.xlsx": "4ada50200aea2be70353342e029904d5a627b13deab42f4bfc6ca881d46c1fc0"
+  },
+  "text_unchanged_during_recording": true,
+  "corpus_updated": false,
+  "database_updated": false,
+  "rag_activated": false,
+  "github_updated": false,
+  "jira_updated": false
+}
