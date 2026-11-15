@@ -86,6 +86,46 @@ class DatabaseMigrationTest {
         "UPDATE lifestyle.reminder_deliveries SET status = 'SENT', sent_at = now(), attempt_count = 1 WHERE id = '00000000-0000-4000-8000-000000000060'");
     db.execute("DELETE FROM lifestyle.reminders WHERE id = '00000000-0000-4000-8000-000000000052'");
     assertThat(count(db, "SELECT count(*) FROM lifestyle.reminder_deliveries")).isZero();
+
+    // UC-17: seeded feedback waits in the queue; RESOLVED and resolved_at always go together.
+    String feedback = "UPDATE chat.feedback SET %s WHERE id = '00000000-0000-4000-8000-000000000043'";
+    assertThat(count(db, "SELECT count(*) FROM chat.feedback WHERE status = 'OPEN' AND resolved_at IS NULL"))
+        .isEqualTo(1);
+    assertRejected(db, feedback.formatted("status = 'RESOLVED'"));
+    assertRejected(db, feedback.formatted("resolved_at = now()"));
+    assertRejected(db, feedback.formatted("status = 'DONE', resolved_at = now()"));
+    db.execute(feedback.formatted("status = 'RESOLVED', resolved_at = now()"));
+
+    // UC-03: one pending deletion challenge per account, at most 5 attempts.
+    String user = "00000000-0000-4000-8000-000000000001";
+    String challenge =
+        "INSERT INTO accounts.account_deletion_challenges (user_id, otp_salt, otp_hash, attempt_count, expires_at, resend_after) VALUES ('"
+            + user
+            + "', '00000000-0000-4000-8000-000000000071', 'hash', %d, now() + interval '10 minutes', now() + interval '1 minute')";
+    assertRejected(db, challenge.formatted(6));
+    db.execute(challenge.formatted(0));
+    assertRejected(db, challenge.formatted(0));
+
+    // UC-03: deleting the account removes every personal row; anonymous feedback stays.
+    db.execute("DELETE FROM accounts.users WHERE id = '" + user + "'");
+    for (String owned :
+        List.of(
+            "accounts.account_deletion_challenges",
+            "accounts.user_roles",
+            "accounts.consents",
+            "health.profiles",
+            "health.daily_metrics",
+            "chat.sessions",
+            "lifestyle.plans")) {
+      assertThat(count(db, "SELECT count(*) FROM " + owned + " WHERE user_id = '" + user + "'"))
+          .as(owned)
+          .isZero();
+    }
+    assertThat(count(db, "SELECT count(*) FROM chat.messages WHERE session_id = '00000000-0000-4000-8000-000000000040'"))
+        .isZero();
+    assertThat(count(db, "SELECT count(*) FROM lifestyle.completions WHERE plan_id = '00000000-0000-4000-8000-000000000051'"))
+        .isZero();
+    assertThat(count(db, "SELECT count(*) FROM chat.feedback")).isEqualTo(1);
   }
 
   private static int count(JdbcTemplate db, String sql) {
