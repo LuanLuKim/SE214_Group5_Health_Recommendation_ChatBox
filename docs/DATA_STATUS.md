@@ -71,13 +71,14 @@ Trang thuốc chỉ để chuyên gia nội dung (R-03) đối chiếu khi viế
 
 **Template.** `who-hub-vn-topics-v1` và `who-hub-factsheets-v1` dùng khóa mới `paths_exact`, để template mục lục không áp lên trang con có cùng tiền tố đường dẫn. Fact sheet dùng `who-factsheet-v1`. Tùy chọn mới `drop_from_marker` bỏ danh mục tài liệu tham khảo cuối fact sheet: một đoạn hoặc heading chỉ có chữ "References" cùng mọi thứ đứng sau nó trong cùng khối. Trước khi sửa, 55 chunk WHO mang theo 143 dòng trích dẫn (tên tác giả, doi, tên tạp chí), phần lớn dính vào mục "WHO response". 53 trang có mốc này (45 dạng đoạn văn, 7 dạng `h3`, 1 dạng `h2`); mọi phần tử sau mốc đều là trích dẫn.
 
-**Kết quả.** RAG: 244 bài (NHS 127, WHO 117), 984 chunk (26 · 231 · 397 từ), 0 vượt trần, 25 chunk dưới 120 từ. Ngôn ngữ: 947 `en`, 37 `vi` (toàn bộ chunk tiếng Việt đến từ WHO Việt Nam; các trang chủ đề ngắn). 72 chunk `emergency` (NHS 46, WHO 26), dùng làm nguồn tham khảo khi soạn quy tắc Safety Gate. Tất cả vẫn `DRAFT`, `rag_eligible=false`, `usage_scope = internal_review_only`. Crawl WHO dùng nhóm ngân sách `urls_who` (+ 4 request `urls_who_discovery`); tái trích từ raw không tốn request.
+**Kết quả.** RAG: 244 bài (NHS 127, WHO 117), 984 chunk (26 · 231 · 397 từ), 0 vượt trần, 25 chunk dưới 120 từ. Ngôn ngữ: 947 `en`, 37 `vi` (toàn bộ chunk tiếng Việt đến từ WHO Việt Nam; các trang chủ đề ngắn). 72 chunk `emergency` theo luật từ khóa (NHS 46, WHO 26; 79 sau khi rà bằng LLM), dùng làm nguồn tham khảo khi soạn quy tắc Safety Gate. Tất cả vẫn `DRAFT`, `rag_eligible=false`, `usage_scope = internal_review_only`. Crawl WHO dùng nhóm ngân sách `urls_who` (+ 4 request `urls_who_discovery`); tái trích từ raw không tốn request.
+
+**Rà nhãn bằng LLM.** `review_chunks.py` đã rà 588 chunk WHO mới (1.116/1.116 chunk của hai corpus, 0 tranh chấp mở, 0 `needs_review`). Normalizer dùng kết quả cho 984/984 chunk RAG. So với luật từ khóa: `emergency` 72 → 79, `medication` 327 → 430, `paediatric` 347 → 359, `foreign_service` 168 → 170, `food_interaction` 8 → 5; lệch giữa luật và LLM được phân xử ở lượt thứ hai (emergency 49, medication 203, paediatric 70, foreign_service 38, vn_service 10, food_interaction 7 chunk). Cờ cho người duyệt UC-17: `ui_leftover` 109 (NHS 87, WHO 22), `out_of_scope` 6 (fact sheet WHO nêu tên thuốc và phác đồ: nhồi máu cơ tim, lao đa kháng, ghẻ ×2, đái tháo đường, béo phì), `unsafe_or_wrong` 4, `not_standalone` 4. Hai chunk `unsafe_or_wrong` mới là lỗi có sẵn trong HTML của WHO, không phải lỗi trích xuất: Rabies lặp link thành "USwas US$ 108nbsp;108", Sanitation có gạch đầu dòng bị cụt ("…highly dependent on").
 
 **Còn mở.**
 - 3 fact sheet (Stroke, Influenza (seasonal), Musculoskeletal health) có trích dẫn đánh số mà không có mốc "References" (`<div><em>1. …`), nên vẫn còn vài dòng trích dẫn ở cuối mục "WHO response". Không bỏ theo nội dung chữ để tránh xóa nhầm; người duyệt UC-17 xem khi duyệt.
-- 588 chunk WHO mới chưa qua lượt rà nhãn bằng LLM (`review_chunks.py`); nhãn hiện tại là của luật từ khóa.
 - 553 chunk WHO tiếng Anh (khoảng 132 nghìn từ) cần qua module dịch (issue #108).
-- Bộ Y tế (moh.gov.vn): chưa thêm; phải xem điều khoản sử dụng và robots.txt trước.
+- Bộ Y tế (moh.gov.vn): chưa thêm. Đã xem điều khoản và robots.txt, xem [SOURCE_TERMS_MOH.md](SOURCE_TERMS_MOH.md): được phát hành lại nếu ghi rõ nguồn, nhưng cổng là ứng dụng JavaScript (crawler hiện tại không đọc được) và chủ yếu là tin hoạt động, văn bản chính sách. Đề xuất chỉ dùng làm nguồn trích dẫn thủ công.
 
 ## Kho dữ liệu
 
