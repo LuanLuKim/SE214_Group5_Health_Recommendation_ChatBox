@@ -14,7 +14,7 @@
       "model_id": "facebook/nllb-200-distilled-600M",
       "src_lang": "eng_Latn",
       "tgt_lang": "vie_Latn",
-      "batch_size": 32,
+      "batch_size": 16,
       "num_beams": 4,
       "max_new_tokens": 384
     },
@@ -23,14 +23,14 @@
       "model_id": "vinai/vinai-translate-en2vi-v2",
       "src_lang": "en_XX",
       "tgt_lang": "vi_VN",
-      "batch_size": 32,
+      "batch_size": 16,
       "num_beams": 5,
       "max_new_tokens": 384
     },
     "medcrab": {
       "kind": "medcrab",
       "model_id": "pnnbao-ump/MedCrab-1.5B",
-      "batch_size": 16,
+      "batch_size": 8,
       "max_new_tokens": 384
     }
   },

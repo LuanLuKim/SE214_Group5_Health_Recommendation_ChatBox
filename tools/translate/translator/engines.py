@@ -74,6 +74,8 @@ class TranslationEngine(abc.ABC):
                 torch.cuda.empty_cache()
         except ImportError:
             pass
+        except RuntimeError:
+            pass  # a CUDA error already broke the context: clean-up must not hide the original error
 
     def _dtype(self):
         import torch
