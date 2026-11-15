@@ -16,6 +16,9 @@ Một PostgreSQL instance, sáu schema cùng tên module. Không cần sáu data
 | `V010__accounts_registration.sql`       | accounts  | chuẩn hóa unique email; consent xử lý dữ liệu/không chẩn đoán; OAuth identities |
 | `V011__accounts_email_verification.sql` | accounts  | đăng ký email chờ OTP; lưu challenge đã băm, hạn dùng và số lần thử             |
 | `V012__accounts_authentication.sql`    | accounts  | refresh token, giới hạn thử mật khẩu và challenge khôi phục                      |
+| `V013__lifestyle_plan_choice.sql`       | lifestyle | templates: mô tả, thời lượng, mục tiêu FR-2.6; plans giữ lịch sử, một lộ trình đang dùng |
+| `V014__accounts_deletion_confirmation.sql` | accounts | challenge xác nhận xóa tài khoản qua email (mã đã băm, hạn dùng, số lần thử)  |
+| `V015__chat_feedback_handling.sql`      | chat      | feedback: trạng thái xử lý OPEN/RESOLVED và thời điểm xử lý cho UC-17           |
 
 Đây là schema khởi đầu, chưa đủ để tuyên bố hoàn thành SRS. Khi triển khai nghiệp vụ, cần versioning/audit và reviewer metadata đầy đủ; thông tin bản quyền và ngày nguồn; quản lý vai trò/consent; dữ liệu eligibility/allergy phù hợp; lịch retry/delivery idempotency; chính sách retention và deletion cho feedback/backup.
 
