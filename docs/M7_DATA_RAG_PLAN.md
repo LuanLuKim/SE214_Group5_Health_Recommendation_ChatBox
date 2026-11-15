@@ -75,19 +75,17 @@ Thứ tự đề xuất: **P1 → P2 → P3** (đủ cho #79 và #50), P4 nếu 
 - [ ] `tools/load/run.py`: đọc `db_rows.json` + `chunks.jsonl`, upsert theo uuid, `--dry-run`, in số dòng thêm/sửa/bỏ qua. Không import code từ `apps/`.
 - [ ] Test với PGlite/Postgres: chạy hai lần không đổi số dòng; không dòng nào `APPROVED`.
 
-## P4. Dịch (`tools/translate`) — lỗi đã thấy khi đọc code
+## P4. Dịch (`tools/translate`) — đã làm lại (issue #108)
 
-- [ ] **Lỗi nghiêm trọng: `db_rows_vi.json` chỉ chép nguyên nội dung tiếng Anh rồi gắn `language: "vi"`.** Phải ghép lại từ các chunk đã dịch, hoặc không xuất file này cho tới khi có bản dịch bài.
-- [ ] **Bản địa hóa chạy trước khi dịch**: câu tiếng Anh bị chèn sẵn cụm tiếng Việt ("Gọi cấp cứu 115 ngay…", "trẻ dưới 5 tuổi") rồi mới đưa vào mô hình → đầu vào lai hai ngôn ngữ, mô hình dễ dịch sai hoặc lặp. Đổi sang: thay bằng placeholder (`«EMERG_000»`, `«AGE_000»`) trước khi dịch, khôi phục bằng cụm tiếng Việt sau khi dịch.
-- [ ] **Placeholder `«DRUG_000»` có thể bị mô hình làm hỏng** (đổi ký tự, thêm dấu cách). Khôi phục chịu được biến thể khoảng trắng/dấu; nếu mất placeholder → chunk `failed_quality_gate`.
-- [ ] **Quality gate thiếu kiểm tra an toàn**, thêm:
-  - số và đơn vị giữ nguyên (`mg`, `ml`, `°C`, giờ, tuổi) giữa nguồn và bản dịch;
-  - nguồn có `999`/`A&E` thì bản dịch phải có `115`;
-  - số câu phủ định ("do not", "don't", "never") ≈ số "không"/"đừng" — mất phủ định là đảo nghĩa;
-  - không còn từ tiếng Anh dài bất thường (dấu hiệu không dịch).
-- [ ] `title_vi`, `heading_path_vi` đang để trống → dịch tiêu đề theo lô riêng, dùng cache theo chuỗi.
-- [ ] **Kiểm lại cách gọi MedEV/VinAI.** Code thêm tiền tố `"en: "`; theo hướng dẫn của mô hình `vinai-translate-en2vi-v2` cần đặt `src_lang="en_XX"` cho tokenizer và token bắt đầu giải mã `vi_VN`. Đọc model card trước khi chạy. Tài liệu ghi mô hình này "fine-tune trên MedEV" — cần kiểm chứng, có thể là nhầm với mô hình trong bài báo MedEV.
-- [ ] Chạy thử 20 chunk có cờ `emergency`/`medication` bằng cả ba engine, lưu kết quả cạnh nhau để chọn engine; chưa chạy toàn bộ.
+Module được viết lại theo `docs/TRANSLATION_MODULE_DESIGN.md`; các lỗi đọc được ở bản cũ được xử lý như sau:
+
+- [x] `db_rows_vi.json` ghép lại từng dòng từ các chunk đã dịch; bài chưa dịch hết thì không ghi.
+- [x] Bản địa hóa không chèn tiếng Việt vào nguồn nữa: dịch vụ của Anh được viết lại thành tiếng Anh trung tính trước khi dịch (`localisation.json`), rồi kiểm trên bản tiếng Việt.
+- [x] Bỏ placeholder `«DRUG_000»`: tên thuốc để nguyên cho model dịch, sau đó kiểm tên mà đa số model giữ thì bản cuối cũng phải giữ.
+- [x] Cổng kiểm định từng dòng: so số theo giá trị (1.5 ≠ 15, 1,000 = 1.000), 999 phải thành 115, không còn 111/GP/A&E, token của model, dòng còn tiếng Anh, lặp vô hạn. (Chưa có phép đếm câu phủ định.)
+- [x] Tiêu đề và heading được dịch theo lô riêng, có cache.
+- [x] VinAI dùng `src_lang="en_XX"` và token bắt đầu `vi_VN`, không thêm tiền tố.
+- [x] Chạy thử: 10 chunk (ba model, đồng thuận) và 72 chunk `emergency` (ba model + LLM hợp nhất). Kết quả ở mục 8 của tài liệu thiết kế.
 
 ## P5. RAG — cần chốt hướng trước khi code
 
@@ -114,4 +112,4 @@ Thứ tự đề xuất: **P1 → P2 → P3** (đủ cho #79 và #50), P4 nếu 
 
 - [ ] Workflow `Issue flow` khi tạo #79: **nhánh đã được tạo** nhưng job `issue-branch` báo **failure** (run `42785673430`) — nhiều khả năng ở bước comment. Xem log: `gh run view 42785673430 --log-failed`.
 - [ ] Commit các tài liệu dữ liệu đang untracked (`docs/DATA_STATUS.md`, `PROJECT_DATA_PIPELINE_HANDOFF.md`, `TRANSLATION_MODULE_DESIGN.md`, …) và `tools/translate/` lên nhánh issue phù hợp sau khi sửa các chỗ mâu thuẫn ở trên.
-- [ ] Thêm `tools/translate` vào job `data-tools` trong CI (chỉ chạy test không tải mô hình).
+- [x] Thêm `tools/translate` vào job `data-tools` trong CI (chỉ chạy test không tải mô hình).

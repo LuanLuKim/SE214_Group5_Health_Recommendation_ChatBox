@@ -65,6 +65,21 @@ Trang thuốc chỉ để chuyên gia nội dung (R-03) đối chiếu khi viế
 
 **Kết quả.** RAG: 136 bài, 414 chunk (26 · 235 · 397 từ), 0 vượt trần; chủ đề mới: `exercise` 36, `weight` 11, `sleep` 11, `alcohol` 7, `bone_health` 7, `smoking` 4, `oral_health` 4, `hygiene` 2 chunk. Tham khảo: 31 bài, 132 chunk, 27 chunk `food_interaction`. Tất cả vẫn `DRAFT`, `rag_eligible=false`.
 
+## Bổ sung 14–15/11 — nguồn WHO (issue #106)
+
+**Danh sách.** `docs/urls_who_discovery.txt`: 2 mục lục (chủ đề sức khỏe WHO Việt Nam, fact sheet WHO); mục lục hỏi đáp WHO Việt Nam chỉ có 1 bài và bài này đã có trong `urls.txt`. `docs/urls_who.txt` (nhóm ngân sách riêng): 108 URL, gồm 12 chủ đề WHO Việt Nam (tiếng Việt), 92 fact sheet, 3 chủ đề toàn cầu và 1 hỏi đáp về bệnh tả. Mọi URL lấy từ link trên chính trang mục lục, không đoán slug. Không lấy trang chính sách, trang về thuốc, bệnh không lưu hành ở Việt Nam. 3 chủ đề WHO Việt Nam bị loại và ghi lý do trong file: tả/tiêu chảy cấp và tiêm chủng lỗi 404 dù mục lục vẫn có link; trang khuyết tật không có nội dung. Thay bằng 6 trang tiếng Anh có link trên các trang WHO đã crawl.
+
+**Template.** `who-hub-vn-topics-v1` và `who-hub-factsheets-v1` dùng khóa mới `paths_exact`, để template mục lục không áp lên trang con có cùng tiền tố đường dẫn. Fact sheet dùng `who-factsheet-v1`. Tùy chọn mới `drop_from_marker` bỏ danh mục tài liệu tham khảo cuối fact sheet: một đoạn hoặc heading chỉ có chữ "References" cùng mọi thứ đứng sau nó trong cùng khối. Trước khi sửa, 55 chunk WHO mang theo 143 dòng trích dẫn (tên tác giả, doi, tên tạp chí), phần lớn dính vào mục "WHO response". 53 trang có mốc này (45 dạng đoạn văn, 7 dạng `h3`, 1 dạng `h2`); mọi phần tử sau mốc đều là trích dẫn.
+
+**Kết quả.** RAG: 244 bài (NHS 127, WHO 117), 984 chunk (26 · 231 · 397 từ), 0 vượt trần, 25 chunk dưới 120 từ. Ngôn ngữ: 947 `en`, 37 `vi` (toàn bộ chunk tiếng Việt đến từ WHO Việt Nam; các trang chủ đề ngắn). 72 chunk `emergency` theo luật từ khóa (NHS 46, WHO 26; 79 sau khi rà bằng LLM), dùng làm nguồn tham khảo khi soạn quy tắc Safety Gate. Tất cả vẫn `DRAFT`, `rag_eligible=false`, `usage_scope = internal_review_only`. Crawl WHO dùng nhóm ngân sách `urls_who` (+ 4 request `urls_who_discovery`); tái trích từ raw không tốn request.
+
+**Rà nhãn bằng LLM.** `review_chunks.py` đã rà 588 chunk WHO mới (1.116/1.116 chunk của hai corpus, 0 tranh chấp mở, 0 `needs_review`). Normalizer dùng kết quả cho 984/984 chunk RAG. So với luật từ khóa: `emergency` 72 → 79, `medication` 327 → 430, `paediatric` 347 → 359, `foreign_service` 168 → 170, `food_interaction` 8 → 5; lệch giữa luật và LLM được phân xử ở lượt thứ hai (emergency 49, medication 203, paediatric 70, foreign_service 38, vn_service 10, food_interaction 7 chunk). Cờ cho người duyệt UC-17: `ui_leftover` 109 (NHS 87, WHO 22), `out_of_scope` 6 (fact sheet WHO nêu tên thuốc và phác đồ: nhồi máu cơ tim, lao đa kháng, ghẻ ×2, đái tháo đường, béo phì), `unsafe_or_wrong` 4, `not_standalone` 4. Hai chunk `unsafe_or_wrong` mới là lỗi có sẵn trong HTML của WHO, không phải lỗi trích xuất: Rabies lặp link thành "USwas US$ 108nbsp;108", Sanitation có gạch đầu dòng bị cụt ("…highly dependent on").
+
+**Còn mở.**
+- 3 fact sheet (Stroke, Influenza (seasonal), Musculoskeletal health) có trích dẫn đánh số mà không có mốc "References" (`<div><em>1. …`), nên vẫn còn vài dòng trích dẫn ở cuối mục "WHO response". Không bỏ theo nội dung chữ để tránh xóa nhầm; người duyệt UC-17 xem khi duyệt.
+- 553 chunk WHO tiếng Anh (khoảng 132 nghìn từ) cần qua module dịch (issue #108).
+- Bộ Y tế (moh.gov.vn): chưa thêm. Đã xem điều khoản và robots.txt, xem [SOURCE_TERMS_MOH.md](SOURCE_TERMS_MOH.md): được phát hành lại nếu ghi rõ nguồn, nhưng cổng là ứng dụng JavaScript (crawler hiện tại không đọc được) và chủ yếu là tin hoạt động, văn bản chính sách. Đề xuất chỉ dùng làm nguồn trích dẫn thủ công.
+
 ## Kho dữ liệu
 
 | Đường dẫn | Vai trò |
@@ -94,7 +109,7 @@ Chính sách nguồn (`tools/crawl/source_policies.json`): NHS và WHO đều `c
 
 - **`stale_source` gắn cho 13 bài (50 chunk)** vì ngày "Next review due" của NHS đã qua, kể cả các trang COVID-19 và trầm cảm vừa tải hôm nay. Đây là ngày rà soát của chính NHS, không phải bản sao cũ. Kế hoạch RAG ghi "chunk `stale_source` không được dùng"; nếu giữ quy tắc này thì các chủ đề trên mất khỏi RAG. Đề xuất: coi là cảnh báo cho người duyệt UC-17, không loại tự động.
 - **9 bài WHO không có ngày rà soát** nên không tính được `stale_source`.
-- **90% chunk là tiếng Anh**, người dùng hỏi tiếng Việt → cần dịch (`tools/translate`, đang có lỗi ghi trong [M7_DATA_RAG_PLAN.md](M7_DATA_RAG_PLAN.md#p4-dịch-toolstranslate--lỗi-đã-thấy-khi-đọc-code)) hoặc embedding đa ngữ.
+- **90% chunk là tiếng Anh**, người dùng hỏi tiếng Việt → cần dịch (`tools/translate`, issue #108, thiết kế ở [TRANSLATION_MODULE_DESIGN.md](TRANSLATION_MODULE_DESIGN.md)) hoặc embedding đa ngữ.
 - **Cờ `medication` và `paediatric` rộng** (125 và 85 chunk) vì NHS nhắc "medicine", "child" ở nhiều nơi. Cố ý nghiêng về an toàn; người duyệt có thể thu hẹp sau.
 - **Tiêu đề trang thuốc NHS dài** ("Ibuprofen for adults (Nurofen) - Other common brands: …") được giữ nguyên văn.
 - ~~Trang thuốc NHS trong `urls.txt` (paracetamol, ibuprofen, antihistamines) ở kho RAG~~ — đã chuyển sang `urls_reference.txt` ở #87, cùng trang antibiotics.
@@ -105,6 +120,6 @@ Chính sách nguồn (`tools/crawl/source_policies.json`): NHS và WHO đều `c
 
 ## Kiểm thử
 
-- Crawler: 59 test (`python -B -m unittest discover -s tools/crawl -p "test_*.py"`, cần `beautifulsoup4`), gồm 5 test `discover.py` trên dữ liệu tổng hợp.
+- Crawler: 63 test (`python -B -m unittest discover -s tools/crawl -p "test_*.py"`, cần `beautifulsoup4`), gồm 5 test `discover.py` trên dữ liệu tổng hợp.
 - Normalizer: 33 test (`python -B tools/normalize/test_normalize.py`), hai test chạy trên dữ liệu thật và tự bỏ qua trên bản clone mới.
-- Translator: 27 test, vẫn đạt với định dạng chunk mới.
+- Translator: 187 test (`python -B tools/translate/test_translate.py`), dùng engine và LLM giả: không cần model, torch hay mạng.

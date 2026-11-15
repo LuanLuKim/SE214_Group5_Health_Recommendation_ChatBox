@@ -1,0 +1,9 @@
+name: se214-translate
+channels:
+  - conda-forge
+dependencies:
+  - python=3.12.10
+  - pip
+# After activation, install torch for your machine, then the pinned dependencies:
+# python -m pip install torch==2.6.0 --index-url https://download.pytorch.org/whl/cu124
+# python -m pip install -r tools/translate/requirements.txt
