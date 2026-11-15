@@ -70,6 +70,9 @@ app:
       from-address: ${MAIL_FROM:}
     auth-token:
       secret: ${AUTH_TOKEN_SECRET:}
+  lifestyle:
+    # Múi giờ quyết định "hôm nay" khi ghi nhận thói quen (UC-13): qua nửa đêm giờ này là sang ngày mới.
+    zone: ${LIFESTYLE_ZONE:Asia/Ho_Chi_Minh}
   # Chạy dữ liệu tổng hợp trong database/seeds sau migration (chỉ máy phát triển).
   seed-synthetic: ${SEED_SYNTHETIC:false}
   database-dir: ${DATABASE_DIR:../database}

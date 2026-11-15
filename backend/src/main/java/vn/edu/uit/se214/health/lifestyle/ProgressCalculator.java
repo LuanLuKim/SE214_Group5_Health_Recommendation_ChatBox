@@ -8,19 +8,17 @@ import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.Set;
 
-/** UC-13: daily progress and current streak, on Vietnam local calendar days. */
+/** UC-13: daily progress and current streak, on local calendar days (zone from app.lifestyle.zone). */
 public final class ProgressCalculator {
-  public static final ZoneId LOCAL_ZONE = ZoneId.of("Asia/Ho_Chi_Minh");
-
   private ProgressCalculator() {}
 
   public record Completion(String planId, String activityId, LocalDate completedOn) {}
 
   public record DailyProgress(int totalActivities, int completedActivities, double completionRate) {}
 
-  /** Converts an instant to the local calendar day (midnight in Asia/Ho_Chi_Minh, not UTC). */
-  public static LocalDate localDate(Instant instant) {
-    return instant.atZone(LOCAL_ZONE).toLocalDate();
+  /** Converts an instant to the calendar day in {@code zone} (local midnight, not UTC). */
+  public static LocalDate localDate(Instant instant, ZoneId zone) {
+    return instant.atZone(zone).toLocalDate();
   }
 
   /** Duplicates are ignored; completions of other plans, days or unscheduled activities do not count. */

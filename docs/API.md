@@ -69,6 +69,18 @@ Các route riêng tư yêu cầu `HA_ACCESS`, xác minh chữ ký, issuer và h�
 | M4     | POST `/chat/messages`; GET `/chat/sessions`; GET `/chat/sessions/:id/messages`; DELETE `/chat/sessions/:id`; POST `/chat/messages/:id/feedback`                                                  | Chính chủ, consent; attachment feedback là opt-in                     |
 | M5     | POST `/accounts/logout`; GET/PUT `/accounts/me`; POST `/accounts/me/change-password`; POST `/accounts/me/deletion-request`                                                                       | Chính chủ; xóa cần xác nhận email                                     |
 | M5     | GET `/accounts/users`; PATCH `/accounts/users/:id/status`; PUT `/accounts/users/:id/roles`                                                                                                       | ADMIN; không lộ hồ sơ/hội thoại                                       |
-| M6     | GET `/lifestyle/templates`; GET/PUT `/lifestyle/plan`; PUT `/lifestyle/completions/:activityId/:date`; GET/POST `/lifestyle/reminders`; PATCH/DELETE `/lifestyle/reminders/:id`                  | Chính chủ, consent; template đã duyệt                                 |
+| M6     | GET `/lifestyle/templates`; GET/PUT `/lifestyle/plan`; PUT/DELETE `/lifestyle/completions/:activityId/:date`; GET/POST `/lifestyle/reminders`; PATCH/DELETE `/lifestyle/reminders/:id`           | Chính chủ, consent; template đã duyệt                                 |
+
+### M6 – UC-13 Theo dõi thói quen
+
+Đã chạy ở `DATA_MODE=postgres` (mock trả 503 `AUTH_NOT_CONFIGURED`). User là chủ của access token; "hôm nay" là ngày theo múi giờ `LIFESTYLE_ZONE` (mặc định `Asia/Ho_Chi_Minh`), qua nửa đêm giờ đó là sang ngày mới. Kiểu dữ liệu: `TodayPlan`, `CompletionResult` trong `packages/contracts`.
+
+| Route                                             | Kết quả                                                                                                                                        |
+| ------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| GET `/lifestyle/plan`                             | Hoạt động hôm nay của lộ trình đang dùng, đã hoàn thành chưa, streak từng hoạt động, `planStreak` (số ngày liên tiếp hoàn thành mọi hoạt động) |
+| PUT `/lifestyle/completions/:activityId/:date`    | Đánh dấu hoàn thành ngày `yyyy-mm-dd`, từ ngày bắt đầu lộ trình tới hôm nay. Gửi lặp không tạo bản ghi mới                                     |
+| DELETE `/lifestyle/completions/:activityId/:date` | Bỏ đánh dấu, chỉ cho ngày hôm nay                                                                                                              |
+
+Kết quả PUT/DELETE được đọc lại từ database sau khi ghi. Lỗi: 404 `LIFESTYLE_PLAN_NOT_FOUND` (chưa có lộ trình, chuyển sang UC-12), 404 `ACTIVITY_NOT_IN_PLAN`, 400 `INVALID_COMPLETION_DATE` (sai định dạng, tương lai, trước ngày bắt đầu), 409 `COMPLETION_LOCKED` (bỏ đánh dấu ngày cũ), 403 `CSRF_INVALID` khi thiếu `X-XSRF-TOKEN`.
 
 Đây là route ban đầu để chia việc, không phải danh sách API cuối. Chi tiết bài viết, form mẫu kế hoạch, email/OAuth, hàng đợi duyệt và các nhánh UC cần được chủ module bổ sung, cập nhật tài liệu và contract. Không đánh dấu một UC hoàn thành chỉ vì route đã tồn tại.

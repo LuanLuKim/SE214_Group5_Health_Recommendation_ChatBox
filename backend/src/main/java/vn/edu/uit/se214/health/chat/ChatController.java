@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import vn.edu.uit.se214.health.shared.web.ApiException;
 import vn.edu.uit.se214.health.shared.web.ApiResponse;
+import vn.edu.uit.se214.health.shared.web.CurrentUser;
 import vn.edu.uit.se214.health.system.ModuleDescriptor;
 import vn.edu.uit.se214.health.system.ModuleRegistry;
 
@@ -75,14 +76,8 @@ public class ChatController {
     return ApiResponse.of(chatService.submitFeedback(parseUuid(id), userId, body));
   }
 
-  /** Fail closed: without a verified token subject the request is rejected, never mapped to a default user. */
-  static UUID userId(Jwt principal) {
-    if (principal == null || principal.getSubject() == null) throw ApiException.sessionInvalid();
-    try {
-      return UUID.fromString(principal.getSubject());
-    } catch (IllegalArgumentException e) {
-      throw ApiException.sessionInvalid();
-    }
+  private static UUID userId(Jwt principal) {
+    return CurrentUser.id(principal);
   }
 
   private static UUID parseUuid(String id) {
