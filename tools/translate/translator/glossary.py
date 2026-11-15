@@ -25,7 +25,9 @@ from typing import Any, Iterable
 HERE = Path(__file__).resolve().parent
 DEFAULT_RULES = HERE.parent / "localisation.json"
 
-_NUMBER = re.compile(r"\d+(?:[.,]\d+)*")
+# '45 900' (thousands grouped by a space, as WHO and the Vietnamese output write them) is one number
+_NUMBER = re.compile(r"(?<!\d)(?<!\d[.,])\d{1,3}(?: \d{3})+(?!\d|[.,]\d)|\d+(?:[.,]\d+)*")
+_NAME_BEFORE = re.compile(r"[A-Za-z]-$")
 _ORDINAL = re.compile(r"\b\d+(?:st|nd|rd|th)\b", re.I)
 _WORD = re.compile(r"[A-Za-z]+")
 _LETTERS = re.compile(r"[^\W\d_]+")
@@ -36,7 +38,7 @@ def numbers_in(text: str) -> list[str]:
 
     A display helper only: the checks compare values (:func:`number_values`), so 1.5 and 15 differ.
     """
-    return [re.sub(r"[.,]", "", m.group(0)) for m in _NUMBER.finditer(text)]
+    return [re.sub(r"[., ]", "", m.group(0)) for m in _NUMBER.finditer(text)]
 
 
 def _decimal(whole: str, fraction: str) -> str:
@@ -50,7 +52,12 @@ def number_values(token: str) -> set[str]:
     '1,000' / '1.000' -> {'1000', '1'}; '37.5' / '37,5' -> {'37.5'}; '1,999' -> {'1999', '1.999'}.
     Vietnamese writes '1.000' and '37,5', the English source '1,000' and '37.5', a machine
     translation either: both readings are accepted, a lost decimal point (1.5 -> 15) is not.
+    A space only groups thousands: '45 900' -> {'45900', '45', '900'} (the parts too, so a
+    list such as 'aged 5 100' is not lost).
     """
+    if " " in token:
+        parts = token.split(" ")
+        return {str(int("".join(parts)))} | {str(int(p)) for p in parts}
     groups = re.split(r"[.,]", token)
     if len(groups) == 1:
         return {str(int(token))}
@@ -63,7 +70,9 @@ def number_values(token: str) -> set[str]:
 
 
 def source_value(token: str) -> str:
-    """The value an English source token stands for: ',' + three digits groups thousands, '.' is a decimal point."""
+    """The value an English source token stands for: ',' or ' ' + three digits groups thousands, '.' is a decimal point."""
+    if " " in token:
+        return str(int(token.replace(" ", "")))
     groups = re.split(r"[.,]", token)
     if "," in token and "." not in token and all(len(g) == 3 for g in groups[1:]):
         return str(int("".join(groups)))
@@ -100,6 +109,11 @@ class Rules:
     target_number_words: dict[str, list[str]] = field(default_factory=dict)
     ambiguous_number_words: dict[str, frozenset[str]] = field(default_factory=dict)
     tables: dict[str, list[dict[str, str]]] = field(default_factory=dict)
+    number_format: dict[str, str] = field(default_factory=dict)
+    # (pattern on the source, numbers the Vietnamese line may add): 'In May' -> 'tháng 5', 'infant' -> 'dưới 1 tuổi'
+    tolerated_by_source: list[tuple[re.Pattern, frozenset[str]]] = field(default_factory=list)
+    # (pattern on the source or None, pattern on the target, replacement): fixed wording after the final line is chosen
+    target_replacements: list[tuple[re.Pattern | None, re.Pattern, str]] = field(default_factory=list)
 
     @classmethod
     def load(cls, path: Path = DEFAULT_RULES) -> "Rules":
@@ -120,6 +134,12 @@ class Rules:
             ambiguous_number_words={w.casefold(): frozenset(x.casefold() for x in r.get("not_after", []))
                                     for w, r in data.get("ambiguous_target_number_words", {}).items()},
             tables={k: data.get(k, []) for k in ("service_table", "age_table", "terminology")},
+            number_format={k: v for k, v in data.get("number_format", {}).items() if k in ("decimal", "thousands")},
+            tolerated_by_source=[(re.compile(r["pattern"]), frozenset(r["numbers"]))
+                                 for r in data.get("tolerated_by_source", [])],
+            target_replacements=[(re.compile(r["source"], re.I) if r.get("source") else None,
+                                  re.compile(r["pattern"], re.I), r["replace"])
+                                 for r in data.get("target_replacements", [])],
         )
 
     # -- source side -------------------------------------------------------
@@ -146,9 +166,24 @@ class Rules:
 
     def tolerated_numbers(self, source: str) -> set[str]:
         """Numbers that may appear in the Vietnamese line without being a digit in the source."""
-        spelled = {self.number_words[w.casefold()] for w in _WORD.findall(source) if w.casefold() in self.number_words}
+        words = [w.casefold() for w in _WORD.findall(source)]
+        spelled = {self.number_words[w] for w in words if w in self.number_words}
+        # 'seventy-fourth', 'twenty five': a tens word followed by a unit word is one number
+        for tens, unit in zip(words, words[1:]):
+            t, u = self.number_words.get(tens, ""), self.number_words.get(unit, "")
+            if t.isdigit() and u.isdigit() and int(t) % 10 == 0 and 20 <= int(t) <= 90 and 1 <= int(u) <= 9:
+                spelled.add(str(int(t) + int(u)))
         ordinals = {re.sub(r"\D", "", m.group(0)) for m in _ORDINAL.finditer(source)}
-        return spelled | ordinals | set(self.allowed_added)
+        by_source = set().union(*(numbers for pattern, numbers in self.tolerated_by_source if pattern.search(source)))
+        return spelled | ordinals | by_source | set(self.allowed_added)
+
+    def replace_target(self, source: str, target: str) -> str:
+        """Fixed wording of ``target_replacements`` (a rule with ``source`` applies only when the source matches)."""
+        for source_pattern, pattern, replacement in self.target_replacements:
+            if source_pattern is None or source_pattern.search(source):
+                target = pattern.sub(lambda m, r=replacement: (r[:1].upper() + r[1:]) if m.group(0)[:1].isupper()
+                                     else r, target)
+        return target
 
     def _number_words_in(self, target: str) -> set[str]:
         """Vietnamese words of the line that really stand for a number.
@@ -174,10 +209,45 @@ class Rules:
         required = self.required_numbers(source)
         words = self._number_words_in(target)
         spelled_out = {n for n in required - found if words & set(self.target_number_words.get(n, []))}
-        missing = sorted(required - found - spelled_out)
+        # '5 100' in the source may be two numbers side by side: having both parts is enough
+        parts = {source_value(t): {str(int(p)) for p in t.split(" ")}
+                 for t in (m.group(0) for m in _NUMBER.finditer(source)) if " " in t}
+        missing = sorted(n for n in required - found - spelled_out if not parts.get(n, {n}) <= found)
         expected = required | self.tolerated_numbers(source)
-        added = sorted({t for t in tokens if not number_values(t) & expected})  # as written, for the reviewer
+        # a number that is part of a name ('COVID-19', 'ICD-11') is not a value the translation added
+        named = {m.group(0) for m in _NUMBER.finditer(target) if _NAME_BEFORE.search(target[:m.start()])}
+        added = sorted({t for t in tokens if t not in named and not number_values(t) & expected})  # for the reviewer
         return missing, added
+
+    def localise_numbers(self, source: str, target: str) -> str:
+        """Write the numbers of a Vietnamese line the Vietnamese way, from the value they have in the source.
+
+        Machine translation and the LLM often copy '1.5' and '1,500' from the English source: a
+        Vietnamese reader takes '1,500 µg' for 1,5 µg. A token is read the English way when the source
+        has the same token (the model copied it), otherwise by the one reading that is a source value;
+        a token that matches no source value or two of them is left as written.
+        """
+        decimal, thousands = self.number_format.get("decimal"), self.number_format.get("thousands")
+        if not decimal or thousands is None:
+            return target
+        source_tokens = {m.group(0) for m in _NUMBER.finditer(source)}
+        wanted = {source_value(t) for t in source_tokens}
+
+        def rewrite(match: re.Match) -> str:
+            token = match.group(0)
+            if not re.search(r"[.,]", token):
+                return token
+            readings = {source_value(token)} if token in source_tokens else number_values(token) & wanted
+            if len(readings) != 1:
+                return token
+            groups = re.split(r"[.,]", token)
+            if "." in readings.pop():
+                return decimal.join(groups) if len(groups) == 2 else token
+            if 1 <= len(groups[0]) <= 3 and all(len(g) == 3 for g in groups[1:]):
+                return thousands.join(groups)
+            return token
+
+        return _NUMBER.sub(rewrite, target)
 
     def forbidden_in(self, target: str) -> list[str]:
         return [label for label, pattern in self.forbidden if pattern.search(target)]

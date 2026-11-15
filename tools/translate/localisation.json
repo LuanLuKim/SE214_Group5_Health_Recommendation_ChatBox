@@ -1,5 +1,5 @@
 {
-  "version": "vn-3",
+  "version": "vn-5",
   "comment": "UK -> Viet Nam localisation. Service numbers (999, 111) match only as whole numbers, never inside 1,999 or 9.99; GPs is case-sensitive (GPS is a device). source_rewrites turn UK-only services into neutral English BEFORE machine translation (first match wins per position, rules run in order). forbidden_in_target must never appear in the Vietnamese text; discouraged_in_target only flags the chunk for a human reviewer. The tables are also shown to the LLM post-editor.",
   "source_rewrites": [
     {"pattern": "\\bcall 111 or get help from 111 online\\b", "replace": "contact a doctor or the nearest health facility for advice"},
@@ -23,8 +23,37 @@
     {"pattern": "\\ba GP\\b", "replace": "a doctor"},
     {"pattern": "\\bGP\\b", "replace": "doctor"}
   ],
+  "number_format": {"comment": "how the Vietnamese text writes numbers; a copied English 1,500 or 1.5 is rewritten from its source value", "decimal": ",", "thousands": " "},
   "number_map": {"999": "115", "111": null},
-  "number_words": {"one": "1", "two": "2", "three": "3", "four": "4", "five": "5", "six": "6", "seven": "7", "eight": "8", "nine": "9", "ten": "10", "eleven": "11", "twelve": "12", "once": "1", "twice": "2"},
+  "number_words": {"one": "1", "two": "2", "three": "3", "four": "4", "five": "5", "six": "6", "seven": "7", "eight": "8", "nine": "9", "ten": "10", "eleven": "11", "twelve": "12", "once": "1", "twice": "2", "first": "1", "second": "2", "third": "3", "fourth": "4", "fifth": "5", "sixth": "6", "seventh": "7", "eighth": "8", "ninth": "9", "tenth": "10", "eleventh": "11", "twelfth": "12", "twenty": "20", "thirty": "30", "forty": "40", "fifty": "50", "sixty": "60", "seventy": "70", "eighty": "80", "ninety": "90", "twentieth": "20", "thirtieth": "30", "fortieth": "40", "fiftieth": "50", "sixtieth": "60", "seventieth": "70", "eightieth": "80", "ninetieth": "90"},
+  "tolerated_by_source_comment": "numbers the Vietnamese line may add when the source matches: month names (case-sensitive), ages of age_table, fractions, \"a month\" -> 1 tháng; only silences the soft numbers_added warning",
+  "tolerated_by_source": [
+    {"pattern": "\\bJanuary\\b", "numbers": ["1"]},
+    {"pattern": "\\bFebruary\\b", "numbers": ["2"]},
+    {"pattern": "\\bMarch\\b", "numbers": ["3"]},
+    {"pattern": "\\bApril\\b", "numbers": ["4"]},
+    {"pattern": "\\bMay\\b", "numbers": ["5"]},
+    {"pattern": "\\bJune\\b", "numbers": ["6"]},
+    {"pattern": "\\bJuly\\b", "numbers": ["7"]},
+    {"pattern": "\\bAugust\\b", "numbers": ["8"]},
+    {"pattern": "\\bSeptember\\b", "numbers": ["9"]},
+    {"pattern": "\\bOctober\\b", "numbers": ["10"]},
+    {"pattern": "\\bNovember\\b", "numbers": ["11"]},
+    {"pattern": "\\bDecember\\b", "numbers": ["12"]},
+    {"pattern": "(?i)\\b(?:bab(?:y|ies)|infants?)\\b", "numbers": ["1"]},
+    {"pattern": "(?i)\\btoddlers?\\b", "numbers": ["1", "3"]},
+    {"pattern": "(?i)\\b(?:a|an|one|per|every|each)\\s+(?:day|week|month|year|hour|minute)\\b", "numbers": ["1"]},
+    {"pattern": "(?i)\\bhal(?:f|ves)\\b", "numbers": ["1", "2"]},
+    {"pattern": "(?i)\\bquarters?\\b", "numbers": ["1", "4"]},
+    {"pattern": "(?i)\\bthree[- ]quarters\\b", "numbers": ["3", "4"]},
+    {"pattern": "(?i)\\bthirds?\\b", "numbers": ["1", "3"]},
+    {"pattern": "(?i)\\btwo[- ]thirds\\b", "numbers": ["2", "3"]}
+  ],
+  "target_replacements_comment": "fixed wording applied to the final Vietnamese line; a rule with source applies only when the English line matches it",
+  "target_replacements": [
+    {"comment": "heatstroke = sốc nhiệt (chốt 1 thuật ngữ); terminology giữ nguyên để không đổi prompt LLM", "source": "heat ?stroke", "pattern": "say nắng(?: / sốc nhiệt)?", "replace": "sốc nhiệt"},
+    {"source": "\\bwet (?:them|your|him|her)sel(?:f|ves)\\b", "pattern": "tự tiểu ướt", "replace": "tiểu ra quần"}
+  ],
   "target_number_words": {"1": ["một"], "2": ["hai"], "3": ["ba"], "4": ["bốn"], "5": ["năm"], "6": ["sáu"], "7": ["bảy"], "8": ["tám"], "9": ["chín"], "10": ["mười"]},
   "ambiguous_target_number_words": {"năm": {"comment": "five / year: counts as 5 only before another word and not after these words", "not_after": ["mỗi", "hằng", "hàng", "cả", "nhiều", "vài", "các", "những", "một"]}},
   "allowed_added_numbers": ["115", "28"],
