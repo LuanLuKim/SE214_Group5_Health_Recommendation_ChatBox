@@ -14,6 +14,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.simple.JdbcClient;
+import org.springframework.transaction.support.TransactionOperations;
 import vn.edu.uit.se214.health.lifestyle.ProgressCalculator.DailyProgress;
 import vn.edu.uit.se214.health.lifestyle.TodayPlan.ActivityToday;
 import vn.edu.uit.se214.health.shared.web.ApiException;
@@ -38,7 +39,7 @@ class LifestyleServiceTest {
   @BeforeEach
   void freshDatabase() {
     jdbc = JdbcClient.create(TestDatabase.fresh());
-    repository = new LifestyleRepository(jdbc);
+    repository = new LifestyleRepository(jdbc, TransactionOperations.withoutTransaction());
     user(USER, "uc13-a@example.invalid");
     user(OTHER_USER, "uc13-b@example.invalid");
     template(TEMPLATE, ACTIVITIES);
