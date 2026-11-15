@@ -355,15 +355,20 @@ Nhận xét khi đọc bản dịch:
 
 Lượt 1 cho 936/947 chunk qua cổng. 11 chunk bị chặn vì `no_repetition`, nhưng đọc lại thì cả 11 dòng đều dịch đúng: phép kiểm cũ đếm cụm 4 từ xuất hiện từ 4 lần ở bất kỳ đâu trong dòng, nên một thuật ngữ tiếng Việt nhiều âm tiết được nhắc lại trong đoạn dài ("ô nhiễm không khí trong nhà", "tỷ đô la Mỹ", "rối loạn lo âu") cũng bị coi là vòng lặp. Phép kiểm cũ lại bỏ sót vòng lặp thật ở dòng ngắn ("chanh chanh chanh chanh chanh", "cắn/xép/xép/xép…"). Phép kiểm mới (mục 3.6) được đối chiếu trên toàn bộ bản nháp của ba model: không chặn nhầm bản cuối nào (phép kiểm cũ chặn 32 dòng cuối đúng) và bắt thêm 14 dòng nháp lặp thật mà phép kiểm cũ bỏ sót (NLLB 6, MedCrab 8).
 
-Lượt 2 và 3 chạy lại từ cache (không dịch lại đoạn nào) để lấy nhãn đã rà ở #106, áp dụng phép kiểm lặp mới và cách viết số kiểu Việt. Kết quả cuối (`summary.json`, localisation `vn-4`):
+Các lượt sau chạy lại từ cache, không dịch lại đoạn nào. Chúng lấy nhãn đã rà ở #106 và áp dụng ba thay đổi:
+- phép kiểm lặp mới;
+- cách viết số kiểu Việt;
+- `localisation.json` `vn-5` có thêm hai mục. `target_replacements` là thay thế cố định theo câu nguồn: "heatstroke" chỉ dùng **"sốc nhiệt"** (trước đó LLM chép nguyên "say nắng / sốc nhiệt" của bảng thuật ngữ vào 17 dòng), "wet themselves" → "tiểu ra quần". `tolerated_by_source` cho phép thêm số khi nguồn có tên tháng, độ tuổi theo `age_table`, phân số hoặc "a month". Cùng lúc, phép kiểm đọc được số thứ tự viết bằng chữ ("Seventy-fourth" → 74) và bỏ qua số nằm trong tên riêng ("COVID-19"). Bảng thuật ngữ trong prompt giữ nguyên để không mất cache LLM.
+
+Kết quả cuối (`summary.json`, localisation `vn-5`):
 
 | Chỉ số | Giá trị |
 | --- | --- |
-| Qua cổng | **947/947** (`auto_verified` 800, `auto_verified_with_warnings` 147), 0 lỗi chặn |
+| Qua cổng | **947/947** (`auto_verified` 896, `auto_verified_with_warnings` 51), 0 lỗi chặn |
 | Cách chọn dòng | 12 522 LLM, 2 lùi về đồng thuận |
 | Chunk `emergency` (luôn rà) | 78/78 qua cổng |
-| Cần người rà (`review_queue.md`) | 215 chunk |
-| Cảnh báo mềm | `numbers_added` 122, `uk_reference_left` 55 (57 dòng còn "NHS", 5 dòng số điện thoại của Anh), `low_support` 10 |
+| Cần người rà (`review_queue.md`) | 125 chunk (trước khi chỉnh cảnh báo số: 215) |
+| Cảnh báo mềm | `numbers_added` 5 (trước: 122), `uk_reference_left` 55 (57 dòng còn "NHS", 5 dòng số điện thoại của Anh), `low_support` 10 |
 | Bài (`db_rows_vi.json`) | 244, 0 dòng thiếu bản dịch |
 | Số kiểu Anh còn trong bản cuối | 0 dấu phẩy hàng nghìn (trước: 33); 4 dấu chấm, đều là tên phiên bản (`Gavi 6.0`, `mhGAP 2.0`) hoặc `41.0 triệu` (trước: 178) |
 
@@ -377,6 +382,7 @@ So sánh model trên toàn corpus (`engine_vs_final`):
 
 Nhận xét:
 
-- `numbers_added` phần lớn là số LLM viết ra từ chữ trong nguồn ("in a month" → "sau 1 tháng") hoặc số thứ tự của Đại hội đồng Y tế Thế giới ("Seventy-fourth" → "74"). Đây là cảnh báo mềm; người rà xem khi duyệt.
+- Trong 122 cảnh báo `numbers_added` ban đầu, gần như tất cả là số LLM viết ra từ chữ trong nguồn: tên tháng ("In May" → "tháng 5"), số thứ tự ("seventh" → "thứ 7"), bảng độ tuổi ("infant" → "trẻ dưới 1 tuổi"), phân số ("three-quarters" → "3/4"). 5 cảnh báo còn lại đều đáng xem. Ví dụ có dòng ghi "trẻ dưới 2 tuổi": người duyệt cần đối chiếu xem nguồn có nêu tuổi không.
+- `low_support` (10) là dòng ngắn mà các bản nháp khác nhau nhiều ("buồn nôn hoặc nôn", "khó đi vào giấc ngủ"). Đọc lại thì đều đúng.
 - Vòng lặp chỉ còn ở bản nháp của MedCrab và NLLB (lặp chữ, chuỗi "/", token `<|user|>`), không còn ở bản cuối. VinAI gần như không lặp.
 - Kết quả giống lô B: VinAI ít lỗi chặn nhất, MedCrab gần bản cuối nhất nhưng chậm gần 6 lần so với VinAI.

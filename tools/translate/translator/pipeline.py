@@ -279,7 +279,7 @@ def finalise(unit: Unit, llm_bodies: list[str] | None, rules: Rules,
                 method = "consensus_fallback"
             else:
                 chosen, method = llm_line, "llm"
-        bodies.append(rules.localise_numbers(body, chosen))
+        bodies.append(rules.localise_numbers(body, rules.replace_target(body, chosen)))
         methods.append(method)
     drafts = [[d[i] for d in unit.drafts.values()] for i in range(len(unit.bodies))] if unit.drafts else None
     text = "\n".join(marker + body for marker, body in zip(unit.markers, bodies))

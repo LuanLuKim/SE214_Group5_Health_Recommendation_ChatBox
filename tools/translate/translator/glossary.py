@@ -27,6 +27,7 @@ DEFAULT_RULES = HERE.parent / "localisation.json"
 
 # '45 900' (thousands grouped by a space, as WHO and the Vietnamese output write them) is one number
 _NUMBER = re.compile(r"(?<!\d)(?<!\d[.,])\d{1,3}(?: \d{3})+(?!\d|[.,]\d)|\d+(?:[.,]\d+)*")
+_NAME_BEFORE = re.compile(r"[A-Za-z]-$")
 _ORDINAL = re.compile(r"\b\d+(?:st|nd|rd|th)\b", re.I)
 _WORD = re.compile(r"[A-Za-z]+")
 _LETTERS = re.compile(r"[^\W\d_]+")
@@ -109,6 +110,10 @@ class Rules:
     ambiguous_number_words: dict[str, frozenset[str]] = field(default_factory=dict)
     tables: dict[str, list[dict[str, str]]] = field(default_factory=dict)
     number_format: dict[str, str] = field(default_factory=dict)
+    # (pattern on the source, numbers the Vietnamese line may add): 'In May' -> 'tháng 5', 'infant' -> 'dưới 1 tuổi'
+    tolerated_by_source: list[tuple[re.Pattern, frozenset[str]]] = field(default_factory=list)
+    # (pattern on the source or None, pattern on the target, replacement): fixed wording after the final line is chosen
+    target_replacements: list[tuple[re.Pattern | None, re.Pattern, str]] = field(default_factory=list)
 
     @classmethod
     def load(cls, path: Path = DEFAULT_RULES) -> "Rules":
@@ -130,6 +135,11 @@ class Rules:
                                     for w, r in data.get("ambiguous_target_number_words", {}).items()},
             tables={k: data.get(k, []) for k in ("service_table", "age_table", "terminology")},
             number_format={k: v for k, v in data.get("number_format", {}).items() if k in ("decimal", "thousands")},
+            tolerated_by_source=[(re.compile(r["pattern"]), frozenset(r["numbers"]))
+                                 for r in data.get("tolerated_by_source", [])],
+            target_replacements=[(re.compile(r["source"], re.I) if r.get("source") else None,
+                                  re.compile(r["pattern"], re.I), r["replace"])
+                                 for r in data.get("target_replacements", [])],
         )
 
     # -- source side -------------------------------------------------------
@@ -156,9 +166,24 @@ class Rules:
 
     def tolerated_numbers(self, source: str) -> set[str]:
         """Numbers that may appear in the Vietnamese line without being a digit in the source."""
-        spelled = {self.number_words[w.casefold()] for w in _WORD.findall(source) if w.casefold() in self.number_words}
+        words = [w.casefold() for w in _WORD.findall(source)]
+        spelled = {self.number_words[w] for w in words if w in self.number_words}
+        # 'seventy-fourth', 'twenty five': a tens word followed by a unit word is one number
+        for tens, unit in zip(words, words[1:]):
+            t, u = self.number_words.get(tens, ""), self.number_words.get(unit, "")
+            if t.isdigit() and u.isdigit() and int(t) % 10 == 0 and 20 <= int(t) <= 90 and 1 <= int(u) <= 9:
+                spelled.add(str(int(t) + int(u)))
         ordinals = {re.sub(r"\D", "", m.group(0)) for m in _ORDINAL.finditer(source)}
-        return spelled | ordinals | set(self.allowed_added)
+        by_source = set().union(*(numbers for pattern, numbers in self.tolerated_by_source if pattern.search(source)))
+        return spelled | ordinals | by_source | set(self.allowed_added)
+
+    def replace_target(self, source: str, target: str) -> str:
+        """Fixed wording of ``target_replacements`` (a rule with ``source`` applies only when the source matches)."""
+        for source_pattern, pattern, replacement in self.target_replacements:
+            if source_pattern is None or source_pattern.search(source):
+                target = pattern.sub(lambda m, r=replacement: (r[:1].upper() + r[1:]) if m.group(0)[:1].isupper()
+                                     else r, target)
+        return target
 
     def _number_words_in(self, target: str) -> set[str]:
         """Vietnamese words of the line that really stand for a number.
@@ -189,7 +214,9 @@ class Rules:
                  for t in (m.group(0) for m in _NUMBER.finditer(source)) if " " in t}
         missing = sorted(n for n in required - found - spelled_out if not parts.get(n, {n}) <= found)
         expected = required | self.tolerated_numbers(source)
-        added = sorted({t for t in tokens if not number_values(t) & expected})  # as written, for the reviewer
+        # a number that is part of a name ('COVID-19', 'ICD-11') is not a value the translation added
+        named = {m.group(0) for m in _NUMBER.finditer(target) if _NAME_BEFORE.search(target[:m.start()])}
+        added = sorted({t for t in tokens if t not in named and not number_values(t) & expected})  # for the reviewer
         return missing, added
 
     def localise_numbers(self, source: str, target: str) -> str:

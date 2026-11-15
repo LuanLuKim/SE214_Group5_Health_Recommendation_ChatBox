@@ -306,6 +306,58 @@ class TestNumbers(unittest.TestCase):
         self.assertEqual(self.missing("ages 5 100 and over", "từ 5 tuổi, 100 tuổi trở lên"), [])
 
 
+class TestToleratedNumbers(unittest.TestCase):
+    """Numbers a correct Vietnamese line adds from words of the source (soft numbers_added must stay quiet)."""
+
+    def added(self, source: str, target: str) -> list[str]:
+        return RULES.check_numbers(source, target)[1]
+
+    def test_month_names(self):
+        self.assertEqual(self.added("In May 2022, the Assembly endorsed the plan.",
+                                    "Tháng 5 năm 2022, Đại hội đồng đã thông qua kế hoạch."), [])
+        # lower-case 'may' is the verb, not the month
+        self.assertEqual(self.added("you may feel tired in 2022", "bạn có thể thấy mệt vào tháng 5 năm 2022"), ["5"])
+
+    def test_spelled_ordinals_including_compounds(self):
+        self.assertEqual(self.added("COPD is the seventh leading cause", "COPD là nguyên nhân hàng thứ 7"), [])
+        self.assertEqual(self.added("at the Seventy-fourth World Health Assembly", "tại kỳ họp thứ 74"), [])
+        self.assertEqual(self.added("at the Seventieth World Health Assembly", "tại Đại hội đồng lần thứ 70"), [])
+
+    def test_ages_from_the_age_table(self):
+        self.assertEqual(self.added("how to take your baby's temperature", "cách đo nhiệt độ cho trẻ dưới 1 tuổi"), [])
+        self.assertEqual(self.added("toddlers need 12 to 17 hours", "trẻ nhỏ từ 1 đến 3 tuổi cần 12 đến 17 giờ"), [])
+
+    def test_fractions_and_a_month(self):
+        self.assertEqual(self.added("About three-quarters of the salt", "Khoảng 3/4 lượng muối"), [])
+        self.assertEqual(self.added("if things do not get better in a month", "nếu không cải thiện sau 1 tháng"), [])
+
+    def test_number_inside_a_name_is_not_added(self):
+        self.assertEqual(self.added("Take a rapid lateral flow test", "Làm xét nghiệm nhanh COVID-19"), [])
+
+    def test_unexplained_number_is_still_reported(self):
+        self.assertEqual(self.added("In May 2022, many countries joined.", "Tháng 5 năm 2022, 25 quốc gia tham gia."),
+                         ["25"])
+
+
+class TestTargetReplacements(unittest.TestCase):
+
+    def test_heatstroke_is_one_term(self):
+        self.assertEqual(RULES.replace_target("If it turns into heatstroke, call for help.",
+                                              "Nếu chuyển thành say nắng / sốc nhiệt, hãy gọi giúp đỡ."),
+                         "Nếu chuyển thành sốc nhiệt, hãy gọi giúp đỡ.")
+        self.assertEqual(RULES.replace_target("Heatstroke signs", "Say nắng / sốc nhiệt: dấu hiệu"), "Sốc nhiệt: dấu hiệu")
+        self.assertEqual(RULES.replace_target("Download: Heatstroke signs", "Tải xuống: Dấu hiệu say nắng"),
+                         "Tải xuống: Dấu hiệu sốc nhiệt")
+
+    def test_rule_needs_its_source(self):
+        # 'say nắng' for another English word is not rewritten
+        self.assertEqual(RULES.replace_target("sunstroke", "say nắng"), "say nắng")
+
+    def test_wet_themselves(self):
+        self.assertEqual(RULES.replace_target("wet the bed or wet themselves", "đái dầm hoặc tự tiểu ướt"),
+                         "đái dầm hoặc tiểu ra quần")
+
+
 class TestLocaliseNumbers(unittest.TestCase):
     """English number styles copied into the Vietnamese line are rewritten from the source value."""
 

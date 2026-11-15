@@ -81,7 +81,7 @@ Trang thuốc chỉ để chuyên gia nội dung (R-03) đối chiếu khi viế
 
 ## Bổ sung 15/11 — bản dịch tiếng Việt (issue #108)
 
-Toàn bộ corpus `rag` đã qua module dịch (`tools/translate`, kết quả chi tiết ở [TRANSLATION_MODULE_DESIGN.md](TRANSLATION_MODULE_DESIGN.md) mục 8.1): 947 chunk tiếng Anh dịch sang tiếng Việt, 37 chunk tiếng Việt giữ nguyên, 244 bài trong `.data/translated/db_rows_vi.json`. **947/947 chunk qua cổng chất lượng**, 0 lỗi chặn; 78/78 chunk `emergency` qua cổng. 215 chunk nằm trong `review_queue.md` cho người duyệt UC-17 (mọi chunk cấp cứu và chunk có cảnh báo: 122 `numbers_added`, 55 `uk_reference_left`, 10 `low_support`). Bản dịch vẫn `DRAFT`, `rag_eligible=false`, `usage_scope = internal_review_only`.
+Toàn bộ corpus `rag` đã qua module dịch (`tools/translate`, kết quả chi tiết ở [TRANSLATION_MODULE_DESIGN.md](TRANSLATION_MODULE_DESIGN.md) mục 8.1): 947 chunk tiếng Anh dịch sang tiếng Việt, 37 chunk tiếng Việt giữ nguyên, 244 bài trong `.data/translated/db_rows_vi.json`. **947/947 chunk qua cổng chất lượng**, 0 lỗi chặn; 78/78 chunk `emergency` qua cổng. 125 chunk nằm trong `review_queue.md` cho người duyệt UC-17 (mọi chunk cấp cứu và chunk có cảnh báo: 55 `uk_reference_left`, 10 `low_support`, 5 `numbers_added`). "heatstroke" thống nhất dịch là "sốc nhiệt". Bản dịch vẫn `DRAFT`, `rag_eligible=false`, `usage_scope = internal_review_only`.
 
 Hai lỗi phát hiện khi đọc kết quả và đã sửa trong module: phép kiểm vòng lặp chặn nhầm thuật ngữ tiếng Việt nhắc lại trong đoạn dài; số kiểu Anh bị chép nguyên (`1.5 mg (1,500 µg)`) nay viết lại thành `1,5 mg (1 500 µg)`.
 - Bộ Y tế (moh.gov.vn): chưa thêm. Đã xem điều khoản và robots.txt, xem [SOURCE_TERMS_MOH.md](SOURCE_TERMS_MOH.md): được phát hành lại nếu ghi rõ nguồn, nhưng cổng là ứng dụng JavaScript (crawler hiện tại không đọc được) và chủ yếu là tin hoạt động, văn bản chính sách. Đề xuất chỉ dùng làm nguồn trích dẫn thủ công.
@@ -128,4 +128,4 @@ Chính sách nguồn (`tools/crawl/source_policies.json`): NHS và WHO đều `c
 
 - Crawler: 63 test (`python -B -m unittest discover -s tools/crawl -p "test_*.py"`, cần `beautifulsoup4`), gồm 5 test `discover.py` trên dữ liệu tổng hợp.
 - Normalizer: 33 test (`python -B tools/normalize/test_normalize.py`), hai test chạy trên dữ liệu thật và tự bỏ qua trên bản clone mới.
-- Translator: 200 test (`python -B tools/translate/test_translate.py`), dùng engine và LLM giả: không cần model, torch hay mạng.
+- Translator: 209 test (`python -B tools/translate/test_translate.py`), dùng engine và LLM giả: không cần model, torch hay mạng.
