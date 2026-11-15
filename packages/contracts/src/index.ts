@@ -213,3 +213,50 @@ export interface CompletionResult {
   streak: number;
   progress: DailyProgress;
 }
+// M6 UC-12: only approved templates; the server checks consent, allergies and profile again on apply.
+export type LifestyleGoal = 'SLEEP' | 'MAINTAIN' | 'GAIN' | 'LOSE';
+export interface TemplateSummary {
+  id: string;
+  title: string;
+  goal: LifestyleGoal;
+  summary: string;
+  durationDays: number | null;
+  activityCount: number;
+  notSuitableFor: string[];
+  sourceUrl: string;
+}
+// GET /lifestyle/templates?goal=. profileMissing: no health profile (suggest updating it);
+// message: set when the list is empty (no plan is generated instead).
+export interface TemplateCatalog {
+  goal: LifestyleGoal | null;
+  profileMissing: boolean;
+  templates: TemplateSummary[];
+  message: string | null;
+}
+export interface PlanActivity {
+  id: string;
+  title: string;
+  description?: string;
+}
+// GET /lifestyle/templates/:id. Previewing changes nothing; current: it is the active plan.
+export interface TemplatePreview {
+  id: string;
+  title: string;
+  goal: LifestyleGoal;
+  summary: string;
+  durationDays: number | null;
+  activities: PlanActivity[];
+  notSuitableFor: string[];
+  sourceUrl: string;
+  current: boolean;
+  advice: string;
+}
+// PUT /lifestyle/plan {templateId}. changed: false when the template was already active.
+export interface AppliedPlan {
+  planId: string;
+  templateId: string;
+  templateTitle: string;
+  startedOn: string;
+  changed: boolean;
+  previousPlanId: string | null;
+}
