@@ -131,6 +131,18 @@ class AdapterTests(unittest.TestCase):
         self.assertEqual([(b["tag"], b["text"]) for b in doc["blocks"]],
                          [("h2", "Key facts"), ("li", "Fact."), ("h2", "Symptoms"), ("p", "Sign.")])
 
+    def test_factsheet_drops_reference_lists_after_the_marker(self):
+        # The marker is a plain paragraph (or a heading); the citations follow it in the same block.
+        doc = self.parse('''<html lang="en"><h1>Example</h1><article class="sf-detail-body-wrapper">
+          <div><h2>Response</h2><p>Response text.</p><p>References to guidance are kept.</p>
+          <p><strong>References</strong></p><ol><li>Author A, et al. Title. 2020.</li></ol><p>(2) Author B. Title.</p></div>
+          <div><h2>Next</h2><p>Next text.</p><h3>References:</h3><p>Author C. Title.</p></div>
+          <div><h2>Last</h2><p>Last text.</p><p>References</p>1. Author D. Title.<br>2. Author E. Title.</div></article></html>''',
+                         "who", "/news-room/fact-sheets/detail/example")
+        self.assertEqual([b["text"] for b in doc["blocks"]],
+                         ["Response", "Response text.", "References to guidance are kept.", "Next", "Next text.",
+                          "Last", "Last text."])
+
     def test_livewell_drops_signposts_but_keeps_callouts_and_advice(self):
         page = '''<main><h1>Example</h1><nav class="beta-hub-sibling-nav"><h2>More in Topic</h2><a href="/a">A</a></nav>
           <section><p>Intro text.</p><div class="nhsuk-card nhsuk-card--care"><h3>Non-urgent advice: Speak to a GP if:</h3><p>Advice text.</p></div>

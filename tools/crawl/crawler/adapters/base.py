@@ -58,6 +58,16 @@ class TemplateAdapter:
             for node in root.select("p"):
                 if node.parent is not None and link_only(node):
                     node.decompose()
+        # A marker block (e.g. a "References" paragraph or heading) and everything after it in its parent.
+        marker = template.get("drop_from_marker")
+        if marker is not None:
+            texts = {t.casefold() for t in marker["texts"]}
+            for node in root.select(marker.get("selector", "p, h2, h3, h4")):
+                if node.parent is None or space(node.get_text()).rstrip(":").casefold() not in texts:
+                    continue
+                for sibling in list(node.next_siblings):  # tags and bare text after the marker
+                    sibling.extract()
+                node.decompose()
         # Template-declared structure: e.g. accordion triggers that act as headings.
         for selector, tag in template.get("headings", {}).items():
             if tag not in {"h2", "h3", "h4", "h5", "h6"}:
