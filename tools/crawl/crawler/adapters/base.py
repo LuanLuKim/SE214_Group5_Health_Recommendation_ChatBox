@@ -8,11 +8,18 @@ from bs4 import BeautifulSoup
 from ..html import digest, link_only, page_metadata, signpost_children, space, structured_blocks
 
 
+def _declares_path(template):
+    return bool(template.get("paths") or template.get("paths_exact"))
+
+
 def select_by_path(matches, path):
-    """Keep templates for this page type: a template declaring ``paths`` (URL path
-    prefixes) applies only to those paths and wins over templates without ``paths``."""
-    specific = [(t, r) for t, r in matches if any(path.startswith(p) for p in t.get("paths", []))]
-    return specific or [(t, r) for t, r in matches if not t.get("paths")]
+    """Keep templates for this page type. ``paths_exact`` (whole URL paths, e.g. an index
+    page whose children share its path as a prefix) wins over ``paths`` (URL path
+    prefixes), which wins over templates declaring neither. A template that declares a
+    path never applies elsewhere."""
+    exact = [(t, r) for t, r in matches if path.rstrip("/") in {p.rstrip("/") for p in t.get("paths_exact", [])}]
+    prefix = [(t, r) for t, r in matches if any(path.startswith(p) for p in t.get("paths", []))]
+    return exact or prefix or [(t, r) for t, r in matches if not _declares_path(t)]
 
 
 class TemplateAdapter:
@@ -51,6 +58,16 @@ class TemplateAdapter:
             for node in root.select("p"):
                 if node.parent is not None and link_only(node):
                     node.decompose()
+        # A marker block (e.g. a "References" paragraph or heading) and everything after it in its parent.
+        marker = template.get("drop_from_marker")
+        if marker is not None:
+            texts = {t.casefold() for t in marker["texts"]}
+            for node in root.select(marker.get("selector", "p, h2, h3, h4")):
+                if node.parent is None or space(node.get_text()).rstrip(":").casefold() not in texts:
+                    continue
+                for sibling in list(node.next_siblings):  # tags and bare text after the marker
+                    sibling.extract()
+                node.decompose()
         # Template-declared structure: e.g. accordion triggers that act as headings.
         for selector, tag in template.get("headings", {}).items():
             if tag not in {"h2", "h3", "h4", "h5", "h6"}:

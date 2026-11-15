@@ -100,6 +100,49 @@ class AdapterTests(unittest.TestCase):
             extract(markup, "https://www.nhs.uk/live-well/topic/page/", source)
         self.assertEqual(extract(markup, "https://www.nhs.uk/live-well/elsewhere/", source)["template_id"], "nhs-livewell-v1")
 
+    def test_index_template_applies_only_to_its_exact_path(self):
+        # The hub lists its children under its own path; children must keep their topic template.
+        hub = '''<html><title>Danh mục</title><div class="sf-content-block content-block">
+          <a href="/vietnam/vi/health-topics/a">A</a><a href="/vietnam/vi/health-topics/b">B</a></div></html>'''
+        doc = self.parse(hub, "who", "/vietnam/vi/health-topics")
+        self.assertEqual(doc["template_id"], "who-hub-vn-topics-v1")
+        self.assertEqual(self.parse(hub, "who", "/vietnam/vi/health-topics/")["template_id"], "who-hub-vn-topics-v1")
+        self.assertEqual([link["href"] for b in doc["blocks"] for link in b["links"]],
+                         ["https://www.who.int/vietnam/vi/health-topics/a", "https://www.who.int/vietnam/vi/health-topics/b"])
+        child = '''<html><h1>Chủ đề</h1><article class="health-topic--detail"><h2>Mục</h2><p>Nội dung.</p></article>
+          <div class="sf-content-block content-block"><a href="/vietnam/vi/health-topics/a">A</a></div></html>'''
+        self.assertEqual(self.parse(child, "who", "/vietnam/vi/health-topics/b")["template_id"], "who-topic-v1")
+
+    def test_factsheet_index_keeps_only_the_alphabetical_list(self):
+        doc = self.parse('''<html><h1>Fact sheets</h1><nav><a href="/menu">Menu</a></nav>
+          <ul class="alphabetical-nav alphabetical-nav--list"><li><a href="/news-room/fact-sheets/detail/x">X</a></li></ul>
+          </html>''', "who", "/news-room/fact-sheets")
+        self.assertEqual(doc["template_id"], "who-hub-factsheets-v1")
+        self.assertEqual([link["href"] for b in doc["blocks"] for link in b["links"]],
+                         ["https://www.who.int/news-room/fact-sheets/detail/x"])
+
+    def test_factsheet_keeps_article_sections_but_not_the_page_header(self):
+        doc = self.parse('''<html lang="en"><div class="row sf-detail-content">
+          <div class="sf-item-header-wrapper"><h1>Example</h1><div class="date">1 January 2026 Reading time:</div></div>
+          <article class="sf-detail-body-wrapper"><h2>Key facts</h2><ul><li>Fact.</li></ul>
+          <h2>Symptoms</h2><p>Sign.</p></article></div></html>''', "who", "/news-room/fact-sheets/detail/example")
+        self.assertEqual(doc["template_id"], "who-factsheet-v1")
+        self.assertEqual(doc["title"], "Example")
+        self.assertEqual([(b["tag"], b["text"]) for b in doc["blocks"]],
+                         [("h2", "Key facts"), ("li", "Fact."), ("h2", "Symptoms"), ("p", "Sign.")])
+
+    def test_factsheet_drops_reference_lists_after_the_marker(self):
+        # The marker is a plain paragraph (or a heading); the citations follow it in the same block.
+        doc = self.parse('''<html lang="en"><h1>Example</h1><article class="sf-detail-body-wrapper">
+          <div><h2>Response</h2><p>Response text.</p><p>References to guidance are kept.</p>
+          <p><strong>References</strong></p><ol><li>Author A, et al. Title. 2020.</li></ol><p>(2) Author B. Title.</p></div>
+          <div><h2>Next</h2><p>Next text.</p><h3>References:</h3><p>Author C. Title.</p></div>
+          <div><h2>Last</h2><p>Last text.</p><p>References</p>1. Author D. Title.<br>2. Author E. Title.</div></article></html>''',
+                         "who", "/news-room/fact-sheets/detail/example")
+        self.assertEqual([b["text"] for b in doc["blocks"]],
+                         ["Response", "Response text.", "References to guidance are kept.", "Next", "Next text.",
+                          "Last", "Last text."])
+
     def test_livewell_drops_signposts_but_keeps_callouts_and_advice(self):
         page = '''<main><h1>Example</h1><nav class="beta-hub-sibling-nav"><h2>More in Topic</h2><a href="/a">A</a></nav>
           <section><p>Intro text.</p><div class="nhsuk-card nhsuk-card--care"><h3>Non-urgent advice: Speak to a GP if:</h3><p>Advice text.</p></div>
