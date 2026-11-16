@@ -98,7 +98,13 @@ export const modules: ModuleDescriptor[] = [
 
 export interface ApiSuccess<T> {
   data: T;
-  meta?: { status: string; total?: number };
+  meta?: {
+    status: string;
+    total?: number;
+    limit?: number;
+    offset?: number;
+    totalPages?: number;
+  };
 }
 export interface ApiFailure {
   error: { code: string; message: string; requestId: string };
@@ -115,6 +121,10 @@ export interface ArticleSummary {
   topic: string;
   source: SourceReference;
   updatedAt: string;
+}
+
+export interface ArticleDetail extends ArticleSummary {
+  content: string;
 }
 export interface FacilitySummary {
   id: string;

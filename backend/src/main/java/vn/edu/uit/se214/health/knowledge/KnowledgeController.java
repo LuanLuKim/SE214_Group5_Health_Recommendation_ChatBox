@@ -3,6 +3,7 @@ package vn.edu.uit.se214.health.knowledge;
 import com.fasterxml.jackson.databind.JsonNode;
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.List;
+import java.util.UUID;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -12,6 +13,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import vn.edu.uit.se214.health.knowledge.api.ArticleSummary;
+import vn.edu.uit.se214.health.knowledge.api.ArticleDetail;
 import vn.edu.uit.se214.health.knowledge.api.FacilitySummary;
 import vn.edu.uit.se214.health.knowledge.api.KnowledgeSearch;
 import vn.edu.uit.se214.health.shared.web.ApiException;
@@ -26,6 +28,7 @@ import vn.edu.uit.se214.health.system.ModuleRegistry;
 @RestController
 @RequestMapping("/api/v1/knowledge")
 public class KnowledgeController {
+  private static final long MAX_OFFSET = 9_007_199_254_740_991L; // JavaScript's safe integer limit.
   private final KnowledgeSearch search;
 
   public KnowledgeController(KnowledgeSearch search) {
@@ -39,27 +42,61 @@ public class KnowledgeController {
 
   @GetMapping("/articles")
   public ApiResponse.Success<List<ArticleSummary>> articles(HttpServletRequest request) {
-    List<ArticleSummary> data = search.articles(query(request));
-    return ApiResponse.of(data, new ApiResponse.Meta(search.dataStatus(), data.size()));
+    String query = textParam(request, "q", false);
+    String topic = textParam(request, "topic", true);
+    int limit = (int) pageParam(request, "limit", KnowledgeSearch.MAX_ARTICLE_PAGE_SIZE,
+        1, KnowledgeSearch.MAX_ARTICLE_PAGE_SIZE);
+    long offset = pageParam(request, "offset", 0, 0, MAX_OFFSET);
+    KnowledgeSearch.ArticlePage page = search.articles(query, topic, limit, offset);
+    return ApiResponse.of(page.items(),
+        new ApiResponse.Meta(search.dataStatus(), page.total(), limit, offset,
+            Math.ceilDiv(page.total(), limit)));
+  }
+
+  @GetMapping("/articles/{id}")
+  public ApiResponse.Success<ArticleDetail> article(@PathVariable String id) {
+    UUID articleId;
+    try {
+      articleId = UUID.fromString(id);
+    } catch (IllegalArgumentException invalidId) {
+      throw ApiException.notFound("Không tìm thấy bài viết.");
+    }
+    if (!articleId.toString().equalsIgnoreCase(id))
+      throw ApiException.notFound("Không tìm thấy bài viết.");
+    ArticleDetail detail = search.article(articleId)
+        .orElseThrow(() -> ApiException.notFound("Không tìm thấy bài viết."));
+    return ApiResponse.of(detail, new ApiResponse.Meta(search.dataStatus(), null));
   }
 
   @GetMapping("/facilities")
   public ApiResponse.Success<List<FacilitySummary>> facilities(HttpServletRequest request) {
-    List<FacilitySummary> data = search.facilities(query(request));
+    List<FacilitySummary> data = search.facilities(textParam(request, "q", false));
     return ApiResponse.of(data, new ApiResponse.Meta(search.dataStatus(), data.size()));
   }
 
   /**
-   * Optional single "q", trimmed, at most 200 characters. Repeated "q" and control characters
+   * Optional single text parameter, trimmed, at most 200 characters. Repetitions and control characters
    * are rejected (PostgreSQL refuses NUL in text, which would surface as a server error).
    */
-  private static String query(HttpServletRequest request) {
-    String[] values = request.getParameterValues("q");
+  private static String textParam(HttpServletRequest request, String name, boolean nonBlank) {
+    String[] values = request.getParameterValues(name);
     if (values == null) return "";
-    String value = values.length == 1 ? values[0].trim() : null;
-    if (value == null || value.length() > 200 || value.chars().anyMatch(Character::isISOControl))
-      throw ApiException.invalid("INVALID_QUERY", "Từ khóa phải là văn bản tối đa 200 ký tự.");
-    return value;
+    String value = values.length == 1 ? values[0] : null;
+    if (value == null || value.trim().length() > 200 || (nonBlank && value.isBlank())
+        || value.chars().anyMatch(Character::isISOControl))
+      throw ApiException.invalid("INVALID_QUERY", "Tham số " + name + " không hợp lệ.");
+    return value.trim();
+  }
+
+  private static long pageParam(HttpServletRequest request, String name, long defaultValue,
+      long min, long max) {
+    String[] values = request.getParameterValues(name);
+    if (values == null) return defaultValue;
+    if (values.length == 1 && values[0].matches("0|[1-9][0-9]{0,15}")) {
+      long number = Long.parseLong(values[0]);
+      if (number >= min && number <= max) return number;
+    }
+    throw ApiException.invalid("INVALID_QUERY", "Tham số " + name + " không hợp lệ.");
   }
 
   @PostMapping("/articles")

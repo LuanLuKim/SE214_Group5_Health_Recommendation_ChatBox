@@ -10,7 +10,11 @@ public final class ApiResponse {
   public record Success<T>(T data, Meta meta) {}
 
   @JsonInclude(JsonInclude.Include.NON_NULL)
-  public record Meta(String status, Integer total) {}
+  public record Meta(String status, Integer total, Integer limit, Long offset, Integer totalPages) {
+    public Meta(String status, Integer total) {
+      this(status, total, null, null, null);
+    }
+  }
 
   public record Failure(Error error) {}
 
