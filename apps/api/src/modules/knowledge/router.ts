@@ -56,6 +56,22 @@ export function createKnowledgeRouter(config: Config, pool: Pool | null) {
       },
     });
   });
+  knowledgeRouter.get('/articles/:id', async (_request, response) => {
+    const id = z.uuid().safeParse(_request.params.id);
+    if (!id.success) {
+      fail(response, 404, 'NOT_FOUND', 'Không tìm thấy bài viết.');
+      return;
+    }
+    const article = await service.getArticle(id.data);
+    if (!article) {
+      fail(response, 404, 'NOT_FOUND', 'Không tìm thấy bài viết.');
+      return;
+    }
+    response.json({
+      data: article,
+      meta: { status: config.DATA_MODE === 'mock' ? 'SYNTHETIC_DATA' : 'DATABASE_RESULTS' },
+    });
+  });
   knowledgeRouter.get('/facilities', async (_request, response) => {
     const query = querySchema.safeParse(_request.query);
     if (!query.success) {

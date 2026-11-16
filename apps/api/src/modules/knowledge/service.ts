@@ -1,6 +1,6 @@
-import type { ArticleSummary, FacilitySummary } from '@health/contracts';
+import type { ArticleDetail, ArticleSummary, FacilitySummary } from '@health/contracts';
 import type { Pool } from 'pg';
-import { syntheticArticles, syntheticFacilities } from './synthetic.js';
+import { syntheticArticleDetails, syntheticArticles, syntheticFacilities } from './synthetic.js';
 import type { Config } from '../../config.js';
 
 export interface ArticleSearchParams {
@@ -67,6 +67,41 @@ export function createKnowledgeService(config: Config, pool: Pool | null) {
         updatedAt: (row.updated_at as Date).toISOString(),
       }));
       return { items, total: countResult.rows[0]?.total ?? 0 };
+    },
+    async getArticle(id: string): Promise<ArticleDetail | null> {
+      if (config.DATA_MODE === 'mock')
+        return syntheticArticleDetails.find((article) => article.id === id) ?? null;
+      if (!pool) throw new Error('DATABASE_NOT_CONFIGURED');
+      const result = await pool.query<{
+        id: string;
+        title: string;
+        topic: string;
+        content: string;
+        source_name: string;
+        source_url: string;
+        verified_at: Date;
+        updated_at: Date;
+      }>(
+        `SELECT id, title, topic, content, source_name, source_url, verified_at, updated_at
+         FROM knowledge.articles
+         WHERE id = $1 AND review_status = 'APPROVED' AND verified_at IS NOT NULL`,
+        [id],
+      );
+      const row = result.rows[0];
+      if (!row) return null;
+      return {
+        id: row.id,
+        title: row.title,
+        topic: row.topic,
+        content: row.content,
+        source: {
+          id: row.id,
+          name: row.source_name,
+          url: row.source_url,
+          verifiedAt: row.verified_at.toISOString(),
+        },
+        updatedAt: row.updated_at.toISOString(),
+      };
     },
     async listFacilities(query: string): Promise<FacilitySummary[]> {
       if (config.DATA_MODE === 'mock')

@@ -122,6 +122,9 @@ export interface ArticleSummary {
   source: SourceReference;
   updatedAt: string;
 }
+export interface ArticleDetail extends ArticleSummary {
+  content: string;
+}
 export interface FacilitySummary {
   id: string;
   name: string;
