@@ -36,6 +36,9 @@ services:
       # Chỉ dùng trên máy phát triển, đủ 32 byte. Không dùng lại trên server.
       AUTH_TOKEN_SECRET: local_dev_only_auth_token_secret_32b
       EMAIL_OTP_HASH_SECRET: local_dev_only_email_otp_secret_32b
+      ADMIN_BOOTSTRAP_ENABLED: ${ADMIN_BOOTSTRAP_ENABLED:-false}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
     ports:
       - '127.0.0.1:4000:4000'
     depends_on:

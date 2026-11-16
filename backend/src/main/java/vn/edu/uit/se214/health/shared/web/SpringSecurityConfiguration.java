@@ -18,6 +18,7 @@ import org.springframework.http.MediaType;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
 import org.springframework.security.oauth2.jose.jws.MacAlgorithm;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.JwtEncoder;
@@ -34,6 +35,7 @@ import org.springframework.security.web.csrf.CsrfException;
 import org.springframework.security.web.csrf.CsrfTokenRequestAttributeHandler;
 import vn.edu.uit.se214.health.accounts.auth.AccessTokenService;
 import vn.edu.uit.se214.health.accounts.config.AuthTokenProperties;
+import vn.edu.uit.se214.health.accounts.rbac.DatabaseJwtAuthenticationConverter;
 
 @Configuration
 public class SpringSecurityConfiguration {
@@ -76,6 +78,7 @@ public class SpringSecurityConfiguration {
       HttpSecurity http,
       ObjectMapper objectMapper,
       ObjectProvider<JwtDecoder> jwtDecoderProvider,
+      ObjectProvider<DatabaseJwtAuthenticationConverter> authorityConverterProvider,
       Environment environment,
       CookieCsrfTokenRepository csrfTokenRepository)
       throws Exception {
@@ -90,6 +93,39 @@ public class SpringSecurityConfiguration {
                 requests
                     .requestMatchers(SpringSecurityConfiguration::isPublicRequest)
                     .permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/v1/accounts/users")
+                .hasAuthority("PERM_USER_MANAGE")
+                .requestMatchers(HttpMethod.POST, "/api/v1/accounts/users")
+                .hasAuthority("PERM_USER_MANAGE")
+                .requestMatchers(HttpMethod.PATCH, "/api/v1/accounts/users/*/status")
+                .hasAuthority("PERM_USER_MANAGE")
+                .requestMatchers(HttpMethod.PUT, "/api/v1/accounts/users/*/roles")
+                .hasAuthority("PERM_USER_MANAGE")
+                .requestMatchers(
+                    HttpMethod.PATCH,
+                    "/api/v1/accounts/roles/*",
+                    "/api/v1/accounts/permissions/*")
+                .hasAuthority("PERM_RBAC_MANAGE")
+                .requestMatchers(HttpMethod.PUT, "/api/v1/accounts/roles/*/permissions")
+                .hasAuthority("PERM_RBAC_MANAGE")
+                .requestMatchers(
+                    HttpMethod.GET,
+                    "/api/v1/accounts/roles",
+                    "/api/v1/accounts/roles/*",
+                    "/api/v1/accounts/permissions",
+                    "/api/v1/accounts/permissions/*",
+                    "/api/v1/accounts/audit-logs")
+                .hasAuthority("PERM_RBAC_MANAGE")
+                .requestMatchers(
+                    HttpMethod.POST,
+                    "/api/v1/accounts/roles",
+                    "/api/v1/accounts/permissions")
+                .hasAuthority("PERM_RBAC_MANAGE")
+                .requestMatchers(
+                    HttpMethod.DELETE,
+                    "/api/v1/accounts/roles/*",
+                    "/api/v1/accounts/permissions/*")
+                .hasAuthority("PERM_RBAC_MANAGE")
                     .requestMatchers(SpringSecurityConfiguration::requiresAuthentication)
                     .authenticated()
                     .anyRequest()
@@ -105,8 +141,13 @@ public class SpringSecurityConfiguration {
           resourceServer ->
               resourceServer
                   .bearerTokenResolver(accessTokenCookieResolver())
-                  .jwt(jwt -> jwt.decoder(jwtDecoderProvider.getObject()))
-                  .authenticationEntryPoint(entryPoint));
+              .jwt(
+                  jwt ->
+                      jwt.decoder(jwtDecoderProvider.getObject())
+                          .jwtAuthenticationConverter(
+                              jwtAuthenticationConverter(
+                                  authorityConverterProvider.getObject())))
+              .authenticationEntryPoint(entryPoint));
       http.csrf(
           csrf ->
               csrf.csrfTokenRepository(csrfTokenRepository)
@@ -172,6 +213,13 @@ public class SpringSecurityConfiguration {
           .findFirst()
           .orElse(null);
     };
+  }
+
+  private static JwtAuthenticationConverter jwtAuthenticationConverter(
+      DatabaseJwtAuthenticationConverter authorities) {
+    JwtAuthenticationConverter converter = new JwtAuthenticationConverter();
+    converter.setJwtGrantedAuthoritiesConverter(authorities);
+    return converter;
   }
 
   private static boolean isPublicRequest(jakarta.servlet.http.HttpServletRequest request) {
