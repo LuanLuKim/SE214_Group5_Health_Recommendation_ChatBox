@@ -75,6 +75,33 @@ class ApiTest {
   }
 
   @Test
+  void publicArticleSearchRejectsInvalidFiltersAndPageParameters() throws Exception {
+    String path = "/api/v1/knowledge/articles";
+    for (String limit : List.of("0", "21", "1.5")) {
+      mvc.perform(get(path).param("limit", limit))
+          .andExpect(status().isBadRequest())
+          .andExpect(jsonPath("$.error.code").value("INVALID_QUERY"));
+    }
+    mvc.perform(get(path).param("offset", "-1")).andExpect(status().isBadRequest());
+    mvc.perform(get(path).param("offset", "9007199254740992")).andExpect(status().isBadRequest());
+    mvc.perform(get(path).param("topic", "  ")).andExpect(status().isBadRequest());
+    mvc.perform(get(path).param("topic", "A", "B")).andExpect(status().isBadRequest());
+  }
+
+  @Test
+  void publicArticleDetailUsesTheSyntheticFixtureInMockMode() throws Exception {
+    String path = "/api/v1/knowledge/articles/";
+    mvc.perform(get(path + "00000000-0000-4000-8000-000000000010"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.data.content").isNotEmpty())
+        .andExpect(jsonPath("$.data.source.url").value("https://example.invalid/articles/sleep"))
+        .andExpect(jsonPath("$.meta.status").value("SYNTHETIC_DATA"));
+    mvc.perform(get(path + "1-1-1-1-1"))
+        .andExpect(status().isNotFound())
+        .andExpect(jsonPath("$.error.code").value("NOT_FOUND"));
+  }
+
+  @Test
   void swaggerUiAndOpenApiDocumentAreAvailable() throws Exception {
     mvc.perform(get("/swagger-ui.html")).andExpect(status().is3xxRedirection());
     mvc.perform(get("/swagger-ui/index.html"))

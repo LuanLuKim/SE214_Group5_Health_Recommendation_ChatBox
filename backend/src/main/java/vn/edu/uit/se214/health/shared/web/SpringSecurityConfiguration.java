@@ -225,7 +225,8 @@ public class SpringSecurityConfiguration {
   private static boolean isPublicRequest(jakarta.servlet.http.HttpServletRequest request) {
     String path = requestPath(request);
     String method = request.getMethod();
-    return (HttpMethod.GET.matches(method) && PUBLIC_GET_ROUTES.contains(path))
+    return (HttpMethod.GET.matches(method)
+            && (PUBLIC_GET_ROUTES.contains(path) || path.matches("/api/v1/knowledge/articles/[^/]+")))
         || (HttpMethod.POST.matches(method) && PUBLIC_POST_ROUTES.contains(path))
         || "/swagger-ui.html".equals(path)
         || path.startsWith("/swagger-ui/")

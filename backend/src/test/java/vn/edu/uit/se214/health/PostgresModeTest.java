@@ -12,6 +12,7 @@ import java.sql.Connection;
 import java.sql.Statement;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -24,6 +25,7 @@ import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
+import org.springframework.transaction.annotation.Transactional;
 import vn.edu.uit.se214.health.accounts.auth.AccessTokenService;
 import vn.edu.uit.se214.health.support.TestDatabase;
 
@@ -98,6 +100,66 @@ class PostgresModeTest {
     mvc.perform(get("/api/v1/knowledge/articles").param("q", "a\u0000b"))
         .andExpect(status().isBadRequest())
         .andExpect(jsonPath("$.error.code").value("INVALID_QUERY"));
+  }
+
+  @Test
+  @Transactional
+  void publicArticleSearchPaginatesApprovedArticlesAndProtectsTheirDetails() throws Exception {
+    String path = "/api/v1/knowledge/articles";
+    String first = addArticle("51", "Giấc ngủ", "APPROVED", true);
+    String second = addArticle("52", "Giấc ngủ", "APPROVED", true);
+    addArticle("53", "Vận động", "APPROVED", true);
+    List<String> hidden = List.of(
+        addArticle("54", "Giấc ngủ", "DRAFT", true),
+        addArticle("55", "Giấc ngủ", "PENDING_REVIEW", true),
+        addArticle("56", "Giấc ngủ", "RETIRED", true),
+        addArticle("57", "Giấc ngủ", "APPROVED", false),
+        addArticle("58", "Giấc ngủ", "RETURNED", true));
+
+    mvc.perform(get(path).param("q", "UC10").param("topic", "giấc ngủ").param("limit", "1"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.data[0].id").value(first))
+        .andExpect(jsonPath("$.data[0].content").doesNotExist())
+        .andExpect(jsonPath("$.meta.total").value(2))
+        .andExpect(jsonPath("$.meta.totalPages").value(2))
+        .andExpect(jsonPath("$.meta.limit").value(1))
+        .andExpect(jsonPath("$.meta.offset").value(0));
+    mvc.perform(get(path).param("q", "uc10").param("topic", "Giấc ngủ")
+            .param("limit", "1").param("offset", "1"))
+        .andExpect(jsonPath("$.data[0].id").value(second));
+    mvc.perform(get(path).param("q", "uc10").param("topic", "Giấc ngủ").param("offset", "2"))
+        .andExpect(jsonPath("$.data").isEmpty())
+        .andExpect(jsonPath("$.meta.total").value(2));
+    mvc.perform(get(path).param("q", "%").param("topic", "giấc ngủ"))
+        .andExpect(jsonPath("$.meta.total").value(0))
+        .andExpect(jsonPath("$.meta.totalPages").value(0));
+
+    mvc.perform(get(path + "/" + first))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.data.content").value("Nội dung kiểm thử UC-10"))
+        .andExpect(jsonPath("$.data.source.verifiedAt").value("2026-10-30T00:00:00.000Z"))
+        .andExpect(jsonPath("$.data.updatedAt").value("2026-11-01T00:00:00.000Z"));
+    for (String id : hidden) {
+      mvc.perform(get(path + "/" + id))
+          .andExpect(status().isNotFound())
+          .andExpect(jsonPath("$.error.code").value("NOT_FOUND"))
+          .andExpect(jsonPath("$.data").doesNotExist());
+    }
+  }
+
+  private String addArticle(String suffix, String topic, String status, boolean verified) {
+    UUID id = UUID.fromString("00000000-0000-4000-8000-0000000000" + suffix);
+    jdbc.update(
+        """
+        INSERT INTO knowledge.articles
+          (id, title, topic, content, source_name, source_url, verified_at, updated_at, review_status)
+        VALUES (?, '[TEST] UC10', ?, 'Nội dung kiểm thử UC-10', 'Synthetic fixture',
+                'https://example.invalid/articles/uc10',
+                CASE WHEN ? THEN TIMESTAMPTZ '2026-10-30 00:00:00Z' ELSE NULL END,
+                TIMESTAMPTZ '2026-11-01 00:00:00Z', ?)
+        """,
+        id, topic, verified, status);
+    return id.toString();
   }
 
   @Test

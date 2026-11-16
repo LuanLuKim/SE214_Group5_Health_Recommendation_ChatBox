@@ -39,10 +39,13 @@ Hai trường hợp không qua khuôn lỗi trên vì bị chặn trước khi v
 | GET    | `/healthz`                                                  | Trạng thái tiến trình, không phải kiểm tra readiness của DB/LLM               |
 | GET    | `/api/v1/modules`                                           | Sáu module và 19 UC                                                           |
 | GET    | `/api/v1/{safety,knowledge,health,chat,accounts,lifestyle}` | Metadata module                                                               |
-| GET    | `/api/v1/knowledge/articles?q=`                             | Public: fixture synthetic hoặc tối đa 20 bài đã duyệt từ PostgreSQL           |
+| GET    | `/api/v1/knowledge/articles?q=&topic=&limit=&offset=`         | Công khai, tìm và phân trang bài đã duyệt và xác minh                         |
+| GET    | `/api/v1/knowledge/articles/:id`                             | Công khai, nội dung bài, nguồn, ngày cập nhật và ngày xác minh                 |
 | GET    | `/api/v1/knowledge/facilities?q=`                           | Public: fixture synthetic hoặc tối đa 20 cơ sở có ngày xác minh từ PostgreSQL |
 
 `q` là một chuỗi tối đa 200 ký tự, không chứa ký tự điều khiển (tab, xuống dòng, NUL…); sai thì trả 400 `INVALID_QUERY`. Danh sách và search metadata không chứa private user data. Fixture `[TEST]` chỉ dành kiểm thử; không trộn fixture vào kho kiến thức y tế thật.
+
+Khi tìm bài viết, `topic` khớp toàn bộ tên chủ đề và không phân biệt hoa thường. `limit` từ 1 đến 20, mặc định 20. `offset` tính từ 0, mặc định 0. `meta.total` là số bài khớp bộ lọc trước khi phân trang. `meta.totalPages` bằng 0 nếu không có bài khớp. Danh sách chỉ trả tóm tắt và metadata. API chi tiết trả 404 cho ID không hợp lệ, bài không tồn tại hoặc bài chưa đủ điều kiện công bố.
 
 ## Đăng ký và xác thực tài khoản
 
