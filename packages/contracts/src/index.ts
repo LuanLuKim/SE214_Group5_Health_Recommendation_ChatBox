@@ -98,7 +98,13 @@ export const modules: ModuleDescriptor[] = [
 
 export interface ApiSuccess<T> {
   data: T;
-  meta?: { status: string; total?: number };
+  meta?: {
+    status: string;
+    total?: number;
+    limit?: number;
+    offset?: number;
+    totalPages?: number;
+  };
 }
 export interface ApiFailure {
   error: { code: string; message: string; requestId: string };
@@ -157,9 +163,7 @@ export const ruleDraftInputSchema = z.strictObject({
     .refine((value) => {
       const url = new URL(value);
       return (
-        (url.protocol === 'https:' || url.protocol === 'http:') &&
-        !url.username &&
-        !url.password
+        (url.protocol === 'https:' || url.protocol === 'http:') && !url.username && !url.password
       );
     }),
 });

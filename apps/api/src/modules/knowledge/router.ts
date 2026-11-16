@@ -16,16 +16,42 @@ export function createKnowledgeRouter(config: Config, pool: Pool | null) {
 
   const querySchema = z.object({ q: z.string().trim().max(200).optional() });
   knowledgeRouter.get('/articles', async (_request, response) => {
-    const query = querySchema.safeParse(_request.query);
-    if (!query.success) {
-      fail(response, 400, 'INVALID_QUERY', 'Từ khóa phải là văn bản tối đa 200 ký tự.');
+    const articleQuery = querySchema
+      .extend({
+        topic: z.string().trim().min(1).max(200).optional(),
+        limit: z
+          .string()
+          .regex(/^[1-9]\d*$/)
+          .transform(Number)
+          .pipe(z.number().int().max(20))
+          .optional(),
+        offset: z
+          .string()
+          .regex(/^(0|[1-9]\d*)$/)
+          .transform(Number)
+          .pipe(z.number().int().max(Number.MAX_SAFE_INTEGER))
+          .optional(),
+      })
+      .safeParse(_request.query);
+    if (!articleQuery.success) {
+      fail(response, 400, 'INVALID_QUERY', 'Tham số tra cứu bài viết không hợp lệ.');
       return;
     }
-    const data = await service.listArticles(query.data.q ?? '');
+    const limit = articleQuery.data.limit ?? 20;
+    const offset = articleQuery.data.offset ?? 0;
+    const result = await service.listArticles({
+      query: articleQuery.data.q ?? '',
+      topic: articleQuery.data.topic,
+      limit,
+      offset,
+    });
     response.json({
-      data,
+      data: result.items,
       meta: {
-        total: data.length,
+        total: result.total,
+        limit,
+        offset,
+        totalPages: Math.ceil(result.total / limit),
         status: config.DATA_MODE === 'mock' ? 'SYNTHETIC_DATA' : 'DATABASE_RESULTS',
       },
     });
