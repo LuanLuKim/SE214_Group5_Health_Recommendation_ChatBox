@@ -12,7 +12,7 @@ Use case: **UC-01, UC-02, UC-03, UC-18**. Phụ trách: Võ Ngọc Tài (`vongoc
 
 ## Giao diện công khai cho module khác
 
-Spring Security Resource Server xác thực cookie access JWT và đặt `Jwt` trong `SecurityContext`. Các module vẫn phải tự kiểm tra vai trò, đồng ý và quyền sở hữu trong nghiệp vụ; vai trò quản trị chưa được triển khai.
+Spring Security Resource Server xác thực cookie access JWT và đặt `Jwt` trong `SecurityContext`. Các module vẫn phải tự kiểm tra đồng ý và quyền sở hữu trong nghiệp vụ; phân quyền trên các API nghiệp vụ ngoài UC-18 hiện chưa được bật.
 
 Interface trong package `accounts.api`, hiện có bản đọc tạm trong `accounts/persistence` do M6 thêm (M5 tiếp quản):
 
@@ -43,9 +43,24 @@ Interface trong package `accounts.api`, hiện có bản đọc tạm trong `acc
 
 Đăng ký local không đăng nhập người dùng hay cấp token. OAuth sign-in tự tạo tài khoản mới nếu cần và cấp token ngay. Xác nhận xóa tài khoản, quản lý hồ sơ và quản trị vai trò vẫn là phần việc riêng.
 
+## UC-18: người dùng, vai trò và permission
+
+- `GET /api/v1/accounts/users?q=&status=&role=&page=&size=` tìm/lọc tài khoản; chỉ trả thông tin tài khoản cơ bản và vai trò.
+- `POST /api/v1/accounts/users` cho người có `PERM_USER_MANAGE` tạo local account `{email,displayName,password}`; mật khẩu được băm, tài khoản nhận role `USER`, không tự ghi nhận consent.
+- `PATCH /api/v1/accounts/users/{id}/status` khóa/mở khóa bằng `{"status":"LOCKED"}` hoặc `ACTIVE`; khóa chặn đăng nhập/refresh và thu hồi refresh token, access JWT đã cấp còn hiệu lực tối đa 15 phút. `PUT /api/v1/accounts/users/{id}/roles` thay danh sách role.
+- `GET/POST /api/v1/accounts/roles`, `PATCH/DELETE /roles/{key}` và `PUT /roles/{key}/permissions` quản lý role và permission được gán.
+- `GET/POST /api/v1/accounts/permissions`, `PATCH/DELETE /permissions/{key}` quản lý permission; permission đang gán không thể xóa.
+- `GET /api/v1/accounts/audit-logs` xem nhật ký UC-18 có lọc và phân trang. Log không chứa password, token, body, hồ sơ sức khỏe hoặc hội thoại.
+- Ma trận hệ thống: `GUEST` tra cứu kiến thức công khai; `USER` quản lý tài khoản/dữ liệu của mình; `CONTENT_EXPERT` quản lý nội dung và quy tắc an toàn; `ADMIN` quản lý người dùng/RBAC/thống kê và nội dung. Role `GUEST` chỉ là vai trò mô tả quyền truy cập công khai, không cần tạo tài khoản để tra cứu.
+- Permission seed gồm: `ACCOUNT_REGISTER` (GUEST), `ACCOUNT_LOGIN` (USER/CONTENT_EXPERT/ADMIN), `KNOWLEDGE_SEARCH` (mọi vai trò), `ACCOUNT_SELF_MANAGE` (USER/CONTENT_EXPERT/ADMIN), `CONTENT_MANAGE` (CONTENT_EXPERT/ADMIN), `SAFETY_RULE_MANAGE` (CONTENT_EXPERT), `USER_MANAGE`, `SYSTEM_STATS_VIEW`, `RBAC_MANAGE` (ADMIN).
+- Đăng ký email và OAuth chỉ gán `USER`; người dùng không thể tự chọn quyền cao. Vai trò bổ sung do admin tạo và cấp.
+- Với mỗi request JWT, `DatabaseJwtAuthenticationConverter` nạp authorities hiện hành từ database vào `SecurityContextHolder`: `ROLE_<key>` và `PERM_<key>`. Filter chain yêu cầu `PERM_USER_MANAGE` cho API user và `PERM_RBAC_MANAGE` cho API roles/permissions/audit; mặc định các permission này chỉ được cấp cho ADMIN. Thu hồi role/khóa user áp dụng từ request kế tiếp. Các route nghiệp vụ khác chưa áp dụng permission; giữ nguyên authentication như trước.
+- Không thể tự thu hồi role ADMIN, xóa/khóa admin cuối cùng, sửa quyền của role ADMIN, xóa role đang được gán, hay xóa permission đang sử dụng. Role/permission có sẵn của hệ thống không thể xóa; permission built-in không thể sửa.
+- Admin bootstrap mặc định tắt. Khi muốn khởi tạo admin ở `DATA_MODE=postgres`, bật `ADMIN_BOOTSTRAP_ENABLED=true` và cấu hình `ADMIN_EMAIL`, `ADMIN_PASSWORD` dài 12–72 byte UTF-8. Không có thông tin đăng nhập mặc định trong source. Nếu email đã thuộc tài khoản không phải admin đang hoạt động, startup thất bại để tránh nâng quyền nhầm.
+
 ## Hiện trạng và ranh giới
 
-M5 sở hữu ranh giới xác thực chung qua Spring Security Resource Server và filter chain; không đọc database theo từng request để xác minh access JWT. Refresh/logout kiểm tra trạng thái refresh token trong database. Trong `DATA_MODE=mock`, route cần authentication trả 503 do không có provider. Hiện chưa có phân quyền role; đăng ký mới không được tự chọn vai trò ADMIN hay CONTENT_EXPERT. UC-18 thuộc M5, UC-19 thuộc M3.
+M5 sở hữu ranh giới xác thực chung qua Spring Security Resource Server và filter chain; access JWT thông thường không truy vấn database theo từng request. Refresh/logout kiểm tra trạng thái refresh token trong database. Trong `DATA_MODE=mock`, route cần authentication trả 503 do không có provider. UC-19 thuộc M3.
 
 ## Cách mở rộng
 

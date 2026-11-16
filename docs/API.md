@@ -44,7 +44,7 @@ Hai trường hợp không qua khuôn lỗi trên vì bị chặn trước khi v
 
 `q` là một chuỗi tối đa 200 ký tự, không chứa ký tự điều khiển (tab, xuống dòng, NUL…); sai thì trả 400 `INVALID_QUERY`. Danh sách và search metadata không chứa private user data. Fixture `[TEST]` chỉ dành kiểm thử; không trộn fixture vào kho kiến thức y tế thật.
 
-## Các route đã dành chỗ
+## Đăng ký và xác thực tài khoản
 
 `POST /accounts/register` (email/mật khẩu) bắt đầu quy trình đăng ký và gửi OTP qua SMTP; trả 202, chưa tạo account. `POST /accounts/register/verify` nhận email và OTP, chỉ tạo account/role/consent sau khi xác minh; mã có hiệu lực 10 phút, tối đa 5 lần nhập sai. `POST /accounts/register/resend` gửi mã mới sau cooldown 60 giây. OTP chỉ dùng cho email/mật khẩu, được lưu dạng HMAC hash và secret `EMAIL_OTP_HASH_SECRET` phải có ít nhất 32 byte. SMTP dùng `SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD`, `SMTP_AUTH`, `SMTP_STARTTLS`, `MAIL_FROM`.
 
@@ -58,7 +58,37 @@ Authentication dùng Spring Security stateless Resource Server: access JWT đư�
 
 `POST /accounts/confirm-deletion` vẫn trả **501 NOT_IMPLEMENTED**.
 
-Các route riêng tư yêu cầu `HA_ACCESS`, xác minh chữ ký, issuer và hạn JWT qua Spring Security; thiếu/không hợp lệ trả 401 `SESSION_INVALID`. Refresh/logout kiểm tra trạng thái refresh token trong database. Header `Authorization`, `X-User-ID` và `X-Role` không thay thế cookie xác thực. Hiện mới có authentication, chưa có phân quyền role như ADMIN/CONTENT_EXPERT; các handler nghiệp vụ hồ sơ, đổi mật khẩu, xóa tài khoản và quản trị vẫn trả 501.
+Các route riêng tư yêu cầu `HA_ACCESS`, xác minh chữ ký, issuer và hạn JWT qua Spring Security; thiếu/không hợp lệ trả 401 `SESSION_INVALID`. Refresh/logout kiểm tra trạng thái refresh token trong database. Header `Authorization`, `X-User-ID` và `X-Role` không thay thế cookie xác thực. Các handler nghiệp vụ hồ sơ, đổi mật khẩu và xóa tài khoản vẫn chờ triển khai.
+
+### UC-18 – Quản lý người dùng và phân quyền
+
+Vai trò/permission hệ thống khởi tạo theo ma trận:
+
+| Vai trò | Permission |
+| ------- | ---------- |
+| `GUEST` | `KNOWLEDGE_SEARCH`, `ACCOUNT_REGISTER` |
+| `USER` | `KNOWLEDGE_SEARCH`, `ACCOUNT_LOGIN`, `ACCOUNT_SELF_MANAGE` |
+| `CONTENT_EXPERT` | `KNOWLEDGE_SEARCH`, `ACCOUNT_LOGIN`, `ACCOUNT_SELF_MANAGE`, `CONTENT_MANAGE`, `SAFETY_RULE_MANAGE` |
+| `ADMIN` | `KNOWLEDGE_SEARCH`, `ACCOUNT_LOGIN`, `ACCOUNT_SELF_MANAGE`, `CONTENT_MANAGE`, `USER_MANAGE`, `SYSTEM_STATS_VIEW`, `RBAC_MANAGE` |
+
+Khách không cần tài khoản để tra cứu; đăng ký luôn tạo `USER`. Role/permission hệ thống có thể xem, role/permission do admin tạo có thể quản lý qua API. UC-18 kiểm tra admin đang hoạt động trực tiếp từ database; các API nghiệp vụ khác hiện giữ nguyên quy tắc authentication, chưa bật `@PreAuthorize`.
+
+Admin bootstrap mặc định tắt; đặt `ADMIN_BOOTSTRAP_ENABLED=true` để khởi tạo admin từ `ADMIN_EMAIL` và `ADMIN_PASSWORD` (12–72 byte UTF-8); không có mật khẩu mặc định trong source. Nếu bật bootstrap và email đã thuộc tài khoản không phải admin đang hoạt động, ứng dụng dừng thay vì tự cấp quyền. Mỗi request JWT nạp authorities hiện hành từ database vào `SecurityContextHolder`: role có dạng `ROLE_<key>`, permission có dạng `PERM_<key>`; role bị thu hồi hoặc tài khoản bị khóa có hiệu lực ở request kế tiếp. Các route quản lý user yêu cầu `PERM_USER_MANAGE`; quản lý role/permission và audit yêu cầu `PERM_RBAC_MANAGE`. Các API nghiệp vụ khác vẫn chỉ yêu cầu authentication như cũ, chưa gắn permission. Role không thể tự thu hồi vai trò ADMIN của chính mình hoặc xóa/khóa admin cuối cùng. Admin không thể xóa role đang được gán, permission đang được dùng, các role/permission hệ thống, hoặc sửa permission quản trị của role ADMIN.
+
+| Method | Route | Body / kết quả |
+| ------ | ----- | -------------- |
+| GET | `/accounts/users?q=&status=&role=&page=&size=` | Tìm theo email/tên, lọc trạng thái/vai trò, phân trang tối đa 100 |
+| POST | `/accounts/users` | Tạo tài khoản local `{email,displayName,password}`; tự gán `USER`, trả 201 |
+| PATCH | `/accounts/users/{id}/status` | `{"status":"LOCKED"}` hoặc `ACTIVE`; khóa sẽ thu hồi refresh token |
+| PUT | `/accounts/users/{id}/roles` | `{"roles":["USER","CONTENT_EXPERT"]}` thay toàn bộ vai trò |
+| GET/POST | `/accounts/roles` | Liệt kê hoặc tạo role `{key,name,description,permissions}` |
+| PATCH/DELETE | `/accounts/roles/{key}` | Cập nhật tên/mô tả hoặc xóa role không còn được gán |
+| PUT | `/accounts/roles/{key}/permissions` | `{"permissions":["CONTENT_MANAGE"]}` thay toàn bộ permission |
+| GET/POST | `/accounts/permissions` | Liệt kê hoặc tạo permission `{key,name,description}` |
+| PATCH/DELETE | `/accounts/permissions/{key}` | Cập nhật hoặc xóa permission chưa được gán |
+| GET | `/accounts/audit-logs?action=&targetType=&targetId=&page=&size=` | Nhật ký thao tác quản trị, lọc và phân trang |
+
+Tất cả route UC-18 yêu cầu authority tương ứng (mặc định chỉ ADMIN có các permission quản trị); request ghi cần CSRF như các route cookie-auth khác. Tài khoản do admin tạo nhận trạng thái `ACTIVE` và role `USER`; không tự ghi nhận consent, mật khẩu được băm BCrypt và không xuất hiện trong response/log. `GET /accounts/users` chỉ trả email, tên hiển thị, trạng thái, vai trò và ngày tạo, không trả hồ sơ sức khỏe/hội thoại. Audit log ghi actor, thao tác, đối tượng, thay đổi trước/sau và thời điểm; không lưu mật khẩu, token hay body request. Lỗi đầu vào trả 400, tài khoản/role/permission không có trả 404, thiếu quyền trả `403 ACCESS_DENIED`; xung đột bảo vệ dữ liệu trả 409.
 
 | Module | Routes sau `/api/v1`                                                                                                                                                                             | Quyền cần thực hiện                                                   |
 | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------- |
@@ -68,7 +98,7 @@ Các route riêng tư yêu cầu `HA_ACCESS`, xác minh chữ ký, issuer và h�
 | M3     | GET `/health/statistics`                                                                                                                                                                         | ADMIN, chỉ số tổng hợp                                                |
 | M4     | POST `/chat/messages`; GET `/chat/sessions`; GET `/chat/sessions/:id/messages`; DELETE `/chat/sessions/:id`; POST `/chat/messages/:id/feedback`                                                  | Chính chủ, consent; attachment feedback là opt-in                     |
 | M5     | POST `/accounts/logout`; GET/PUT `/accounts/me`; POST `/accounts/me/change-password`; POST `/accounts/me/deletion-request`                                                                       | Chính chủ; xóa cần xác nhận email                                     |
-| M5     | GET `/accounts/users`; PATCH `/accounts/users/:id/status`; PUT `/accounts/users/:id/roles`                                                                                                       | ADMIN; không lộ hồ sơ/hội thoại                                       |
+| M5     | GET/POST/PATCH `/accounts/users`; PUT `/accounts/users/:id/roles`; CRUD `/accounts/roles`, `/accounts/permissions`; GET `/accounts/audit-logs`                                                    | `PERM_USER_MANAGE` hoặc `PERM_RBAC_MANAGE`; không lộ hồ sơ/hội thoại  |
 | M6     | GET `/lifestyle/templates`; GET/PUT `/lifestyle/plan`; PUT/DELETE `/lifestyle/completions/:activityId/:date`; GET/POST `/lifestyle/reminders`; PATCH/DELETE `/lifestyle/reminders/:id`           | Chính chủ, consent; template đã duyệt                                 |
 
 ### M6 – UC-13 Theo dõi thói quen

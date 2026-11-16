@@ -6,6 +6,7 @@ import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -83,6 +84,15 @@ class AccountRegistrationTest {
                         "/api/v1/csrf"))
                 .andReturn(),
             "XSRF-TOKEN");
+  }
+
+  @Test
+  void adminBootstrapIsDisabledByDefault() {
+    Integer adminCount =
+        jdbc.sql("SELECT count(*) FROM accounts.users WHERE email = 'admin-registration@health.test'")
+            .query(Integer.class)
+            .single();
+    assertThat(adminCount).isZero();
   }
 
   @Test

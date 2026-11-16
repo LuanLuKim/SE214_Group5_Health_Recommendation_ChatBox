@@ -69,6 +69,8 @@ deploy/                        compose.yaml và .env.example để chạy từ i
 
 ## PostgreSQL với dữ liệu tổng hợp
 
+Mặc định backend không tự tạo tài khoản admin. Nếu muốn khởi tạo admin, đặt `ADMIN_BOOTSTRAP_ENABLED=true`, `ADMIN_EMAIL` và `ADMIN_PASSWORD` riêng (mật khẩu 12–72 byte UTF-8) trong `backend/.env`; không dùng thông tin mẫu trong môi trường thật.
+
 ```powershell
 npm run db:up                      # cần Docker Desktop; đợi healthy: docker compose ps
 cd backend
@@ -77,7 +79,7 @@ $env:DATA_MODE="postgres"; $env:SEED_SYNTHETIC="true"; mvn spring-boot:run
 
 Khi chạy với `DATA_MODE=postgres`, Flyway tự áp dụng migration chưa chạy; `SEED_SYNTHETIC=true` nạp dữ liệu giả lập sau đó. Seed gồm ba tài khoản **không có mật khẩu đăng nhập**, hồ sơ/chỉ số giả, một bài viết công khai và một bản nháp, một cơ sở giả, một quy tắc nháp, hội thoại/feedback giả và nhắc nhở đang tắt. Xem [database/README.md](database/README.md).
 
-Chạy cả stack trong Docker để demo trên máy: `docker compose --profile full up --build --wait`. Chạy từ image đã build sẵn trên máy demo hoặc server: [docs/DEPLOY.md](docs/DEPLOY.md).
+Chạy cả stack trong Docker để demo trên máy: mặc định không tạo admin. Để bật bootstrap, đặt `ADMIN_BOOTSTRAP_ENABLED=true`, `ADMIN_EMAIL` và `ADMIN_PASSWORD` trong `.env` ở thư mục gốc rồi chạy `docker compose --profile full up --build --wait`. Chạy từ image đã build sẵn trên máy demo hoặc server: [docs/DEPLOY.md](docs/DEPLOY.md).
 
 ## Điền API key
 
