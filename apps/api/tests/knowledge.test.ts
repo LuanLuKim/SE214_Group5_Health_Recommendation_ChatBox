@@ -170,3 +170,108 @@ test('PostgreSQL search counts only approved verified articles and keeps pages s
     await db.close();
   }
 });
+
+test('mock article detail exposes content and source only for a public article', async () => {
+  const app = mockApp();
+  const article = await request(app).get(`${path}/${approvedId}`);
+  assert.equal(article.status, 200);
+  assert.deepEqual(article.body, {
+    data: {
+      id: approvedId,
+      title: '[TEST] Kiểm thử bài viết về giấc ngủ',
+      topic: 'Giấc ngủ',
+      content: 'Nội dung giả lập để kiểm tra giao diện. Không có hướng dẫn y tế.',
+      source: {
+        id: approvedId,
+        name: 'Synthetic fixture',
+        url: 'https://example.invalid/articles/sleep',
+        verifiedAt: '2026-10-29T00:00:00.000Z',
+      },
+      updatedAt: '2026-10-29T00:00:00.000Z',
+    },
+    meta: { status: 'SYNTHETIC_DATA' },
+  });
+
+  for (const id of [draftId, '00000000-0000-4000-8000-000000000099', 'not-a-uuid']) {
+    const hidden = await request(app).get(`${path}/${id}`);
+    assert.equal(hidden.status, 404, id);
+    assert.equal(hidden.body.error.code, 'NOT_FOUND');
+    assert.equal(hidden.body.data, undefined);
+    assert.ok(hidden.body.error.requestId);
+  }
+
+  const list = await request(app).get(path);
+  assert.equal(list.status, 200);
+  assert.equal(list.body.data[0].content, undefined);
+});
+
+test('PostgreSQL article detail hides drafts, returned, retired and unverified content', async () => {
+  const db = new PGlite();
+  try {
+    for (const file of await readSqlFiles('migrations')) await db.exec(file.sql);
+    for (const file of await readSqlFiles('seeds')) await db.exec(file.sql);
+    await db.query('UPDATE knowledge.articles SET updated_at = $1 WHERE id = $2', [
+      '2026-10-30T12:00:00Z',
+      approvedId,
+    ]);
+
+    const hiddenArticles = [
+      ['00000000-0000-4000-8000-000000000020', 'PENDING_REVIEW', '2026-10-29T00:00:00Z'],
+      ['00000000-0000-4000-8000-000000000021', 'RETURNED', '2026-10-29T00:00:00Z'],
+      ['00000000-0000-4000-8000-000000000022', 'RETIRED', '2026-10-29T00:00:00Z'],
+      ['00000000-0000-4000-8000-000000000023', 'APPROVED', null],
+    ] as const;
+    for (const [id, status, verifiedAt] of hiddenArticles) {
+      await db.query(
+        `INSERT INTO knowledge.articles
+           (id, title, topic, content, source_name, source_url, verified_at, review_status)
+         VALUES ($1, '[TEST] Bài riêng tư', 'Kiểm thử', 'PRIVATE_CONTENT_SENTINEL',
+                 'Synthetic fixture', 'https://example.invalid/hidden', $2, $3)`,
+        [id, verifiedAt, status],
+      );
+    }
+
+    const app = express();
+    app.use(requestContext);
+    app.use(
+      '/api/v1/knowledge',
+      createKnowledgeRouter(loadConfig({ DATA_MODE: 'postgres' }), db as unknown as Pool),
+    );
+
+    const approved = await request(app).get(`${path}/${approvedId}`);
+    assert.equal(approved.status, 200);
+    assert.equal(approved.body.data.id, approvedId);
+    assert.equal(
+      approved.body.data.content,
+      'Nội dung giả lập để kiểm tra giao diện. Không có hướng dẫn y tế.',
+    );
+    assert.deepEqual(approved.body.data.source, {
+      id: approvedId,
+      name: 'Synthetic fixture',
+      url: 'https://example.invalid/articles/sleep',
+      verifiedAt: '2026-10-29T00:00:00.000Z',
+    });
+    assert.equal(approved.body.data.updatedAt, '2026-10-30T12:00:00.000Z');
+    assert.equal(approved.body.meta.status, 'DATABASE_RESULTS');
+
+    for (const id of [
+      draftId,
+      ...hiddenArticles.map(([articleId]) => articleId),
+      '00000000-0000-4000-8000-000000000099',
+      'not-a-uuid',
+    ]) {
+      const hidden = await request(app).get(`${path}/${id}`);
+      assert.equal(hidden.status, 404, id);
+      assert.equal(hidden.body.error.code, 'NOT_FOUND');
+      assert.equal(hidden.body.data, undefined);
+      assert.doesNotMatch(JSON.stringify(hidden.body), /PRIVATE_CONTENT_SENTINEL/);
+    }
+
+    const list = await request(app).get(path);
+    assert.equal(list.status, 200);
+    assert.equal(list.body.meta.total, 1);
+    assert.equal(list.body.data[0].content, undefined);
+  } finally {
+    await db.close();
+  }
+});
