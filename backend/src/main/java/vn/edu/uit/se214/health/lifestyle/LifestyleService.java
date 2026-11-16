@@ -1,6 +1,5 @@
 package vn.edu.uit.se214.health.lifestyle;
 
-import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.Clock;
 import java.time.LocalDate;
@@ -8,13 +7,10 @@ import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import vn.edu.uit.se214.health.lifestyle.ProgressCalculator.Completion;
 import vn.edu.uit.se214.health.lifestyle.ProgressCalculator.DailyProgress;
 import vn.edu.uit.se214.health.lifestyle.TodayPlan.ActivityToday;
@@ -27,9 +23,6 @@ import vn.edu.uit.se214.health.lifestyle.TodayPlan.ActivityToday;
  * be unmarked today, so past days stay as recorded.
  */
 public class LifestyleService {
-  private static final Logger log = LoggerFactory.getLogger(LifestyleService.class);
-  private static final TypeReference<List<PlanActivity>> ACTIVITIES = new TypeReference<>() {};
-
   private final LifestyleRepository repository;
   private final ObjectMapper json;
   private final Clock clock;
@@ -132,24 +125,8 @@ public class LifestyleService {
       throw LifestyleErrors.activityNotInPlan();
   }
 
-  /**
-   * Activities with an id, first occurrence wins. A template whose JSON cannot be read has no
-   * activities; only its id is logged, never its content.
-   */
   private List<PlanActivity> activities(ActivePlan plan) {
-    List<PlanActivity> parsed;
-    try {
-      parsed = plan.activitiesJson() == null ? List.of() : json.readValue(plan.activitiesJson(), ACTIVITIES);
-    } catch (Exception e) {
-      log.warn("Lifestyle template {} has unreadable activities", plan.templateId());
-      return List.of();
-    }
-    Map<String, PlanActivity> unique = new LinkedHashMap<>();
-    for (PlanActivity activity : parsed) {
-      if (activity == null || activity.id() == null || activity.id().isBlank()) continue;
-      unique.putIfAbsent(activity.id(), activity);
-    }
-    return List.copyOf(unique.values());
+    return PlanActivity.parse(json, plan.activitiesJson(), plan.templateId());
   }
 
   private static List<LocalDate> daysOf(String activityId, List<Completion> completions) {

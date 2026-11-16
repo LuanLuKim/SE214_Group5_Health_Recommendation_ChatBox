@@ -266,7 +266,7 @@ def finalise(unit: Unit, llm_bodies: list[str] | None, rules: Rules,
     bodies, methods = [], []
     for i, body in enumerate(unit.bodies):
         if not body.strip() or not _HAS_LETTER.search(body):
-            bodies.append(rules.rewrite_source(body))
+            bodies.append(rules.localise_numbers(body, rules.rewrite_source(body)))
             methods.append("copy")
             continue
         chosen, method = consensus[i], "consensus"
@@ -279,7 +279,7 @@ def finalise(unit: Unit, llm_bodies: list[str] | None, rules: Rules,
                 method = "consensus_fallback"
             else:
                 chosen, method = llm_line, "llm"
-        bodies.append(chosen)
+        bodies.append(rules.localise_numbers(body, rules.replace_target(body, chosen)))
         methods.append(method)
     drafts = [[d[i] for d in unit.drafts.values()] for i in range(len(unit.bodies))] if unit.drafts else None
     text = "\n".join(marker + body for marker, body in zip(unit.markers, bodies))

@@ -213,3 +213,86 @@ export interface CompletionResult {
   streak: number;
   progress: DailyProgress;
 }
+// M6 UC-12: only approved templates; the server checks consent, allergies and profile again on apply.
+export type LifestyleGoal = 'SLEEP' | 'MAINTAIN' | 'GAIN' | 'LOSE';
+export interface TemplateSummary {
+  id: string;
+  title: string;
+  goal: LifestyleGoal;
+  summary: string;
+  durationDays: number | null;
+  activityCount: number;
+  notSuitableFor: string[];
+  sourceUrl: string;
+}
+// GET /lifestyle/templates?goal=. profileMissing: no health profile (suggest updating it);
+// message: set when the list is empty (no plan is generated instead).
+export interface TemplateCatalog {
+  goal: LifestyleGoal | null;
+  profileMissing: boolean;
+  templates: TemplateSummary[];
+  message: string | null;
+}
+export interface PlanActivity {
+  id: string;
+  title: string;
+  description?: string;
+}
+// GET /lifestyle/templates/:id. Previewing changes nothing; current: it is the active plan.
+export interface TemplatePreview {
+  id: string;
+  title: string;
+  goal: LifestyleGoal;
+  summary: string;
+  durationDays: number | null;
+  activities: PlanActivity[];
+  notSuitableFor: string[];
+  sourceUrl: string;
+  current: boolean;
+  advice: string;
+}
+// PUT /lifestyle/plan {templateId}. changed: false when the template was already active.
+export interface AppliedPlan {
+  planId: string;
+  templateId: string;
+  templateTitle: string;
+  startedOn: string;
+  changed: boolean;
+  previousPlanId: string | null;
+}
+// M6 UC-14: localTime is HH:mm (24 h) in timezone; daysOfWeek uses ISO 1 = Monday … 7 = Sunday.
+// Instants (nextSendAt, scheduledFor, sentAt) are ISO-8601 UTC.
+export type ReminderChannel = 'EMAIL' | 'WEB_PUSH';
+export interface ReminderDelivery {
+  scheduledFor: string;
+  status: 'PENDING' | 'SENT' | 'FAILED';
+  sentAt: string | null;
+}
+export interface Reminder {
+  id: string;
+  content: string;
+  activityId: string | null;
+  localTime: string;
+  daysOfWeek: number[];
+  timezone: string;
+  channel: ReminderChannel;
+  enabled: boolean;
+  nextSendAt: string | null;
+  lastDelivery: ReminderDelivery | null;
+}
+// GET /lifestyle/reminders. availableChannels: channels the user can turn on now (offer only these).
+export interface ReminderList {
+  reminders: Reminder[];
+  availableChannels: ReminderChannel[];
+}
+// POST /lifestyle/reminders (localTime and content or activityId required) and
+// PATCH /lifestyle/reminders/:id (only the fields sent change; activityId null unlinks).
+export interface ReminderInput {
+  content?: string;
+  activityId?: string | null;
+  localTime?: string;
+  daysOfWeek?: number[];
+  timezone?: string;
+  channel?: ReminderChannel;
+  enabled?: boolean;
+}

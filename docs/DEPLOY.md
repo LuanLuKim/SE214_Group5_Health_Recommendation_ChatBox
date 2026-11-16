@@ -40,7 +40,8 @@ docker compose -f deploy/compose.yaml up -d --wait
 | `DJANGO_SECRET_KEY`                                                     | Có       | Khóa bí mật của Django                                                                                        |
 | `AUTH_TOKEN_SECRET`, `EMAIL_OTP_HASH_SECRET`                            | Có       | Khóa ký access token và khóa băm mã OTP (M5). Mỗi khóa một chuỗi ngẫu nhiên, ít nhất 32 byte                  |
 | `TERMS_VERSION`                                                         |          | Phiên bản điều khoản người dùng phải đồng ý khi đăng ký. Mặc định `v1`                                        |
-| `SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD`, `MAIL_FROM` |          | Máy chủ gửi mã OTP. Để trống thì đăng ký/khôi phục bằng email trả 503 và không tạo tài khoản                  |
+| `SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD`, `MAIL_FROM` |          | Gửi mã OTP và nhắc nhở. Để trống thì đăng ký/khôi phục bằng email trả 503, không bật được nhắc email          |
+| `REMINDERS_ENABLED`                                                     |          | Mặc định `true`: worker gửi nhắc nhở (UC-14). `false` chỉ dừng việc gửi                                       |
 | `GOOGLE_CLIENT_ID`, `FACEBOOK_APP_ID`, `FACEBOOK_APP_SECRET`            |          | Đăng nhập Google/Facebook. Để trống nhà cung cấp không dùng                                                   |
 | `SWAGGER_ENABLED`                                                       |          | Mặc định `false`: không công khai Swagger UI và `/v3/api-docs`                                                |
 | `BACKEND_BIND`, `BACKEND_PORT`                                          |          | Mặc định `127.0.0.1:4000`. Đặt `BACKEND_BIND=0.0.0.0` chỉ khi demo trong mạng nội bộ không có reverse proxy   |

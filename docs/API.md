@@ -83,4 +83,33 @@ Các route riêng tư yêu cầu `HA_ACCESS`, xác minh chữ ký, issuer và h�
 
 Kết quả PUT/DELETE được đọc lại từ database sau khi ghi. Lỗi: 404 `LIFESTYLE_PLAN_NOT_FOUND` (chưa có lộ trình, chuyển sang UC-12), 404 `ACTIVITY_NOT_IN_PLAN`, 400 `INVALID_COMPLETION_DATE` (sai định dạng, tương lai, trước ngày bắt đầu), 409 `COMPLETION_LOCKED` (bỏ đánh dấu ngày cũ), 403 `CSRF_INVALID` khi thiếu `X-XSRF-TOKEN`.
 
+### M6 – UC-12 Chọn lộ trình sinh hoạt
+
+Cùng điều kiện như UC-13, thêm tiên điều kiện: consent mới nhất của người dùng phải đồng ý xử lý dữ liệu sức khỏe (đọc qua `accounts.api.ConsentQuery`). Dị ứng đọc qua `health.api.HealthProfileQuery`. Chỉ trả mẫu `APPROVED`. Mẫu `is_synthetic` chỉ hiện khi bật `SEED_SYNTHETIC`, và production luôn chặn seed. Kiểu dữ liệu: `TemplateCatalog`, `TemplatePreview`, `AppliedPlan` trong `packages/contracts`.
+
+| Route                                | Kết quả                                                                                                                                                                                                                                                                         |
+| ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| GET `/lifestyle/templates?goal=`     | Mẫu đã duyệt mà người dùng được áp dụng; `goal` là `SLEEP`, `MAINTAIN`, `GAIN`, `LOSE` hoặc bỏ trống (mọi mục tiêu). Loại mẫu chứa dị ứng đã khai (A2). Chưa có hồ sơ: `profileMissing = true`, ẩn mẫu cần hồ sơ (A1). Danh sách rỗng kèm `message`, không tự tạo kế hoạch (A3) |
+| GET `/lifestyle/templates/:id`       | Xem trước: mô tả, thời lượng, lịch hoạt động, đối tượng không phù hợp, nguồn, khuyến nghị hỏi nhân viên y tế, `current` (đang là lộ trình hiện tại). Không thay đổi gì (A4)                                                                                                     |
+| PUT `/lifestyle/plan` `{templateId}` | Áp dụng hoặc đổi lộ trình. Server kiểm tra lại mọi điều kiện. Đổi lộ trình đặt `ended_on` cho lộ trình cũ (giữ lịch sử và completion), mỗi người chỉ một lộ trình đang dùng. Gửi lại mẫu đang dùng thì `changed = false`                                                        |
+
+Lỗi: 403 `HEALTH_CONSENT_REQUIRED`, 400 `INVALID_GOAL`, 400 `INVALID_TEMPLATE_ID`, 404 `LIFESTYLE_TEMPLATE_NOT_FOUND` (không tồn tại, chưa duyệt hoặc không được hiển thị: cùng một câu trả lời để không lộ bản nháp), 409 `TEMPLATE_HAS_ALLERGEN` (A2), 409 `HEALTH_PROFILE_REQUIRED` (A1), 409 `LIFESTYLE_PLAN_CONFLICT` (hai yêu cầu đổi lộ trình cùng lúc).
+
+### M6 – UC-14 Thiết lập nhắc nhở
+
+Cùng điều kiện đăng nhập như UC-13; mỗi người chỉ thấy và sửa nhắc của mình. Kiểu dữ liệu: `ReminderList`, `Reminder`, `ReminderInput` trong `packages/contracts`.
+
+| Route                             | Kết quả                                                                                                                                                                              |
+| --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| GET `/lifestyle/reminders`        | Nhắc của người dùng, lần gửi kế tiếp `nextSendAt` (null khi tắt), lần gửi gần nhất `lastDelivery` (`PENDING`, `SENT`, `FAILED`) và `availableChannels` (kênh bật được ngay, A2)      |
+| POST `/lifestyle/reminders`       | Tạo nhắc, trả 201. Bắt buộc `localTime` và `content` (hoặc `activityId`, khi đó tiêu đề hoạt động là nội dung). Mặc định: mọi ngày, múi giờ `LIFESTYLE_ZONE`, kênh `EMAIL`, đang bật |
+| PATCH `/lifestyle/reminders/:id`  | Chỉ đổi các trường gửi lên. `{"enabled": false}` dừng mọi lần gửi kế tiếp. Lần gửi có giờ trước thời điểm lưu không được gửi                                                         |
+| DELETE `/lifestyle/reminders/:id` | Xóa nhắc cùng nhật ký gửi                                                                                                                                                            |
+
+Trường: `content` 1–200 ký tự, không có ký tự điều khiển; `localTime` dạng 24 giờ `HH:mm`; `daysOfWeek` danh sách khác rỗng các số 1 (thứ Hai) đến 7 (Chủ nhật); `timezone` mã múi giờ IANA; `channel` `EMAIL` hoặc `WEB_PUSH`; `activityId` mã hoạt động của lộ trình đang dùng hoặc `null`; `enabled`. Thời điểm trong kết quả là ISO-8601 UTC.
+
+Gửi nhắc: worker trong backend chạy mỗi `REMINDERS_POLL` (mặc định 1 phút), giữ chỗ từng lần gửi trong `lifestyle.reminder_deliveries` (UNIQUE `reminder_id, scheduled_for`) rồi mới gửi, nên chạy lại, thử lại hay nhiều backend cùng lúc không gửi trùng. Lần gửi lỗi ghi `FAILED` kèm mã lỗi và được thử lại trên cùng dòng, tối đa `REMINDERS_MAX_ATTEMPTS` lần (A3). Nhắc trễ quá `REMINDERS_WINDOW` (mặc định 10 phút) thì bỏ qua. Email dùng `SMTP_*` và `MAIL_FROM` như M5; địa chỉ đọc qua `accounts.api.AccountContactQuery`. `REMINDERS_ENABLED=false` chỉ dừng việc gửi.
+
+Lỗi: 400 `INVALID_REMINDER` (A1, `message` nói trường nào sai; trường lạ cũng bị từ chối), 404 `REMINDER_NOT_FOUND` (không tồn tại hoặc của người khác), 404 `ACTIVITY_NOT_IN_PLAN`, 409 `REMINDER_CHANNEL_UNAVAILABLE` (A2: kênh chưa cấu hình hoặc chưa được phép; Web Push chưa có nên luôn trả lỗi này khi bật), 409 `REMINDER_LIMIT_REACHED` (quá `REMINDERS_MAX_PER_USER`, mặc định 20).
+
 Đây là route ban đầu để chia việc, không phải danh sách API cuối. Chi tiết bài viết, form mẫu kế hoạch, email/OAuth, hàng đợi duyệt và các nhánh UC cần được chủ module bổ sung, cập nhật tài liệu và contract. Không đánh dấu một UC hoàn thành chỉ vì route đã tồn tại.

@@ -14,6 +14,11 @@ Use case: **UC-01, UC-02, UC-03, UC-18**. Phụ trách: Võ Ngọc Tài (`vongoc
 
 Spring Security Resource Server xác thực cookie access JWT và đặt `Jwt` trong `SecurityContext`. Các module vẫn phải tự kiểm tra vai trò, đồng ý và quyền sở hữu trong nghiệp vụ; vai trò quản trị chưa được triển khai.
 
+Interface trong package `accounts.api`, hiện có bản đọc tạm trong `accounts/persistence` do M6 thêm (M5 tiếp quản):
+
+- `ConsentQuery`: consent mới nhất có đồng ý xử lý dữ liệu sức khỏe không (UC-12).
+- `AccountContactQuery`: email của tài khoản đang hoạt động, rỗng khi không có hoặc bị khóa (UC-14 gửi nhắc nhở).
+
 ## UC-01: đăng ký tài khoản
 
 - `POST /api/v1/accounts/register`: bắt đầu đăng ký email/mật khẩu; gửi OTP 6 số qua SMTP, trả 202 và thời hạn xác nhận. Chưa tạo account ở bước này.

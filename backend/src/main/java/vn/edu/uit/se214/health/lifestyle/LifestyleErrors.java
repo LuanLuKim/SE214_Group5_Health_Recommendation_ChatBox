@@ -37,4 +37,72 @@ final class LifestyleErrors {
     return new ApiException(
         HttpStatus.CONFLICT, "COMPLETION_LOCKED", "Chỉ bỏ đánh dấu được hoạt động của hôm nay.");
   }
+
+  /** UC-12 precondition: templates are filtered with the user's health data. */
+  static ApiException consentRequired() {
+    return new ApiException(
+        HttpStatus.FORBIDDEN,
+        "HEALTH_CONSENT_REQUIRED",
+        "Bạn cần đồng ý cho phép xử lý dữ liệu sức khỏe trước khi chọn lộ trình sinh hoạt.");
+  }
+
+  static ApiException invalidGoal() {
+    return ApiException.invalid(
+        "INVALID_GOAL", "Mục tiêu phải là SLEEP, MAINTAIN, GAIN hoặc LOSE.");
+  }
+
+  static ApiException invalidTemplateId() {
+    return ApiException.invalid("INVALID_TEMPLATE_ID", "Mã mẫu lộ trình không hợp lệ.");
+  }
+
+  /** Unknown, not approved or not offered here: the same answer, so drafts are never revealed. */
+  static ApiException templateNotFound() {
+    return new ApiException(
+        HttpStatus.NOT_FOUND, "LIFESTYLE_TEMPLATE_NOT_FOUND", "Không tìm thấy mẫu lộ trình đã được duyệt.");
+  }
+
+  /** UC-12 A2: the template contains a declared allergen and cannot be applied. */
+  static ApiException templateHasAllergen() {
+    return new ApiException(
+        HttpStatus.CONFLICT,
+        "TEMPLATE_HAS_ALLERGEN",
+        "Mẫu lộ trình này chứa tác nhân bạn đã khai báo dị ứng nên không thể áp dụng.");
+  }
+
+  /** UC-12 A1: this template needs a health profile. */
+  static ApiException profileRequired() {
+    return new ApiException(
+        HttpStatus.CONFLICT,
+        "HEALTH_PROFILE_REQUIRED",
+        "Mẫu lộ trình này cần hồ sơ sức khỏe. Hãy cập nhật hồ sơ trước khi áp dụng.");
+  }
+
+  /** UC-14 A1: a field of a reminder is missing or not valid; {@code message} says which. */
+  static ApiException invalidReminder(String message) {
+    return ApiException.invalid("INVALID_REMINDER", message);
+  }
+
+  /** Unknown or someone else's: the same answer, so other users' reminders are never revealed. */
+  static ApiException reminderNotFound() {
+    return new ApiException(HttpStatus.NOT_FOUND, "REMINDER_NOT_FOUND", "Không tìm thấy nhắc nhở.");
+  }
+
+  /** UC-14 A2: the channel is not configured or not allowed for this user; choose another one. */
+  static ApiException channelUnavailable() {
+    return new ApiException(
+        HttpStatus.CONFLICT,
+        "REMINDER_CHANNEL_UNAVAILABLE",
+        "Kênh nhận nhắc nhở này chưa được cấu hình hoặc chưa được cho phép. Hãy chọn kênh khác.");
+  }
+
+  static ApiException reminderLimit(int max) {
+    return new ApiException(
+        HttpStatus.CONFLICT, "REMINDER_LIMIT_REACHED", "Bạn chỉ có thể tạo tối đa " + max + " nhắc nhở.");
+  }
+
+  /** Two requests changed the plan at the same time; the client reloads and tries again. */
+  static ApiException planConflict() {
+    return new ApiException(
+        HttpStatus.CONFLICT, "LIFESTYLE_PLAN_CONFLICT", "Lộ trình vừa được thay đổi ở nơi khác. Vui lòng thử lại.");
+  }
 }
