@@ -14,6 +14,8 @@ Use cases: **UC-10, UC-11, UC-15, UC-17**. Owner: unassigned.
 
 Provides approved-only retrieval to M4, approved rule review to M1, template review to M6, and anonymous feedback review for M4. Facilities are preloaded; no import-management UI is required. Only CONTENT_EXPERT may approve or read feedback. Admin content authoring remains an SRS ambiguity.
 
+For M1 facility lookup, inject the `FacilityLookup` contract from `@health/contracts`; `createKnowledgeService(config, pool)` implements `listFacilities(filters?)` and `getFacility(id)`. Both methods require a non-empty source name/URL and verification date. `specialty` is the directory's specialty name; M1 must map its rule specialty IDs to directory names. Database failures reject the call rather than returning an empty match. See `docs/API.md` for the public routes and response fields.
+
 ## Extend this module
 
 Keep UI in `Page.tsx` and module-local components/hooks. Put HTTP parsing in `router.ts`, business rules in `service.ts`, and add a `repository.ts` for persistence. Do not call SQL from UI or route handlers. Add tests beside the relevant workspace test suite. These are starter files, not completed use cases.

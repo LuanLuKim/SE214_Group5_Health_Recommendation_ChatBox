@@ -126,6 +126,19 @@ export interface FacilitySummary {
   source: SourceReference;
 }
 
+export interface FacilitySearchParams {
+  q?: string | undefined;
+  province?: string | undefined;
+  specialty?: string | undefined;
+}
+
+// M2 -> M1: directory records only, with source and verification date.
+// specialty is a directory label, not a SafetyDecision.specialtyIds value.
+export interface FacilityLookup {
+  listFacilities(filters?: FacilitySearchParams): Promise<FacilitySummary[]>;
+  getFacility(id: string): Promise<FacilitySummary | null>;
+}
+
 // M1 -> M4: care direction is controlled by reviewed rules, never an LLM.
 export interface SafetyDecision {
   status: 'EVALUATED' | 'UNAVAILABLE';
@@ -157,9 +170,7 @@ export const ruleDraftInputSchema = z.strictObject({
     .refine((value) => {
       const url = new URL(value);
       return (
-        (url.protocol === 'https:' || url.protocol === 'http:') &&
-        !url.username &&
-        !url.password
+        (url.protocol === 'https:' || url.protocol === 'http:') && !url.username && !url.password
       );
     }),
 });

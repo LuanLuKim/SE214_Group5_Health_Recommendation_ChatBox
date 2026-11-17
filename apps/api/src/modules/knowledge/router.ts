@@ -55,6 +55,18 @@ export function createKnowledgeRouter(config: Config, pool: Pool | null) {
     });
   });
 
+  knowledgeRouter.get('/facilities/:id', async (_request, response) => {
+    const facility = await service.getFacility(_request.params.id);
+    if (!facility) {
+      fail(response, 404, 'NOT_FOUND', 'Không tìm thấy cơ sở y tế.');
+      return;
+    }
+    response.json({
+      data: facility,
+      meta: { status: config.DATA_MODE === 'mock' ? 'SYNTHETIC_DATA' : 'DATABASE_RESULTS' },
+    });
+  });
+
   // All private/authoring routes intentionally stop at requireSession until M5 implements auth.
   knowledgeRouter.post('/articles', requireSession, notImplemented);
   knowledgeRouter.patch('/articles/:id', requireSession, notImplemented);
