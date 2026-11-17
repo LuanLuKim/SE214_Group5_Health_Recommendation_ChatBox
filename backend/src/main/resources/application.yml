@@ -89,6 +89,16 @@ app:
       max-attempts: ${REMINDERS_MAX_ATTEMPTS:3}
       max-per-user: ${REMINDERS_MAX_PER_USER:20}
       from-address: ${MAIL_FROM:}
+    # Dọn dữ liệu M6 mỗi ngày (SCRUM-164). Thời hạn theo ISO-8601 (P90D = 90 ngày); cron theo múi giờ zone.
+    # Nhắc do người dùng tự tắt không bao giờ bị job xóa.
+    retention:
+      enabled: ${LIFESTYLE_RETENTION_ENABLED:true}
+      cron: ${LIFESTYLE_RETENTION_CRON:0 30 3 * * *}
+      sent-deliveries: ${LIFESTYLE_RETENTION_SENT_DELIVERIES:P90D}
+      failed-deliveries: ${LIFESTYLE_RETENTION_FAILED_DELIVERIES:P30D}
+      ended-plan-completions: ${LIFESTYLE_RETENTION_ENDED_PLAN_COMPLETIONS:P365D}
+      paused-reminders: ${LIFESTYLE_RETENTION_PAUSED_REMINDERS:P90D}
+      batch-size: ${LIFESTYLE_RETENTION_BATCH_SIZE:1000}
   # Chạy dữ liệu tổng hợp trong database/seeds sau migration (chỉ máy phát triển).
   seed-synthetic: ${SEED_SYNTHETIC:false}
   database-dir: ${DATABASE_DIR:../database}
