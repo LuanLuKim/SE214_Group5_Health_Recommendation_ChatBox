@@ -118,6 +118,17 @@ def test_normalized_article_db_row():
     assert row["is_synthetic"] is False
 
 
+def test_db_row_example_matches_normalizer_output():
+    """Golden fixture shared with the backend SQL/API compatibility tests."""
+    examples = HERE / "examples"
+    extracted = json.loads((examples / "extracted.example.json").read_text(encoding="utf-8"))
+    expected = json.loads((examples / "db_row.example.json").read_text(encoding="utf-8"))
+    actual = transform(extracted).to_db_row()
+    assert actual == expected
+    assert actual["review_status"] == "DRAFT"
+    assert actual["verified_at"] is None
+
+
 def test_load_url_topics(tmp_path=None):
     from pathlib import Path
     urls_file = ROOT / "docs" / "urls.txt"

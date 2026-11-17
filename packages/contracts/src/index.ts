@@ -122,10 +122,14 @@ const articleSourceUrlSchema = z
   .trim()
   .pipe(z.url().max(2000))
   .refine((value) => {
-    const url = new URL(value);
-    return (
-      (url.protocol === 'https:' || url.protocol === 'http:') && !url.username && !url.password
-    );
+    try {
+      const url = new URL(value);
+      return (
+        (url.protocol === 'https:' || url.protocol === 'http:') && !url.username && !url.password
+      );
+    } catch {
+      return false;
+    }
   });
 export const articleDraftInputSchema = z.strictObject({
   title: z.string().trim().min(1).max(300),
