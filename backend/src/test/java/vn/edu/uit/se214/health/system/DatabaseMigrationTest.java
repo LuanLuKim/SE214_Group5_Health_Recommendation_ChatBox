@@ -106,6 +106,22 @@ class DatabaseMigrationTest {
     db.execute(challenge.formatted(0));
     assertRejected(db, challenge.formatted(0));
 
+    db.execute(
+        "INSERT INTO knowledge.review_events "
+            + "(id, subject_type, subject_id, reviewer_id, decision) VALUES "
+            + "('00000000-0000-4000-8000-000000000099','ARTICLE',"
+            + "'00000000-0000-4000-8000-000000000010','"
+            + user
+            + "','APPROVED')");
+    db.execute(
+        "INSERT INTO accounts.admin_audit_logs "
+            + "(id, actor_user_id, action, target_type, target_id, details) VALUES "
+            + "('00000000-0000-4000-8000-000000000098','"
+            + user
+            + "','USER_CREATED','USER','"
+            + user
+            + "','{\"email\":\"private@example.test\"}')");
+
     // UC-03: deleting the account removes every personal row; anonymous feedback stays.
     db.execute("DELETE FROM accounts.users WHERE id = '" + user + "'");
     for (String owned :
@@ -126,6 +142,19 @@ class DatabaseMigrationTest {
     assertThat(count(db, "SELECT count(*) FROM lifestyle.completions WHERE plan_id = '00000000-0000-4000-8000-000000000051'"))
         .isZero();
     assertThat(count(db, "SELECT count(*) FROM chat.feedback")).isEqualTo(1);
+    assertThat(
+            count(
+                db,
+                "SELECT count(*) FROM knowledge.review_events WHERE id = "
+                    + "'00000000-0000-4000-8000-000000000099' AND reviewer_id IS NULL"))
+        .isEqualTo(1);
+    assertThat(
+            count(
+                db,
+                "SELECT count(*) FROM accounts.admin_audit_logs WHERE "
+                    + "id = '00000000-0000-4000-8000-000000000098' "
+                    + "AND actor_user_id IS NULL"))
+        .isEqualTo(1);
   }
 
   private static int count(JdbcTemplate db, String sql) {

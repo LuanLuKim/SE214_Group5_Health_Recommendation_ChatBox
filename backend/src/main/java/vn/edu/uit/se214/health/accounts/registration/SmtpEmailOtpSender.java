@@ -49,6 +49,17 @@ public class SmtpEmailOtpSender implements EmailOtpSender {
         "Nếu bạn không yêu cầu khôi phục mật khẩu, hãy bỏ qua email này.");
   }
 
+  @Override
+  public void sendAccountDeletionCode(String email, String code, int expiresInMinutes) {
+    send(
+        email,
+        "Mã xác nhận xóa tài khoản",
+        "Mã xác nhận xóa tài khoản của bạn là: ",
+        code,
+        expiresInMinutes,
+        "Nếu bạn không yêu cầu xóa tài khoản, hãy bỏ qua email này.");
+  }
+
   private void send(
       String email,
       String subject,

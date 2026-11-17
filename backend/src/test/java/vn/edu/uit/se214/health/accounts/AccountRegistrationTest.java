@@ -76,6 +76,7 @@ class AccountRegistrationTest {
     reset(emailOtpSender);
     jdbc.sql("DELETE FROM accounts.users WHERE email LIKE 'uc01-%@example.test'").update();
     jdbc.sql("DELETE FROM accounts.users WHERE email LIKE 'uc02-%@example.test'").update();
+    jdbc.sql("DELETE FROM accounts.users WHERE email LIKE 'uc03-%@example.test'").update();
     jdbc.sql("DELETE FROM accounts.registration_challenges WHERE email LIKE 'uc01-%@example.test'").update();
     csrfToken =
         cookieValue(
@@ -108,6 +109,206 @@ class AccountRegistrationTest {
                 .cookie(new Cookie("HA_ACCESS", "invalid-token")))
         .andExpect(status().isUnauthorized())
         .andExpect(jsonPath("$.error.code").value("SESSION_INVALID"));
+  }
+
+  @Test
+  void accountOwnerCanReadAndUpdateOnlyTheirOwnProfile() throws Exception {
+    UUID userId = insertAccount("uc03-profile@example.test", "current-password-123");
+    UUID otherUserId = insertAccount("uc03-other@example.test", "current-password-123");
+    MvcResult loginResult =
+        login("uc03-profile@example.test", "current-password-123")
+            .andExpect(status().isOk())
+            .andReturn();
+    String accessToken = cookieValue(loginResult, "HA_ACCESS");
+
+    mvc.perform(
+            org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get(
+                    "/api/v1/accounts/me")
+                .cookie(new Cookie("HA_ACCESS", accessToken)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.data.id").value(userId.toString()))
+        .andExpect(jsonPath("$.data.email").value("uc03-profile@example.test"));
+
+    mvc.perform(
+            org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put(
+                    "/api/v1/accounts/me")
+                .cookie(new Cookie("HA_ACCESS", accessToken))
+                .cookie(new Cookie("XSRF-TOKEN", csrfToken))
+                .header("X-XSRF-TOKEN", csrfToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    """
+                    {"displayName":"Updated Name",
+                     "phoneNumber":"+84912345678","avatarUrl":"https://images.example.test/avatar.png"}
+                    """))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.data.id").value(userId.toString()))
+        .andExpect(jsonPath("$.data.displayName").value("Updated Name"))
+        .andExpect(jsonPath("$.data.phoneNumber").value("+84912345678"));
+
+    assertThat(
+            jdbc.sql("SELECT display_name FROM accounts.users WHERE id = :id")
+                .param("id", userId)
+                .query(String.class)
+                .single())
+        .isEqualTo("Updated Name");
+    assertThat(
+            jdbc.sql("SELECT display_name FROM accounts.users WHERE id = :id")
+                .param("id", otherUserId)
+                .query(String.class)
+                .single())
+        .isEqualTo("UC-02 Test");
+  }
+
+  @Test
+  void changingPasswordRequiresCurrentPasswordAndRevokesRefreshTokens() throws Exception {
+    UUID userId = insertAccount("uc03-password@example.test", "old-password-123");
+    MvcResult loginResult =
+        login("uc03-password@example.test", "old-password-123")
+            .andExpect(status().isOk())
+            .andReturn();
+    String accessToken = cookieValue(loginResult, "HA_ACCESS");
+
+    mvc.perform(
+            post("/api/v1/accounts/me/change-password")
+                .cookie(new Cookie("HA_ACCESS", accessToken))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    """
+                    {"currentPassword":"incorrect-password","newPassword":"new-password-123"}
+                    """))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.error.code").value("CURRENT_PASSWORD_INVALID"));
+
+    mvc.perform(
+            post("/api/v1/accounts/me/change-password")
+                .cookie(new Cookie("HA_ACCESS", accessToken))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    """
+                    {"currentPassword":"old-password-123","newPassword":"new-password-123"}
+                    """))
+        .andExpect(status().isOk());
+
+    String newPasswordHash =
+        jdbc.sql("SELECT password_hash FROM accounts.users WHERE id = :id")
+            .param("id", userId)
+            .query(String.class)
+            .single();
+    assertThat(passwordEncoder.matches("new-password-123", newPasswordHash)).isTrue();
+    assertThat(
+            jdbc.sql(
+                    "SELECT count(*) FROM accounts.refresh_tokens WHERE user_id = :id AND revoked_at IS NULL")
+                .param("id", userId)
+                .query(Integer.class)
+                .single())
+        .isZero();
+    login("uc03-password@example.test", "new-password-123").andExpect(status().isOk());
+    login("uc03-password@example.test", "old-password-123").andExpect(status().isUnauthorized());
+  }
+
+  @Test
+  void deletionRequiresAuthenticatedOwnerAndEmailCodeThenRemovesAccount() throws Exception {
+    UUID userId = insertAccount("uc03-delete@example.test", "password-1234");
+    jdbc.sql(
+            """
+            INSERT INTO accounts.admin_audit_logs
+                (id, actor_user_id, action, target_type, target_id, details)
+            VALUES (:id, :userId, 'USER_CREATED', 'USER', :targetId,
+                    '{"email":"uc03-delete@example.test"}'::jsonb)
+            """)
+        .param("id", UUID.randomUUID())
+        .param("userId", userId)
+        .param("targetId", userId.toString())
+        .update();
+    MvcResult loginResult =
+        login("uc03-delete@example.test", "password-1234")
+            .andExpect(status().isOk())
+            .andReturn();
+    String accessToken = cookieValue(loginResult, "HA_ACCESS");
+
+    mvc.perform(
+            post("/api/v1/accounts/confirm-deletion")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"code\":\"123456\"}"))
+        .andExpect(status().isUnauthorized());
+
+    mvc.perform(
+            post("/api/v1/accounts/me/deletion-request")
+                .cookie(new Cookie("HA_ACCESS", accessToken)))
+        .andExpect(status().isAccepted());
+    ArgumentCaptor<String> code = ArgumentCaptor.forClass(String.class);
+    verify(emailOtpSender)
+        .sendAccountDeletionCode(eq("uc03-delete@example.test"), code.capture(), eq(10));
+    assertThat(code.getValue()).matches("\\d{6}");
+    assertThat(
+            jdbc.sql(
+                    "SELECT otp_hash FROM accounts.account_deletion_challenges WHERE user_id = :id")
+                .param("id", userId)
+                .query(String.class)
+                .single())
+        .isNotEqualTo(code.getValue());
+
+    mvc.perform(
+            post("/api/v1/accounts/confirm-deletion")
+                .cookie(new Cookie("HA_ACCESS", accessToken))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"code\":\"wrong-code\"}"))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.error.code").value("OTP_INVALID"));
+    assertThat(
+            jdbc.sql(
+                    "SELECT attempt_count FROM accounts.account_deletion_challenges WHERE user_id = :id")
+                .param("id", userId)
+                .query(Integer.class)
+                .single())
+        .isEqualTo(1);
+
+    mvc.perform(
+            post("/api/v1/accounts/confirm-deletion")
+                .cookie(new Cookie("HA_ACCESS", accessToken))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"code\":\"%s\"}".formatted(code.getValue())))
+        .andExpect(status().isOk())
+        .andExpect(
+            org.springframework.test.web.servlet.result.MockMvcResultMatchers.cookie()
+                .maxAge("HA_ACCESS", 0))
+        .andExpect(
+            org.springframework.test.web.servlet.result.MockMvcResultMatchers.cookie()
+                .maxAge("HA_REFRESH", 0));
+
+    assertThat(
+            jdbc.sql("SELECT count(*) FROM accounts.users WHERE id = :id")
+                .param("id", userId)
+                .query(Integer.class)
+                .single())
+        .isZero();
+    assertThat(
+            jdbc.sql("SELECT count(*) FROM accounts.account_deletion_challenges WHERE user_id = :id")
+                .param("id", userId)
+                .query(Integer.class)
+                .single())
+        .isZero();
+    assertThat(
+            jdbc.sql(
+                    """
+                    SELECT count(*) FROM accounts.admin_audit_logs
+                    WHERE actor_user_id IS NULL AND target_id = '[deleted]'
+                      AND NOT jsonb_exists(details, 'email')
+                    """)
+                .query(Integer.class)
+                .single())
+        .isEqualTo(1);
+    mvc.perform(
+            org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get(
+                    "/api/v1/accounts/me")
+                .cookie(new Cookie("HA_ACCESS", accessToken)))
+        .andExpect(status().isUnauthorized());
+    mvc.perform(
+            org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get(
+                    "/api/v1/chat/sessions")
+                .cookie(new Cookie("HA_ACCESS", accessToken)))
+        .andExpect(status().isUnauthorized());
   }
 
   @Test
@@ -387,7 +588,7 @@ class AccountRegistrationTest {
             org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get(
                     "/api/v1/accounts/me")
                 .cookie(new Cookie("HA_ACCESS", accessToken)))
-        .andExpect(status().isNotImplemented());
+        .andExpect(status().isOk());
     mvc.perform(
             post("/api/v1/accounts/refresh")
                 .cookie(new Cookie("HA_REFRESH", rotatedRefreshToken)))
@@ -468,7 +669,7 @@ class AccountRegistrationTest {
             org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get(
                     "/api/v1/accounts/me")
                 .cookie(new Cookie("HA_ACCESS", accessToken)))
-        .andExpect(status().isNotImplemented());
+        .andExpect(status().isOk());
     mvc.perform(post("/api/v1/accounts/refresh").cookie(new Cookie("HA_REFRESH", refreshToken)))
         .andExpect(status().isUnauthorized());
     login("uc02-recovery@example.test", "old-password").andExpect(status().isUnauthorized());
@@ -513,7 +714,7 @@ class AccountRegistrationTest {
             org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get(
                     "/api/v1/accounts/me")
                 .cookie(new Cookie("HA_ACCESS", accessToken)))
-        .andExpect(status().isNotImplemented());
+        .andExpect(status().isOk());
     mvc.perform(post("/api/v1/accounts/refresh").cookie(new Cookie("HA_REFRESH", refreshToken)))
         .andExpect(status().isUnauthorized());
   }

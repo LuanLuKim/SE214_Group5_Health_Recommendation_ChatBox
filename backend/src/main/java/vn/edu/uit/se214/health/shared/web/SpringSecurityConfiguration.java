@@ -62,7 +62,6 @@ public class SpringSecurityConfiguration {
           "/api/v1/accounts/refresh",
           "/api/v1/accounts/forgot-password",
           "/api/v1/accounts/reset-password",
-          "/api/v1/accounts/confirm-deletion",
           "/api/v1/accounts/logout");
   private static final Set<String> PRIVATE_MODULES =
       Set.of(

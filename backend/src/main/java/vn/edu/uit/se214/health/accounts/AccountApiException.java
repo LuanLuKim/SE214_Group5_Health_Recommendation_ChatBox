@@ -17,6 +17,21 @@ public class AccountApiException extends ApiException {
     return invalidRequest("INVALID_PASSWORD", "Mật khẩu phải có từ 8 đến 72 byte UTF-8.");
   }
 
+  public static AccountApiException currentPasswordInvalid() {
+    return invalidRequest("CURRENT_PASSWORD_INVALID", "Mật khẩu hiện tại không chính xác.");
+  }
+
+  public static AccountApiException passwordChangeUnavailable() {
+    return new AccountApiException(
+        HttpStatus.CONFLICT,
+        "PASSWORD_CHANGE_UNAVAILABLE",
+        "Tài khoản này chưa thiết lập mật khẩu đăng nhập.");
+  }
+
+  public static AccountApiException profileInvalid() {
+    return invalidRequest("INVALID_PROFILE", "Thông tin cá nhân không hợp lệ.");
+  }
+
   public static AccountApiException registrationFieldInvalid() {
     return invalidRequest("INVALID_REGISTRATION", "Thông tin đăng ký không hợp lệ.");
   }

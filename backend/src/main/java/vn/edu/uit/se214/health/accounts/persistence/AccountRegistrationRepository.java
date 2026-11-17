@@ -40,6 +40,146 @@ public class AccountRegistrationRepository {
         .optional();
   }
 
+  public Optional<SelfManagementAccount> findSelfManagementAccount(UUID userId) {
+    return findSelfManagementAccount(userId, false);
+  }
+
+  public Optional<SelfManagementAccount> findSelfManagementAccountForUpdate(UUID userId) {
+    return findSelfManagementAccount(userId, true);
+  }
+
+  private Optional<SelfManagementAccount> findSelfManagementAccount(UUID userId, boolean lock) {
+    return jdbc
+        .sql(
+            """
+            SELECT id, email, display_name, phone_number, avatar_url, password_hash, status
+            FROM accounts.users WHERE id = :userId
+            """
+                + (lock ? " FOR UPDATE" : ""))
+        .param("userId", userId)
+        .query(
+            (rs, row) ->
+                new SelfManagementAccount(
+                    rs.getObject("id", UUID.class),
+                    rs.getString("email"),
+                    rs.getString("display_name"),
+                    rs.getString("phone_number"),
+                    rs.getString("avatar_url"),
+                    rs.getString("password_hash"),
+                    rs.getString("status")))
+        .optional();
+  }
+
+  public int updateProfile(
+      UUID userId, String displayName, String phoneNumber, String avatarUrl) {
+    return jdbc
+        .sql(
+            """
+            UPDATE accounts.users
+            SET display_name = :displayName, phone_number = :phoneNumber, avatar_url = :avatarUrl
+            WHERE id = :userId
+            """)
+        .param("userId", userId)
+        .param("displayName", displayName)
+        .param("phoneNumber", phoneNumber)
+        .param("avatarUrl", avatarUrl)
+        .update();
+  }
+
+  public Optional<AccountDeletionChallenge> findDeletionChallengeForUpdate(UUID userId) {
+    return jdbc
+        .sql(
+            """
+            SELECT user_id, otp_salt, otp_hash, attempt_count, expires_at, resend_after
+            FROM accounts.account_deletion_challenges WHERE user_id = :userId FOR UPDATE
+            """)
+        .param("userId", userId)
+        .query(
+            (rs, row) ->
+                new AccountDeletionChallenge(
+                    rs.getObject("user_id", UUID.class),
+                    rs.getObject("otp_salt", UUID.class),
+                    rs.getString("otp_hash"),
+                    rs.getInt("attempt_count"),
+                    rs.getObject("expires_at", OffsetDateTime.class),
+                    rs.getObject("resend_after", OffsetDateTime.class)))
+        .optional();
+  }
+
+  public void saveDeletionChallenge(AccountDeletionChallenge challenge, OffsetDateTime createdAt) {
+    jdbc.sql(
+            """
+            INSERT INTO accounts.account_deletion_challenges
+                (user_id, otp_salt, otp_hash, attempt_count, expires_at, resend_after, created_at)
+            VALUES (:userId, :salt, :hash, 0, :expiresAt, :resendAfter, :createdAt)
+            ON CONFLICT (user_id) DO UPDATE SET
+                otp_salt = EXCLUDED.otp_salt, otp_hash = EXCLUDED.otp_hash,
+                attempt_count = 0, expires_at = EXCLUDED.expires_at,
+                resend_after = EXCLUDED.resend_after, created_at = EXCLUDED.created_at
+            """)
+        .param("userId", challenge.userId())
+        .param("salt", challenge.otpSalt())
+        .param("hash", challenge.otpHash())
+        .param("expiresAt", challenge.expiresAt())
+        .param("resendAfter", challenge.resendAfter())
+        .param("createdAt", createdAt)
+        .update();
+  }
+
+  public int updateDeletionAttempts(UUID userId, int attempts) {
+    return jdbc
+        .sql(
+            """
+            UPDATE accounts.account_deletion_challenges
+            SET attempt_count = :attempts WHERE user_id = :userId
+            """)
+        .param("userId", userId)
+        .param("attempts", attempts)
+        .update();
+  }
+
+  public int deleteDeletionChallenge(UUID userId) {
+    return jdbc
+        .sql("DELETE FROM accounts.account_deletion_challenges WHERE user_id = :userId")
+        .param("userId", userId)
+        .update();
+  }
+
+  public int deleteExpiredDeletionChallenges(OffsetDateTime now) {
+    return jdbc
+        .sql("DELETE FROM accounts.account_deletion_challenges WHERE expires_at <= :now")
+        .param("now", now)
+        .update();
+  }
+
+  public int anonymizeAuditLogs(UUID userId) {
+    return jdbc
+        .sql(
+            """
+            UPDATE accounts.admin_audit_logs
+            SET target_id = CASE
+                  WHEN target_type = 'USER' AND target_id = :userIdText THEN '[deleted]'
+                  ELSE target_id
+                END,
+                details = CASE
+                  WHEN target_type = 'USER' AND target_id = :userIdText THEN details - 'email'
+                  ELSE details
+                END
+            WHERE actor_user_id = :userId
+               OR (target_type = 'USER' AND target_id = :userIdText)
+            """)
+        .param("userId", userId)
+        .param("userIdText", userId.toString())
+        .update();
+  }
+
+  public int deleteAccount(UUID userId) {
+    return jdbc
+        .sql("DELETE FROM accounts.users WHERE id = :userId")
+        .param("userId", userId)
+        .update();
+  }
+
   public Optional<AuthAccount> findAccountForOAuthLogin(
       OAuthProvider provider, String subject) {
     return jdbc
@@ -462,7 +602,24 @@ public class AccountRegistrationRepository {
       int failedLoginCount,
       OffsetDateTime loginLockedUntil) {}
 
+  public record SelfManagementAccount(
+      UUID id,
+      String email,
+      String displayName,
+      String phoneNumber,
+      String avatarUrl,
+      String passwordHash,
+      String status) {}
+
   public record RefreshTokenAccount(AuthAccount account, OffsetDateTime expiresAt) {}
+
+  public record AccountDeletionChallenge(
+      UUID userId,
+      UUID otpSalt,
+      String otpHash,
+      int attemptCount,
+      OffsetDateTime expiresAt,
+      OffsetDateTime resendAfter) {}
 
   public record PasswordRecoveryChallenge(
       UUID userId,
