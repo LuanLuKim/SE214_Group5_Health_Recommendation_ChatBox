@@ -18,6 +18,7 @@ import javax.sql.DataSource;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.jdbc.core.simple.JdbcClient;
+import vn.edu.uit.se214.health.accounts.api.ConsentQuery;
 import vn.edu.uit.se214.health.lifestyle.ReminderRepository.Fields;
 import vn.edu.uit.se214.health.support.TestDatabase;
 
@@ -35,6 +36,9 @@ class ReminderDispatcherTest {
   JdbcClient jdbc;
   ReminderRepository repository;
   FakeChannel channel = new FakeChannel();
+  /** Users who withdrew consent to health-data processing; everyone else consents. */
+  final Set<UUID> withdrawn = new HashSet<>();
+  final ConsentQuery consents = userId -> !withdrawn.contains(userId);
 
   /** Records sends; fails for the users in {@code failing}. */
   static class FakeChannel implements ReminderChannel {
@@ -85,7 +89,7 @@ class ReminderDispatcherTest {
   }
 
   ReminderDispatcher.Result run(Instant now) {
-    return new ReminderDispatcher(repository, List.of(channel), Clock.fixed(now, ZoneOffset.UTC), PROPERTIES)
+    return new ReminderDispatcher(repository, consents, List.of(channel), Clock.fixed(now, ZoneOffset.UTC), PROPERTIES)
         .runOnce();
   }
 
@@ -194,12 +198,41 @@ class ReminderDispatcherTest {
   }
 
   @Test
+  void noSendAndNoDeliveryRowWithoutConsent() {
+    reminder(USER, "07:00");
+    reminder(OTHER_USER, "07:00");
+    withdrawn.add(USER);
+    assertThat(run(SEVEN)).isEqualTo(new ReminderDispatcher.Result(1, 0));
+    assertThat(channel.sent).containsExactly(OTHER_USER);
+    assertThat(deliveries()).hasSize(1);
+
+    // Consent given again: the next due time is sent as usual.
+    withdrawn.clear();
+    assertThat(run(SEVEN.plus(Duration.ofDays(1))).sent()).isEqualTo(2);
+  }
+
+  @Test
+  void aFailedSendIsNotRetriedAfterConsentIsWithdrawn() {
+    reminder(USER, "07:00");
+    channel.failing.add(USER);
+    assertThat(run(SEVEN).failed()).isEqualTo(1);
+    channel.failing.clear();
+    withdrawn.add(USER);
+    assertThat(run(SEVEN.plusSeconds(60))).isEqualTo(new ReminderDispatcher.Result(0, 0));
+    assertThat(channel.sent).isEmpty();
+    assertThat(deliveries()).singleElement().satisfies(d -> {
+      assertThat(d).containsEntry("status", "FAILED");
+      assertThat(((Number) d.get("attempt_count")).intValue()).isEqualTo(1);
+    });
+  }
+
+  @Test
   void twoWorkersAtOnceSendOnce() {
     reminder(USER, "07:00");
     ReminderDispatcher a =
-        new ReminderDispatcher(repository, List.of(channel), Clock.fixed(SEVEN, ZoneOffset.UTC), PROPERTIES);
+        new ReminderDispatcher(repository, consents, List.of(channel), Clock.fixed(SEVEN, ZoneOffset.UTC), PROPERTIES);
     ReminderDispatcher b =
-        new ReminderDispatcher(repository, List.of(channel), Clock.fixed(SEVEN.plusSeconds(1), ZoneOffset.UTC), PROPERTIES);
+        new ReminderDispatcher(repository, consents, List.of(channel), Clock.fixed(SEVEN.plusSeconds(1), ZoneOffset.UTC), PROPERTIES);
     assertThat(a.runOnce().sent() + b.runOnce().sent()).isEqualTo(1);
     assertThat(channel.sent).hasSize(1);
   }

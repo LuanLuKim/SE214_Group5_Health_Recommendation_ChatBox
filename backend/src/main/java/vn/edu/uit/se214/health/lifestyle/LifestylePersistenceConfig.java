@@ -80,10 +80,11 @@ class LifestylePersistenceConfig {
   @Bean
   ReminderDispatcher reminderDispatcher(
       ReminderRepository reminders,
+      ConsentQuery consents,
       List<ReminderChannel> channels,
       LifestyleProperties lifestyle,
       ReminderProperties properties) {
-    return new ReminderDispatcher(reminders, channels, clock(lifestyle), properties);
+    return new ReminderDispatcher(reminders, consents, channels, clock(lifestyle), properties);
   }
 
   /** The sending worker; REMINDERS_ENABLED=false keeps the routes and stops sending. */

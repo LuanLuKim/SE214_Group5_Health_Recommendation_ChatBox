@@ -63,8 +63,11 @@ public class LifestyleReminderService {
     this.maxPerUser = maxPerUser;
   }
 
+  /**
+   * No consent check: after withdrawing consent the owner must still find a reminder to turn it off
+   * or delete it. The worker sends nothing to a user without consent.
+   */
   public ReminderList list(UUID userId) {
-    requireConsent(userId);
     Instant now = clock.instant();
     List<Reminder> rows = reminders.list(userId).stream().map(r -> view(r, now)).toList();
     List<ReminderChannel.Type> available = new ArrayList<>();
@@ -100,11 +103,14 @@ public class LifestyleReminderService {
     return read(userId, id);
   }
 
-  /** Changes only the fields sent; {@code {"enabled": false}} stops every later send. */
+  /**
+   * Changes only the fields sent; {@code {"enabled": false}} stops every later send. That body
+   * alone needs no consent, so a user who withdrew it can still turn a reminder off.
+   */
   public Reminder update(UUID userId, String reminderId, JsonNode body) {
-    requireConsent(userId);
     UUID id = id(reminderId);
     JsonNode input = object(body);
+    if (!turnsOffOnly(input)) requireConsent(userId);
     ReminderRow current = reminders.find(userId, id).orElseThrow(LifestyleErrors::reminderNotFound);
     Fields fields =
         new Fields(
@@ -120,13 +126,18 @@ public class LifestyleReminderService {
     return read(userId, id);
   }
 
+  /** Deleting one's own data never needs consent. */
   public void delete(UUID userId, String reminderId) {
-    requireConsent(userId);
     if (!reminders.delete(userId, id(reminderId))) throw LifestyleErrors.reminderNotFound();
   }
 
   private void requireConsent(UUID userId) {
     if (!consents.healthDataProcessingAccepted(userId)) throw LifestyleErrors.consentRequired();
+  }
+
+  private static boolean turnsOffOnly(JsonNode input) {
+    JsonNode enabled = input.get("enabled");
+    return input.size() == 1 && enabled != null && enabled.isBoolean() && !enabled.booleanValue();
   }
 
   private Reminder read(UUID userId, UUID id) {

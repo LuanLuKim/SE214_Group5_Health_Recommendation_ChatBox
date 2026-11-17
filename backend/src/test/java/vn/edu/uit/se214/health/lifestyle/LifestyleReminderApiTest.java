@@ -103,19 +103,34 @@ class LifestyleReminderApiTest {
 
   @Test
   @Transactional
-  void reminderAccessRequiresCurrentHealthDataConsent() throws Exception {
+  void withoutConsentTheOwnerCanOnlySeeTurnOffAndDelete() throws Exception {
+    String id = create("{\"content\":\"[TEST] Uống nước\",\"localTime\":\"07:30\"}");
     jdbc.sql("UPDATE accounts.consents SET health_data_processing_accepted = false WHERE user_id = ?")
         .param(SEEDED_USER)
         .update();
     int before = count();
 
-    mvc.perform(as(SEEDED_USER, get(REMINDERS)))
-        .andExpect(status().isForbidden())
-        .andExpect(jsonPath("$.error.code").value("HEALTH_CONSENT_REQUIRED"));
+    // Creating, turning back on or changing anything else still needs consent.
     send(SEEDED_USER, post(REMINDERS), "{\"content\":\"Uống nước\",\"localTime\":\"07:30\"}")
         .andExpect(status().isForbidden())
         .andExpect(jsonPath("$.error.code").value("HEALTH_CONSENT_REQUIRED"));
+    send(SEEDED_USER, patch(REMINDERS + "/" + SEEDED_REMINDER), "{\"enabled\":true}")
+        .andExpect(status().isForbidden())
+        .andExpect(jsonPath("$.error.code").value("HEALTH_CONSENT_REQUIRED"));
+    send(SEEDED_USER, patch(REMINDERS + "/" + id), "{\"enabled\":false,\"localTime\":\"08:00\"}")
+        .andExpect(status().isForbidden())
+        .andExpect(jsonPath("$.error.code").value("HEALTH_CONSENT_REQUIRED"));
     assertThat(count()).isEqualTo(before);
+
+    mvc.perform(as(SEEDED_USER, get(REMINDERS)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.data.reminders[*].id", hasItem(id)));
+    send(SEEDED_USER, patch(REMINDERS + "/" + id), "{\"enabled\":false}")
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.data.enabled").value(false))
+        .andExpect(jsonPath("$.data.localTime").value("07:30"));
+    mvc.perform(as(SEEDED_USER, delete(REMINDERS + "/" + id))).andExpect(status().isOk());
+    assertThat(count()).isEqualTo(before - 1);
   }
 
   @Test
