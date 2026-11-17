@@ -21,6 +21,7 @@ public class RegistrationChallengeCleanup {
     OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
     repository.deleteExpiredChallenges(now);
     repository.deleteExpiredRecoveryChallenges(now);
+    repository.deleteExpiredDeletionChallenges(now);
     repository.deleteExpiredRefreshTokens(now);
   }
 }

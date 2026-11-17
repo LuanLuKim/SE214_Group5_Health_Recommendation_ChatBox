@@ -1,13 +1,19 @@
 package vn.edu.uit.se214.health.accounts.web;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import jakarta.servlet.http.HttpServletRequest;
 import java.time.Duration;
 import java.time.Instant;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 import vn.edu.uit.se214.health.accounts.auth.AccountLoginRequest;
 import vn.edu.uit.se214.health.accounts.auth.AccountAuthenticationUseCase;
 import vn.edu.uit.se214.health.accounts.auth.AccountLoginResult;
 import vn.edu.uit.se214.health.accounts.auth.IssuedAuthTokens;
+import vn.edu.uit.se214.health.accounts.auth.AccountSelfManagementModels.ChangePasswordRequest;
+import vn.edu.uit.se214.health.accounts.auth.AccountSelfManagementModels.DeletionConfirmRequest;
+import vn.edu.uit.se214.health.accounts.auth.AccountSelfManagementModels.AccountProfile;
+import vn.edu.uit.se214.health.accounts.auth.AccountSelfManagementModels.ProfileUpdateRequest;
+import vn.edu.uit.se214.health.accounts.auth.AccountSelfManagementUseCase;
 import vn.edu.uit.se214.health.accounts.auth.PasswordRecoveryAccepted;
 import vn.edu.uit.se214.health.accounts.auth.PasswordRecoveryRequest;
 import vn.edu.uit.se214.health.accounts.auth.PasswordResetRequest;
@@ -27,8 +33,8 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-import vn.edu.uit.se214.health.shared.web.ApiException;
 import vn.edu.uit.se214.health.shared.web.ApiResponse;
+import vn.edu.uit.se214.health.shared.web.CurrentUser;
 import vn.edu.uit.se214.health.system.ModuleDescriptor;
 import vn.edu.uit.se214.health.system.ModuleRegistry;
 
@@ -41,11 +47,15 @@ import vn.edu.uit.se214.health.system.ModuleRegistry;
 public class AccountsController {
   private final AccountRegistrationUseCase registration;
   private final AccountAuthenticationUseCase authentication;
+  private final AccountSelfManagementUseCase selfManagement;
 
   public AccountsController(
-      AccountRegistrationUseCase registration, AccountAuthenticationUseCase authentication) {
+      AccountRegistrationUseCase registration,
+      AccountAuthenticationUseCase authentication,
+      AccountSelfManagementUseCase selfManagement) {
     this.registration = registration;
     this.authentication = authentication;
+    this.selfManagement = selfManagement;
   }
 
   @GetMapping
@@ -108,8 +118,18 @@ public class AccountsController {
   }
 
   @PostMapping("/confirm-deletion")
-  public Object confirmDeletion(@RequestBody(required = false) JsonNode body) {
-    throw ApiException.notImplemented();
+  public ResponseEntity<ApiResponse.Success<Void>> confirmDeletion(
+      @RequestBody(required = false) DeletionConfirmRequest body,
+      @AuthenticationPrincipal Jwt principal,
+      HttpServletRequest request) {
+    selfManagement.confirmDeletion(
+        CurrentUser.id(principal), body == null ? null : body.code());
+    return ResponseEntity.ok()
+        .header("Set-Cookie", clearCookie(ACCESS_COOKIE, "/api/v1", request).toString())
+        .header(
+            "Set-Cookie",
+            clearCookie(REFRESH_COOKIE, "/api/v1/accounts", request).toString())
+        .body(ApiResponse.of(null));
   }
 
   @PostMapping("/logout")
@@ -124,23 +144,30 @@ public class AccountsController {
   }
 
   @GetMapping("/me")
-  public Object me() {
-    throw ApiException.notImplemented();
+  public ApiResponse.Success<AccountProfile> me(@AuthenticationPrincipal Jwt principal) {
+    return ApiResponse.of(selfManagement.profile(CurrentUser.id(principal)));
   }
 
   @PutMapping("/me")
-  public Object updateMe(@RequestBody(required = false) JsonNode body) {
-    throw ApiException.notImplemented();
+  public ApiResponse.Success<AccountProfile> updateMe(
+      @AuthenticationPrincipal Jwt principal,
+      @RequestBody(required = false) ProfileUpdateRequest body) {
+    return ApiResponse.of(selfManagement.updateProfile(CurrentUser.id(principal), body));
   }
 
   @PostMapping("/me/change-password")
-  public Object changePassword(@RequestBody(required = false) JsonNode body) {
-    throw ApiException.notImplemented();
+  public ApiResponse.Success<Void> changePassword(
+      @AuthenticationPrincipal Jwt principal,
+      @RequestBody(required = false) ChangePasswordRequest body) {
+    selfManagement.changePassword(CurrentUser.id(principal), body);
+    return ApiResponse.of(null);
   }
 
   @PostMapping("/me/deletion-request")
-  public Object requestDeletion() {
-    throw ApiException.notImplemented();
+  public ResponseEntity<ApiResponse.Success<Void>> requestDeletion(
+      @AuthenticationPrincipal Jwt principal) {
+    selfManagement.requestDeletion(CurrentUser.id(principal));
+    return ResponseEntity.accepted().body(ApiResponse.of(null));
   }
 
   private static final String ACCESS_COOKIE = "HA_ACCESS";

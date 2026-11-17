@@ -41,7 +41,14 @@ Interface trong package `accounts.api`, hiện có bản đọc tạm trong `acc
 - `POST /api/v1/accounts/reset-password` nhận email, code và newPassword; chỉ đặt lại mật khẩu local, xóa challenge và thu hồi mọi refresh token của tài khoản. Access JWT đã cấp hết hiệu lực tự nhiên, tối đa sau 15 phút.
 - Cần `AUTH_TOKEN_SECRET` có tối thiểu 32 byte; không đưa giá trị thật vào Git. OAuth và khôi phục email chỉ dùng được ở `DATA_MODE=postgres`.
 
-Đăng ký local không đăng nhập người dùng hay cấp token. OAuth sign-in tự tạo tài khoản mới nếu cần và cấp token ngay. Xác nhận xóa tài khoản, quản lý hồ sơ và quản trị vai trò vẫn là phần việc riêng.
+## UC-03: quản lý tài khoản cá nhân
+
+- `GET/PUT /api/v1/accounts/me` đọc/cập nhật `displayName`, `phoneNumber` và `avatarUrl` của chính chủ. URL ảnh chỉ nhận HTTPS. ID chủ tài khoản lấy từ subject JWT, không nhận từ request.
+- `POST /api/v1/accounts/me/change-password` cần mật khẩu hiện tại; mật khẩu mới tuân theo giới hạn 8–72 byte UTF-8. Tài khoản OAuth-only không có mật khẩu local để xác minh.
+- `POST /api/v1/accounts/me/deletion-request` gửi OTP email 6 số (10 phút, tối đa 5 lần thử, cooldown 60 giây); `POST /api/v1/accounts/confirm-deletion` xác nhận OTP, xóa tài khoản và dữ liệu liên quan theo transaction, đồng thời xóa cookie phiên.
+- OTP chỉ lưu hash HMAC. Audit và lịch sử rà soát được giữ nhưng xóa liên kết định danh của người đã xóa tài khoản. Access JWT của tài khoản đã xóa bị từ chối ngay; JWT còn hạn của tài khoản bị khóa có thể tiếp tục gọi API chỉ yêu cầu authentication đến khi hết hạn (UC-18 follow-up).
+
+Đăng ký local không đăng nhập người dùng hay cấp token. OAuth sign-in tự tạo tài khoản mới nếu cần và cấp token ngay.
 
 ## UC-18: người dùng, vai trò và permission
 
@@ -54,7 +61,7 @@ Interface trong package `accounts.api`, hiện có bản đọc tạm trong `acc
 - Ma trận hệ thống: `GUEST` tra cứu kiến thức công khai; `USER` quản lý tài khoản/dữ liệu của mình; `CONTENT_EXPERT` quản lý nội dung và quy tắc an toàn; `ADMIN` quản lý người dùng/RBAC/thống kê và nội dung. Role `GUEST` chỉ là vai trò mô tả quyền truy cập công khai, không cần tạo tài khoản để tra cứu.
 - Permission seed gồm: `ACCOUNT_REGISTER` (GUEST), `ACCOUNT_LOGIN` (USER/CONTENT_EXPERT/ADMIN), `KNOWLEDGE_SEARCH` (mọi vai trò), `ACCOUNT_SELF_MANAGE` (USER/CONTENT_EXPERT/ADMIN), `CONTENT_MANAGE` (CONTENT_EXPERT/ADMIN), `SAFETY_RULE_MANAGE` (CONTENT_EXPERT), `USER_MANAGE`, `SYSTEM_STATS_VIEW`, `RBAC_MANAGE` (ADMIN).
 - Đăng ký email và OAuth chỉ gán `USER`; người dùng không thể tự chọn quyền cao. Vai trò bổ sung do admin tạo và cấp.
-- Với mỗi request JWT, `DatabaseJwtAuthenticationConverter` nạp authorities hiện hành từ database vào `SecurityContextHolder`: `ROLE_<key>` và `PERM_<key>`. Filter chain yêu cầu `PERM_USER_MANAGE` cho API user và `PERM_RBAC_MANAGE` cho API roles/permissions/audit; mặc định các permission này chỉ được cấp cho ADMIN. Thu hồi role/khóa user áp dụng từ request kế tiếp. Các route nghiệp vụ khác chưa áp dụng permission; giữ nguyên authentication như trước.
+- Với mỗi request JWT, `DatabaseJwtAuthenticationConverter` nạp authorities hiện hành từ database vào `SecurityContextHolder`: `ROLE_<key>` và `PERM_<key>`. Filter chain yêu cầu `PERM_USER_MANAGE` cho API user và `PERM_RBAC_MANAGE` cho API roles/permissions/audit; mặc định các permission này chỉ được cấp cho ADMIN. Thu hồi role ảnh hưởng API yêu cầu authority ở request kế tiếp. Khóa tài khoản chặn login/refresh và thu hồi refresh token, nhưng chưa vô hiệu hóa JWT còn hạn trên các API chỉ yêu cầu authentication; đây là phần việc UC-18 follow-up. Các route nghiệp vụ khác chưa áp dụng permission; giữ nguyên authentication như trước.
 - Không thể tự thu hồi role ADMIN, xóa/khóa admin cuối cùng, sửa quyền của role ADMIN, xóa role đang được gán, hay xóa permission đang sử dụng. Role/permission có sẵn của hệ thống không thể xóa; permission built-in không thể sửa.
 - Admin bootstrap mặc định tắt. Khi muốn khởi tạo admin ở `DATA_MODE=postgres`, bật `ADMIN_BOOTSTRAP_ENABLED=true` và cấu hình `ADMIN_EMAIL`, `ADMIN_PASSWORD` dài 12–72 byte UTF-8. Không có thông tin đăng nhập mặc định trong source. Nếu email đã thuộc tài khoản không phải admin đang hoạt động, startup thất bại để tránh nâng quyền nhầm.
 
