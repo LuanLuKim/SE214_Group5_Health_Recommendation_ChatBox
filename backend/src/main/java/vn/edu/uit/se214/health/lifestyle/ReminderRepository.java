@@ -138,18 +138,23 @@ public class ReminderRepository {
 
   /**
    * Reserves one send of {@code reminderId} at {@code scheduledFor}. UNIQUE (reminder_id,
-   * scheduled_for) lets exactly one worker run win; the others get empty and send nothing.
+   * scheduled_for) lets exactly one worker run win; the others get empty and send nothing. Nothing
+   * is reserved when the reminder was turned off, or saved after {@code scheduledFor}, since
+   * {@link #enabled} read it.
    */
   Optional<UUID> claim(UUID reminderId, Instant scheduledFor, ReminderChannel.Type channel, Instant now) {
+    OffsetDateTime at = timestamp(scheduledFor);
     return jdbc.sql(
             """
             INSERT INTO lifestyle.reminder_deliveries
               (id, reminder_id, scheduled_for, channel, status, created_at, updated_at)
-            VALUES (?, ?, ?, ?, 'PENDING', ?, ?)
+            SELECT ?::uuid, r.id, ?::timestamptz, ?::text, 'PENDING', ?::timestamptz, ?::timestamptz
+            FROM lifestyle.reminders r
+            WHERE r.id = ? AND r.enabled AND r.updated_at <= ?::timestamptz
             ON CONFLICT (reminder_id, scheduled_for) DO NOTHING
             RETURNING id
             """)
-        .params(UUID.randomUUID(), reminderId, timestamp(scheduledFor), channel.name(), timestamp(now), timestamp(now))
+        .params(UUID.randomUUID(), at, channel.name(), timestamp(now), timestamp(now), reminderId, at)
         .query(UUID.class)
         .optional();
   }
@@ -185,8 +190,8 @@ public class ReminderRepository {
 
   /**
    * Takes a failed send back to PENDING on the same row; only one worker run can win it. The
-   * schedule is checked again here, so a save between {@link #retryable} and this call still
-   * stops the retry.
+   * reminder being on and its schedule are checked again here, so turning it off or saving it
+   * between {@link #retryable} and this call still stops the retry.
    */
   boolean claimRetry(UUID deliveryId, int maxAttempts, Instant now) {
     return jdbc.sql(
@@ -195,7 +200,7 @@ public class ReminderRepository {
                 WHERE d.id = ? AND d.status = 'FAILED' AND d.attempt_count < ?
                   AND EXISTS (
                     SELECT 1 FROM lifestyle.reminders r
-                    WHERE r.id = d.reminder_id AND r.updated_at <= d.scheduled_for)
+                    WHERE r.id = d.reminder_id AND r.enabled AND r.updated_at <= d.scheduled_for)
                 """)
             .params(timestamp(now), deliveryId, maxAttempts)
             .update()

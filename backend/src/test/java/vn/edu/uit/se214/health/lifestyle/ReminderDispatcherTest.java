@@ -247,6 +247,71 @@ class ReminderDispatcherTest {
     assertOneFailedAttempt();
   }
 
+  /** Only the flag changes, so these tests check {@code enabled} alone, not the saved time. */
+  void turnOffKeepingTheSavedTime(UUID id) {
+    jdbc.sql("UPDATE lifestyle.reminders SET enabled = false WHERE id = ?").param(id).update();
+  }
+
+  /** Test 14-08: turned off after the worker read the retries and before it claimed one. */
+  @Test
+  void turningOffBetweenReadingAndClaimingStopsTheRetry() {
+    UUID id = reminder(USER, "07:00");
+    channel.failing.add(USER);
+    run(SEVEN);
+    channel.failing.clear();
+    repository =
+        new ReminderRepository(jdbc) {
+          @Override
+          List<ReminderRepository.Retry> retryable(int maxAttempts, Instant since) {
+            List<ReminderRepository.Retry> found = super.retryable(maxAttempts, since);
+            assertThat(found).hasSize(1);
+            turnOffKeepingTheSavedTime(id);
+            return found;
+          }
+        };
+
+    assertThat(run(SEVEN.plusSeconds(60))).isEqualTo(new ReminderDispatcher.Result(0, 0));
+    assertThat(channel.sent).isEmpty();
+    assertOneFailedAttempt();
+  }
+
+  @Test
+  void turningOffBetweenReadingAndClaimingStopsANewSend() {
+    UUID id = reminder(USER, "07:00");
+    repository =
+        new ReminderRepository(jdbc) {
+          @Override
+          List<ReminderRow> enabled() {
+            List<ReminderRow> found = super.enabled();
+            assertThat(found).hasSize(1);
+            turnOffKeepingTheSavedTime(id);
+            return found;
+          }
+        };
+
+    assertThat(run(SEVEN)).isEqualTo(new ReminderDispatcher.Result(0, 0));
+    assertThat(channel.sent).isEmpty();
+    assertThat(deliveries()).isEmpty();
+  }
+
+  @Test
+  void aSaveBetweenReadingAndClaimingStopsANewSend() {
+    UUID id = reminder(USER, "07:00");
+    repository =
+        new ReminderRepository(jdbc) {
+          @Override
+          List<ReminderRow> enabled() {
+            List<ReminderRow> found = super.enabled();
+            assertThat(found).hasSize(1);
+            update(USER, id, everyDay("08:00", true), SEVEN.plusSeconds(10));
+            return found;
+          }
+        };
+
+    assertThat(run(SEVEN.plusSeconds(20))).isEqualTo(new ReminderDispatcher.Result(0, 0));
+    assertThat(deliveries()).isEmpty();
+  }
+
   @Test
   void oneFailingChannelDoesNotStopTheOthers() {
     reminder(USER, "07:00");
