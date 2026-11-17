@@ -343,9 +343,9 @@
       "expectation_pending": true,
       "notes": "Đặc tả API chưa quy định nhắc gắn hoạt động sẽ tự dừng khi đổi lộ trình. Cần chốt kỳ vọng nghiệp vụ.",
       "tracking": {
-        "github": null,
-        "jira": null,
-        "status": "Chờ chốt nghiệp vụ"
+        "github": "#156",
+        "jira": "SCRUM-161",
+        "status": "Mở"
       }
     },
     {

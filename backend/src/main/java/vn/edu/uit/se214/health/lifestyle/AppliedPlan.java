@@ -7,6 +7,8 @@ import java.time.LocalDate;
  *
  * @param changed false when the template was already the active plan (nothing was written)
  * @param previousPlanId the plan that was ended by this switch, or null
+ * @param remindersTurnedOff UC-14 reminders turned off because they follow an activity the new plan
+ *     does not have (0 when nothing changed)
  */
 public record AppliedPlan(
     String planId,
@@ -14,4 +16,5 @@ public record AppliedPlan(
     String templateTitle,
     LocalDate startedOn,
     boolean changed,
-    String previousPlanId) {}
+    String previousPlanId,
+    int remindersTurnedOff) {}

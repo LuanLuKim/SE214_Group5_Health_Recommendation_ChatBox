@@ -3,7 +3,10 @@ package vn.edu.uit.se214.health.lifestyle;
 import java.sql.Array;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.time.Instant;
 import java.time.LocalDate;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
@@ -84,16 +87,23 @@ public class LifestyleRepository {
         .optional();
   }
 
-  /** Result of {@link #applyPlan}. {@code previousPlanId} is the plan ended by a switch, or null. */
-  public record PlanWrite(UUID planId, boolean changed, UUID previousPlanId) {}
+  /**
+   * Result of {@link #applyPlan}. {@code previousPlanId} is the plan ended by a switch, or null;
+   * {@code remindersTurnedOff} counts the UC-14 reminders turned off by the switch.
+   */
+  public record PlanWrite(UUID planId, boolean changed, UUID previousPlanId, int remindersTurnedOff) {}
 
   /**
    * UC-12: make {@code templateId} the user's active plan from {@code today}. Applying the template
    * that is already active writes nothing. Switching ends the old plan on {@code today} and keeps
    * its completions. A concurrent switch fails on the partial unique index instead of leaving two
    * active plans.
+   *
+   * <p>In the same transaction, reminders that are on and follow an activity the new template does
+   * not have are turned off (UC-14), so they stop being sent. Their past deliveries stay as they
+   * are. Reminders without an activity, or whose activity id the new template also has, keep going.
    */
-  public PlanWrite applyPlan(UUID userId, UUID templateId, LocalDate today) {
+  public PlanWrite applyPlan(UUID userId, UUID templateId, LocalDate today, Instant now) {
     return transactions.execute(
         status -> {
           Optional<CurrentPlan> current =
@@ -109,7 +119,7 @@ public class LifestyleRepository {
                           new CurrentPlan(rs.getObject("id", UUID.class), rs.getObject("template_id", UUID.class)))
                   .optional();
           if (current.isPresent() && current.get().templateId().equals(templateId))
-            return new PlanWrite(current.get().id(), false, null);
+            return new PlanWrite(current.get().id(), false, null, 0);
           current.ifPresent(
               plan ->
                   jdbc.sql("UPDATE lifestyle.plans SET ended_on = GREATEST(?, started_on) WHERE id = ?")
@@ -119,7 +129,21 @@ public class LifestyleRepository {
           jdbc.sql("INSERT INTO lifestyle.plans (id, user_id, template_id, started_on) VALUES (?, ?, ?, ?)")
               .params(planId, userId, templateId, today)
               .update();
-          return new PlanWrite(planId, true, current.map(CurrentPlan::id).orElse(null));
+          int turnedOff =
+              jdbc.sql(
+                      """
+                      UPDATE lifestyle.reminders r SET enabled = false, updated_at = ?
+                      WHERE r.user_id = ? AND r.enabled AND r.activity_id IS NOT NULL
+                        AND NOT EXISTS (
+                          SELECT 1 FROM lifestyle.templates t
+                          CROSS JOIN LATERAL jsonb_array_elements(
+                            CASE WHEN jsonb_typeof(t.activities) = 'array' THEN t.activities ELSE '[]'::jsonb END
+                          ) AS a(activity)
+                          WHERE t.id = ? AND a.activity ->> 'id' = r.activity_id)
+                      """)
+                  .params(OffsetDateTime.ofInstant(now, ZoneOffset.UTC), userId, templateId)
+                  .update();
+          return new PlanWrite(planId, true, current.map(CurrentPlan::id).orElse(null), turnedOff);
         });
   }
 
