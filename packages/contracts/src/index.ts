@@ -262,7 +262,9 @@ export interface TemplatePreview {
   advice: string;
 }
 // PUT /lifestyle/plan {templateId}. changed: false when the template was already active.
-// remindersTurnedOff: UC-14 reminders turned off because they follow an activity the new plan lacks.
+// remindersTurnedOff: UC-14 reminders paused because they follow an activity the new plan lacks.
+// restorableReminderIds: reminders paused by an earlier switch whose activity this plan has again;
+// they stay off until the user turns them on (ask before PATCH {enabled: true}).
 export interface AppliedPlan {
   planId: string;
   templateId: string;
@@ -271,6 +273,7 @@ export interface AppliedPlan {
   changed: boolean;
   previousPlanId: string | null;
   remindersTurnedOff: number;
+  restorableReminderIds: string[];
 }
 // M6 UC-14: localTime is HH:mm (24 h) in timezone; daysOfWeek uses ISO 1 = Monday … 7 = Sunday.
 // Instants (nextSendAt, scheduledFor, sentAt) are ISO-8601 UTC.
@@ -289,6 +292,8 @@ export interface Reminder {
   timezone: string;
   channel: ReminderChannel;
   enabled: boolean;
+  // PLAN_SWITCH: paused by a plan switch, not counted towards the reminder limit.
+  disabledReason: 'PLAN_SWITCH' | null;
   nextSendAt: string | null;
   lastDelivery: ReminderDelivery | null;
 }

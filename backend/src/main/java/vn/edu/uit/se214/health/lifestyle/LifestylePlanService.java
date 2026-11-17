@@ -107,7 +107,8 @@ public class LifestylePlanService {
         plan.startedOn(),
         write.changed(),
         write.previousPlanId() == null ? null : write.previousPlanId().toString(),
-        write.remindersTurnedOff());
+        write.remindersTurnedOff(),
+        write.restorableReminderIds().stream().map(UUID::toString).toList());
   }
 
   private void requireConsent(UUID userId) {

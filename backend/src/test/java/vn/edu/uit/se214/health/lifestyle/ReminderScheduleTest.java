@@ -29,6 +29,7 @@ class ReminderScheduleTest {
         zone,
         ReminderChannel.Type.EMAIL,
         true,
+        null,
         updatedAt,
         null);
   }

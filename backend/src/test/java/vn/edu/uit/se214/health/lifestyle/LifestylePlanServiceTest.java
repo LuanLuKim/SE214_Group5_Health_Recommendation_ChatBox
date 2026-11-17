@@ -348,6 +348,8 @@ class LifestylePlanServiceTest {
     assertThat(switched.changed()).isTrue();
     assertThat(switched.remindersTurnedOff()).isEqualTo(1);
     assertThat(enabled(walk)).isFalse();
+    assertThat(reason(walk)).isEqualTo("PLAN_SWITCH");
+    assertThat(reason(walkOff)).isNull(); // turned off by the user, not by the switch
     assertThat(enabled(sleep)).isTrue(); // the new plan also has "sleep"
     assertThat(enabled(standalone)).isTrue();
     assertThat(enabled(walkOff)).isFalse();
@@ -378,6 +380,90 @@ class LifestylePlanServiceTest {
                 .query(Integer.class)
                 .single())
         .isEqualTo(1);
+  }
+
+  /**
+   * SCRUM-162: switching back offers the paused reminders without turning them on; paused reminders
+   * are outside the reminder limit until turned on again.
+   */
+  @Test
+  void switchingBackOffersPausedRemindersAndTheyCountAgainOnlyWhenTurnedOn() throws Exception {
+    UUID swim = UUID.fromString("00000000-0000-4000-8000-000000000718");
+    jdbc.sql(
+            """
+            INSERT INTO lifestyle.templates
+              (id, title, goal, activities, review_status, source_url, is_synthetic, summary, duration_days)
+            VALUES (?, '[TEST] Bơi', 'SLEEP', '[{"id":"swim","title":"[TEST] Bơi"}]'::jsonb,
+                    'APPROVED', 'https://example.invalid/template', false, '[TEST] Mô tả', 14)
+            """)
+        .param(swim)
+        .update();
+    service().apply(USER, body(SLEEP.toString())); // activities walk, sleep
+    LifestyleReminderService reminders =
+        new LifestyleReminderService(
+            new ReminderRepository(jdbc),
+            repository,
+            json,
+            Clock.fixed(NOW, VIETNAM),
+            new JdbcConsentQuery(jdbc),
+            List.of(new ReminderDispatcherTest.FakeChannel()),
+            2);
+    String walk = reminders.create(USER, json.readTree("{\"activityId\":\"walk\",\"localTime\":\"07:00\"}")).id();
+    String sleep = reminders.create(USER, json.readTree("{\"activityId\":\"sleep\",\"localTime\":\"22:00\"}")).id();
+    assertApiError(
+        () -> reminders.create(USER, json.readTree("{\"content\":\"[TEST] Uống nước\",\"localTime\":\"08:00\"}")),
+        HttpStatus.CONFLICT,
+        "REMINDER_LIMIT_REACHED");
+
+    AppliedPlan toSwim = service().apply(USER, body(swim.toString()));
+    assertThat(toSwim.remindersTurnedOff()).isEqualTo(2);
+    assertThat(toSwim.restorableReminderIds()).isEmpty();
+    // Both are paused, so they no longer take the two places.
+    String water = reminders.create(USER, json.readTree("{\"content\":\"[TEST] Uống nước\",\"localTime\":\"08:00\"}")).id();
+    assertThat(reminders.list(USER).reminders())
+        .filteredOn(r -> r.id().equals(walk))
+        .singleElement()
+        .satisfies(r -> {
+          assertThat(r.enabled()).isFalse();
+          assertThat(r.disabledReason()).isEqualTo("PLAN_SWITCH");
+          assertThat(r.nextSendAt()).isNull();
+        });
+    // Turning a paused reminder off again keeps it paused (and outside the limit).
+    reminders.update(USER, sleep, json.readTree("{\"enabled\":false}"));
+    assertThat(reason(UUID.fromString(sleep))).isEqualTo("PLAN_SWITCH");
+
+    AppliedPlan back = service().apply(USER, body(SLEEP.toString()));
+    assertThat(back.remindersTurnedOff()).isZero(); // "water" has no activity
+    assertThat(back.restorableReminderIds()).containsExactly(walk, sleep);
+    assertThat(enabled(UUID.fromString(walk))).isFalse(); // offered, not turned on
+
+    reminders.create(USER, json.readTree("{\"content\":\"[TEST] Đi ngủ\",\"localTime\":\"21:00\"}"));
+    // Two reminders count now; turning a paused one on would make three.
+    assertApiError(
+        () -> reminders.update(USER, walk, json.readTree("{\"enabled\":true}")),
+        HttpStatus.CONFLICT,
+        "REMINDER_LIMIT_REACHED");
+    reminders.delete(USER, water);
+    assertThat(reminders.update(USER, walk, json.readTree("{\"enabled\":true}")).enabled()).isTrue();
+    assertThat(reason(UUID.fromString(walk))).isNull();
+  }
+
+  void assertApiError(ThrowingCallable call, HttpStatus status, String code) {
+    assertThatThrownBy(call)
+        .isInstanceOfSatisfying(
+            ApiException.class,
+            e -> {
+              assertThat(e.status()).isEqualTo(status);
+              assertThat(e.code()).isEqualTo(code);
+            });
+  }
+
+  String reason(UUID reminderId) {
+    return jdbc.sql("SELECT disabled_reason FROM lifestyle.reminders WHERE id = ?")
+        .param(reminderId)
+        .query(String.class)
+        .optional()
+        .orElse(null);
   }
 
   /** Every day at NOW's local time (10:00 in Vietnam), by email. */

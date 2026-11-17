@@ -123,6 +123,9 @@ public class LifestyleReminderService {
             input.has("enabled") ? enabled(input.get("enabled")) : current.enabled());
     requireChannel(userId, fields);
     requireActivityInPlan(userId, input, fields);
+    // A reminder paused by a plan switch is outside the limit; turning it on brings it back in.
+    if (fields.enabled() && current.disabledReason() != null && reminders.count(userId) >= maxPerUser)
+      throw LifestyleErrors.reminderLimit(maxPerUser);
     if (!reminders.update(userId, id, fields, clock.instant())) throw LifestyleErrors.reminderNotFound();
     return read(userId, id);
   }
@@ -275,6 +278,7 @@ public class LifestyleReminderService {
         row.zone().getId(),
         row.channel(),
         row.enabled(),
+        row.disabledReason(),
         row.enabled() ? ReminderSchedule.next(row, now).toString() : null,
         last == null
             ? null
