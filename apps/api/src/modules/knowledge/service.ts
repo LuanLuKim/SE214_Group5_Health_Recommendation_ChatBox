@@ -3,6 +3,12 @@ import type { Pool } from 'pg';
 import { syntheticArticles, syntheticFacilities } from './synthetic.js';
 import type { Config } from '../../config.js';
 
+export interface FacilitySearchParams {
+  q?: string | undefined;
+  province?: string | undefined;
+  specialty?: string | undefined;
+}
+
 export function createKnowledgeService(config: Config, pool: Pool | null) {
   return {
     async listArticles(query: string): Promise<ArticleSummary[]> {
@@ -30,15 +36,44 @@ export function createKnowledgeService(config: Config, pool: Pool | null) {
         updatedAt: (row.updated_at as Date).toISOString(),
       }));
     },
-    async listFacilities(query: string): Promise<FacilitySummary[]> {
+    async listFacilities(filters: FacilitySearchParams = {}): Promise<FacilitySummary[]> {
+      const query = filters.q?.trim() ?? '';
+      const province = filters.province?.trim() ?? '';
+      const specialty = filters.specialty?.trim() ?? '';
       if (config.DATA_MODE === 'mock')
-        return syntheticFacilities.filter((item) =>
-          item.name.toLocaleLowerCase('vi').includes(query.toLocaleLowerCase('vi')),
-        );
+        return syntheticFacilities
+          .filter(
+            (item) =>
+              item.source.name.trim() !== '' &&
+              item.source.url.trim() !== '' &&
+              Number.isFinite(Date.parse(item.source.verifiedAt)) &&
+              item.name.toLocaleLowerCase('vi').includes(query.toLocaleLowerCase('vi')) &&
+              (!province ||
+                item.province.toLocaleLowerCase('vi') === province.toLocaleLowerCase('vi')) &&
+              (!specialty ||
+                item.specialties.some(
+                  (value) => value.toLocaleLowerCase('vi') === specialty.toLocaleLowerCase('vi'),
+                )),
+          )
+          .sort(
+            (left, right) =>
+              left.name.localeCompare(right.name, 'vi') || left.id.localeCompare(right.id),
+          )
+          .slice(0, 20);
       if (!pool) throw new Error('DATABASE_NOT_CONFIGURED');
       const result = await pool.query(
-        `SELECT * FROM knowledge.facilities WHERE verified_at IS NOT NULL AND name ILIKE $1 ORDER BY name LIMIT 20`,
-        [`%${query}%`],
+        `SELECT id, name, specialties, province, address, official_url,
+                source_name, source_url, verified_at
+         FROM knowledge.facilities
+         WHERE verified_at IS NOT NULL AND btrim(source_name) <> '' AND btrim(source_url) <> ''
+           AND ($1 = '' OR strpos(lower(name), lower($1)) > 0)
+           AND ($2 = '' OR lower(province) = lower($2))
+           AND ($3 = '' OR EXISTS (
+             SELECT 1 FROM unnest(specialties) AS specialty(value)
+             WHERE lower(specialty.value) = lower($3)
+           ))
+         ORDER BY name, id LIMIT 20`,
+        [query, province, specialty],
       );
       return result.rows.map((row) => ({
         id: row.id as string,

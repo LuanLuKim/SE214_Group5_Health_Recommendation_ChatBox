@@ -15,6 +15,10 @@ export function createKnowledgeRouter(config: Config, pool: Pool | null) {
   );
 
   const querySchema = z.object({ q: z.string().trim().max(200).optional() });
+  const facilityQuerySchema = querySchema.extend({
+    province: z.string().trim().min(1).max(200).optional(),
+    specialty: z.string().trim().min(1).max(200).optional(),
+  });
   knowledgeRouter.get('/articles', async (_request, response) => {
     const query = querySchema.safeParse(_request.query);
     if (!query.success) {
@@ -31,12 +35,17 @@ export function createKnowledgeRouter(config: Config, pool: Pool | null) {
     });
   });
   knowledgeRouter.get('/facilities', async (_request, response) => {
-    const query = querySchema.safeParse(_request.query);
+    const query = facilityQuerySchema.safeParse(_request.query);
     if (!query.success) {
-      fail(response, 400, 'INVALID_QUERY', 'Từ khóa phải là văn bản tối đa 200 ký tự.');
+      fail(
+        response,
+        400,
+        'INVALID_QUERY',
+        'Tên, tỉnh và chuyên khoa phải là văn bản tối đa 200 ký tự; tỉnh và chuyên khoa không được để trống.',
+      );
       return;
     }
-    const data = await service.listFacilities(query.data.q ?? '');
+    const data = await service.listFacilities(query.data);
     response.json({
       data,
       meta: {
