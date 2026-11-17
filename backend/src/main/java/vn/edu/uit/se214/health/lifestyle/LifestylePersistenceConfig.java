@@ -30,8 +30,11 @@ class LifestylePersistenceConfig {
 
   @Bean
   LifestyleService lifestyleService(
-      LifestyleRepository repository, ObjectMapper json, LifestyleProperties properties) {
-    return new LifestyleService(repository, json, clock(properties));
+      LifestyleRepository repository,
+      ObjectMapper json,
+      LifestyleProperties properties,
+      ConsentQuery consents) {
+    return new LifestyleService(repository, json, clock(properties), consents);
   }
 
   @Bean
@@ -68,9 +71,10 @@ class LifestylePersistenceConfig {
       ObjectMapper json,
       LifestyleProperties lifestyle,
       ReminderProperties properties,
+      ConsentQuery consents,
       List<ReminderChannel> channels) {
     return new LifestyleReminderService(
-        reminders, plans, json, clock(lifestyle), channels, properties.maxPerUser());
+        reminders, plans, json, clock(lifestyle), consents, channels, properties.maxPerUser());
   }
 
   @Bean

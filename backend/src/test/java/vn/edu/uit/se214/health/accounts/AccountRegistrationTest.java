@@ -108,6 +108,78 @@ class AccountRegistrationTest {
                 .cookie(new Cookie("HA_ACCESS", "invalid-token")))
         .andExpect(status().isUnauthorized())
         .andExpect(jsonPath("$.error.code").value("SESSION_INVALID"));
+    mvc.perform(
+            post("/api/v1/accounts/me/consent")
+                    .cookie(new Cookie("XSRF-TOKEN", csrfToken))
+                    .header("X-XSRF-TOKEN", csrfToken)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(consent(true, "v1")))
+        .andExpect(status().isUnauthorized())
+        .andExpect(jsonPath("$.error.code").value("SESSION_INVALID"));
+  }
+
+  @Test
+  void accountWithoutConsentCanAcceptItForItsOwnSessionIdempotently() throws Exception {
+    String email = "uc02-consent@example.test";
+    UUID userId = insertAccount(email, "correct-password");
+    MvcResult login =
+        login(email, "correct-password").andExpect(status().isOk()).andReturn();
+    Cookie access = new Cookie("HA_ACCESS", cookieValue(login, "HA_ACCESS"));
+    String requestBody = consent(true, "v1");
+
+    mvc.perform(
+            post("/api/v1/accounts/me/consent")
+                    .cookie(access)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(consent(false, "v1")))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.error.code").value("CONSENT_REQUIRED"));
+    assertThat(consentRows(userId)).isZero();
+
+    mvc.perform(
+            post("/api/v1/accounts/me/consent")
+                .cookie(access)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(requestBody))
+        .andExpect(status().isOk());
+    String acceptedAt =
+        jdbc.sql(
+                """
+                SELECT accepted_at::text FROM accounts.consents
+                WHERE user_id = :userId AND terms_version = 'v1'
+                """)
+            .param("userId", userId)
+            .query(String.class)
+            .single();
+    mvc.perform(
+            post("/api/v1/accounts/me/consent")
+                .cookie(access)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(requestBody))
+        .andExpect(status().isOk());
+
+    assertThat(consentRows(userId)).isEqualTo(1);
+    assertThat(
+            jdbc.sql(
+                        """
+                        SELECT accepted_at::text FROM accounts.consents
+                        WHERE user_id = :userId AND terms_version = 'v1'
+                        """)
+                .param("userId", userId)
+                .query(String.class)
+                .single())
+        .isEqualTo(acceptedAt);
+    assertThat(
+            jdbc.sql(
+                        """
+                        SELECT health_data_processing_accepted
+                        FROM accounts.consents
+                        WHERE user_id = :userId AND terms_version = 'v1'
+                        """)
+                    .param("userId", userId)
+                    .query(Boolean.class)
+                    .single())
+        .isTrue();
   }
 
   @Test
@@ -137,6 +209,15 @@ class AccountRegistrationTest {
                 .cookie(new Cookie("HA_ACCESS", cookieValue(loginResult, "HA_ACCESS")))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{}"))
+        .andExpect(status().isForbidden())
+        .andExpect(jsonPath("$.error.code").value("CSRF_INVALID"));
+
+    mvc.perform(
+            org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post(
+                    "/api/v1/accounts/me/consent")
+                .cookie(new Cookie("HA_ACCESS", cookieValue(loginResult, "HA_ACCESS")))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(consent(true, "v1")))
         .andExpect(status().isForbidden())
         .andExpect(jsonPath("$.error.code").value("CSRF_INVALID"));
   }
@@ -678,7 +759,17 @@ class AccountRegistrationTest {
         .param("passwordHash", password == null ? null : passwordEncoder.encode(password))
         .param("status", status)
         .update();
+    jdbc.sql("INSERT INTO accounts.user_roles (user_id, role) VALUES (:id, 'USER')")
+        .param("id", id)
+        .update();
     return id;
+  }
+
+  private int consentRows(UUID userId) {
+    return jdbc.sql("SELECT count(*) FROM accounts.consents WHERE user_id = :userId")
+        .param("userId", userId)
+        .query(Integer.class)
+        .single();
   }
 
   private org.springframework.test.web.servlet.ResultActions requestRecovery(String email)

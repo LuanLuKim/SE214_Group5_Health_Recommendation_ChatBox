@@ -4,6 +4,10 @@ import com.fasterxml.jackson.databind.JsonNode;
 import jakarta.servlet.http.HttpServletRequest;
 import java.time.Duration;
 import java.time.Instant;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
+import vn.edu.uit.se214.health.accounts.auth.AccountConsentRequest;
+import vn.edu.uit.se214.health.accounts.auth.AccountConsentUseCase;
 import vn.edu.uit.se214.health.accounts.auth.AccountLoginRequest;
 import vn.edu.uit.se214.health.accounts.auth.AccountAuthenticationUseCase;
 import vn.edu.uit.se214.health.accounts.auth.AccountLoginResult;
@@ -29,6 +33,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import vn.edu.uit.se214.health.shared.web.ApiException;
 import vn.edu.uit.se214.health.shared.web.ApiResponse;
+import vn.edu.uit.se214.health.shared.web.CurrentUser;
 import vn.edu.uit.se214.health.system.ModuleDescriptor;
 import vn.edu.uit.se214.health.system.ModuleRegistry;
 
@@ -41,11 +46,15 @@ import vn.edu.uit.se214.health.system.ModuleRegistry;
 public class AccountsController {
   private final AccountRegistrationUseCase registration;
   private final AccountAuthenticationUseCase authentication;
+  private final AccountConsentUseCase consent;
 
   public AccountsController(
-      AccountRegistrationUseCase registration, AccountAuthenticationUseCase authentication) {
+      AccountRegistrationUseCase registration,
+      AccountAuthenticationUseCase authentication,
+      AccountConsentUseCase consent) {
     this.registration = registration;
     this.authentication = authentication;
+    this.consent = consent;
   }
 
   @GetMapping
@@ -141,6 +150,14 @@ public class AccountsController {
   @PostMapping("/me/deletion-request")
   public Object requestDeletion() {
     throw ApiException.notImplemented();
+  }
+
+  @PostMapping("/me/consent")
+  public ApiResponse.Success<Void> acceptConsent(
+      @AuthenticationPrincipal Jwt principal,
+      @RequestBody(required = false) AccountConsentRequest body) {
+    consent.accept(CurrentUser.id(principal), body);
+    return ApiResponse.of(null);
   }
 
   private static final String ACCESS_COOKIE = "HA_ACCESS";

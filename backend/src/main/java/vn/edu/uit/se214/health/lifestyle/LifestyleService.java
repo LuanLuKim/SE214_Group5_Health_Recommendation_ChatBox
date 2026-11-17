@@ -11,6 +11,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import vn.edu.uit.se214.health.accounts.api.ConsentQuery;
 import vn.edu.uit.se214.health.lifestyle.ProgressCalculator.Completion;
 import vn.edu.uit.se214.health.lifestyle.ProgressCalculator.DailyProgress;
 import vn.edu.uit.se214.health.lifestyle.TodayPlan.ActivityToday;
@@ -26,14 +27,18 @@ public class LifestyleService {
   private final LifestyleRepository repository;
   private final ObjectMapper json;
   private final Clock clock;
+  private final ConsentQuery consents;
 
-  public LifestyleService(LifestyleRepository repository, ObjectMapper json, Clock clock) {
+  public LifestyleService(
+      LifestyleRepository repository, ObjectMapper json, Clock clock, ConsentQuery consents) {
     this.repository = repository;
     this.json = json;
     this.clock = clock;
+    this.consents = consents;
   }
 
   public TodayPlan today(UUID userId) {
+    requireConsent(userId);
     ActivePlan plan = activePlan(userId);
     LocalDate today = LocalDate.now(clock);
     List<PlanActivity> activities = activities(plan);
@@ -61,6 +66,7 @@ public class LifestyleService {
   }
 
   public CompletionResult complete(UUID userId, String activityId, String date) {
+    requireConsent(userId);
     ActivePlan plan = activePlan(userId);
     LocalDate today = LocalDate.now(clock);
     LocalDate day = completionDay(date, plan, today);
@@ -71,6 +77,7 @@ public class LifestyleService {
   }
 
   public CompletionResult uncomplete(UUID userId, String activityId, String date) {
+    requireConsent(userId);
     ActivePlan plan = activePlan(userId);
     LocalDate today = LocalDate.now(clock);
     LocalDate day = completionDay(date, plan, today);
@@ -83,6 +90,10 @@ public class LifestyleService {
 
   private ActivePlan activePlan(UUID userId) {
     return repository.findActivePlan(userId).orElseThrow(LifestyleErrors::planNotFound);
+  }
+
+  private void requireConsent(UUID userId) {
+    if (!consents.healthDataProcessingAccepted(userId)) throw LifestyleErrors.consentRequired();
   }
 
   /** Read back after the write: the answer reflects what is stored, not what was asked. */

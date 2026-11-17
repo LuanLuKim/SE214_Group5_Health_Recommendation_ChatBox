@@ -13,6 +13,7 @@ import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
+import vn.edu.uit.se214.health.accounts.api.ConsentQuery;
 import vn.edu.uit.se214.health.integrations.PythonServiceClient;
 import vn.edu.uit.se214.health.safety.ApprovedSafetyRule;
 import vn.edu.uit.se214.health.safety.RuleRepository;
@@ -27,19 +28,23 @@ public class ChatService {
   private final PythonServiceClient ai;
   private final ObjectProvider<RuleRepository> ruleRepositoryProvider;
   private final ObjectMapper json;
+  private final ObjectProvider<ConsentQuery> consentQueries;
 
   public ChatService(
       ChatRepository repository,
       @Qualifier("aiService") PythonServiceClient ai,
       ObjectProvider<RuleRepository> ruleRepositoryProvider,
-      ObjectMapper json) {
+      ObjectMapper json,
+      ObjectProvider<ConsentQuery> consentQueries) {
     this.repository = repository;
     this.ai = ai;
     this.ruleRepositoryProvider = ruleRepositoryProvider;
     this.json = json;
+    this.consentQueries = consentQueries;
   }
 
   public SseEmitter send(UUID userId, SendMessageRequest request) {
+    requireConsent(userId);
     if (request == null || request.message() == null || request.message().trim().isEmpty()) {
       throw ApiException.invalidRequest("Tin nhắn không được để trống.");
     }
@@ -198,5 +203,15 @@ public class ChatService {
         request.note() != null ? request.note().trim() : "",
         sharedQuestion,
         sharedAnswer);
+  }
+
+  private void requireConsent(UUID userId) {
+    ConsentQuery consents = consentQueries.getIfAvailable();
+    if (consents == null) {
+      throw ApiException.authNotConfigured();
+    }
+    if (!consents.healthDataProcessingAccepted(userId)) {
+      throw ApiException.healthConsentRequired();
+    }
   }
 }

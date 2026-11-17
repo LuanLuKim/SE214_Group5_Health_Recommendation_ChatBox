@@ -31,6 +31,7 @@ import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
+import org.springframework.transaction.annotation.Transactional;
 import vn.edu.uit.se214.health.accounts.auth.AccessTokenService;
 import vn.edu.uit.se214.health.support.TestDatabase;
 
@@ -101,6 +102,23 @@ class LifestyleReminderApiTest {
   }
 
   @Test
+  @Transactional
+  void reminderAccessRequiresCurrentHealthDataConsent() throws Exception {
+    jdbc.sql("UPDATE accounts.consents SET health_data_processing_accepted = false WHERE user_id = ?")
+        .param(SEEDED_USER)
+        .update();
+    int before = count();
+
+    mvc.perform(as(SEEDED_USER, get(REMINDERS)))
+        .andExpect(status().isForbidden())
+        .andExpect(jsonPath("$.error.code").value("HEALTH_CONSENT_REQUIRED"));
+    send(SEEDED_USER, post(REMINDERS), "{\"content\":\"Uống nước\",\"localTime\":\"07:30\"}")
+        .andExpect(status().isForbidden())
+        .andExpect(jsonPath("$.error.code").value("HEALTH_CONSENT_REQUIRED"));
+    assertThat(count()).isEqualTo(before);
+  }
+
+  @Test
   void createListChangeTurnOffAndDelete() throws Exception {
     String id = create("{\"content\":\" Uống một ly nước \",\"localTime\":\"07:30\",\"daysOfWeek\":[5,1,1,3]}");
 
@@ -134,6 +152,19 @@ class LifestyleReminderApiTest {
 
   @Test
   void anotherUserCannotSeeChangeOrDeleteIt() throws Exception {
+    jdbc.sql("INSERT INTO accounts.user_roles (user_id, role) VALUES (?, 'USER') ON CONFLICT DO NOTHING")
+        .param(OTHER_USER)
+        .update();
+    jdbc.sql(
+            """
+            INSERT INTO accounts.consents
+              (user_id, terms_version, adult_confirmed, accepted_at,
+               health_data_processing_accepted, non_diagnostic_acknowledged)
+            VALUES (?, 'test-consent', true, now(), true, true)
+            ON CONFLICT DO NOTHING
+            """)
+        .param(OTHER_USER)
+        .update();
     String id = create("{\"content\":\"[TEST] Đi bộ\",\"localTime\":\"18:00\"}");
     mvc.perform(as(OTHER_USER, get(REMINDERS)))
         .andExpect(status().isOk())

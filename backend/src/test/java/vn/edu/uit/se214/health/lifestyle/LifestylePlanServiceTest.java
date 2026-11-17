@@ -293,7 +293,9 @@ class LifestylePlanServiceTest {
         .isEqualTo(1);
 
     // UC-13 now reads the new plan.
-    TodayPlan today = new LifestyleService(repository, json, Clock.fixed(NOW, VIETNAM)).today(USER);
+    TodayPlan today =
+        new LifestyleService(repository, json, Clock.fixed(NOW, VIETNAM), userId -> true)
+            .today(USER);
     assertThat(today.planId()).isEqualTo(switched.planId());
     assertThat(today.activities()).noneMatch(TodayPlan.ActivityToday::completed);
   }

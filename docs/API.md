@@ -59,6 +59,8 @@ Authentication dùng Spring Security stateless Resource Server: access JWT đư�
 
 `POST /accounts/forgot-password` trả cùng thông báo dù email không tồn tại, là tài khoản OAuth-only hay tài khoản local; chỉ local account có mật khẩu mới được gửi mã khôi phục. `POST /accounts/reset-password` nhận email, code và newPassword; mã 6 số hết hạn sau 10 phút, tối đa 5 lần thử, chỉ dùng một lần. Login local sai 5 lần trong 15 phút tạm khóa tài khoản 15 phút.
 
+`POST /accounts/me/consent` yêu cầu phiên đăng nhập và CSRF; ghi nhận consent cho chính chủ JWT. Body cần `termsAccepted`, `healthDataProcessingAccepted`, `nonDiagnosticAcknowledged`, `adultConfirmed` đều `true` và `termsVersion` hiện hành. API idempotent; tài khoản do admin tạo không được tự động cấp consent.
+
 `POST /accounts/confirm-deletion` vẫn trả **501 NOT_IMPLEMENTED**.
 
 Các route riêng tư yêu cầu `HA_ACCESS`, xác minh chữ ký, issuer và hạn JWT qua Spring Security; thiếu/không hợp lệ trả 401 `SESSION_INVALID`. Refresh/logout kiểm tra trạng thái refresh token trong database. Header `Authorization`, `X-User-ID` và `X-Role` không thay thế cookie xác thực. Các handler nghiệp vụ hồ sơ, đổi mật khẩu và xóa tài khoản vẫn chờ triển khai.
@@ -95,14 +97,14 @@ Tất cả route UC-18 yêu cầu authority tương ứng (mặc định chỉ A
 
 | Module | Routes sau `/api/v1`                                                                                                                                                                             | Quyền cần thực hiện                                                   |
 | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------- |
-| M1     | POST `/safety/evaluate`; GET/POST `/safety/rules`; GET/PATCH `/safety/rules/:id`; POST `/safety/rules/:id/submit`                                                                                | Yêu cầu authentication; consent và CONTENT_EXPERT chưa được kiểm tra  |
-| M2     | POST `/knowledge/articles`; PATCH/DELETE `/knowledge/articles/:id`; GET `/knowledge/reviews`; POST `/knowledge/reviews/:id/decision`; GET `/knowledge/feedback`; PATCH `/knowledge/feedback/:id` | CONTENT_EXPERT; quyền soạn bài của ADMIN còn phải thống nhất theo SRS |
+| M1     | POST `/safety/evaluate`; GET/POST `/safety/rules`; GET/PATCH `/safety/rules/:id`; POST `/safety/rules/:id/submit`                                                                                | Authentication; quản lý quy tắc cần `PERM_SAFETY_RULE_MANAGE` (CONTENT_EXPERT) |
+| M2     | POST `/knowledge/articles`; PATCH/DELETE `/knowledge/articles/:id`; GET `/knowledge/reviews`; POST `/knowledge/reviews/:id/decision`; GET `/knowledge/feedback`; PATCH `/knowledge/feedback/:id` | `PERM_CONTENT_MANAGE` (CONTENT_EXPERT và ADMIN)                 |
 | M3     | GET/PUT/DELETE `/health/profile`; GET `/health/metrics`; PUT/DELETE `/health/metrics/:date`                                                                                                      | Dữ liệu của chính người dùng, consent                                 |
-| M3     | GET `/health/statistics`                                                                                                                                                                         | ADMIN, chỉ số tổng hợp                                                |
-| M4     | POST `/chat/messages`; GET `/chat/sessions`; GET `/chat/sessions/:id/messages`; DELETE `/chat/sessions/:id`; POST `/chat/messages/:id/feedback`                                                  | Chính chủ, consent; attachment feedback là opt-in                     |
-| M5     | POST `/accounts/logout`; GET/PUT `/accounts/me`; POST `/accounts/me/change-password`; POST `/accounts/me/deletion-request`                                                                       | Chính chủ; xóa cần xác nhận email                                     |
+| M3     | GET `/health/statistics`                                                                                                                                                                         | `PERM_SYSTEM_STATS_VIEW` (ADMIN)                                      |
+| M4     | POST `/chat/messages`; GET `/chat/sessions`; GET `/chat/sessions/:id/messages`; DELETE `/chat/sessions/:id`; POST `/chat/messages/:id/feedback`                                                  | `PERM_ACCOUNT_SELF_MANAGE`; dữ liệu theo chủ phiên; gửi chat cần consent, chia sẻ feedback là opt-in |
+| M5     | POST `/accounts/logout`; GET/PUT `/accounts/me`; POST `/accounts/me/change-password`; POST `/accounts/me/deletion-request`; POST `/accounts/me/consent`; POST `/accounts/confirm-deletion`     | `PERM_ACCOUNT_SELF_MANAGE`; consent do chính chủ xác nhận; xóa cần email |
 | M5     | GET/POST/PATCH `/accounts/users`; PUT `/accounts/users/:id/roles`; CRUD `/accounts/roles`, `/accounts/permissions`; GET `/accounts/audit-logs`                                                    | `PERM_USER_MANAGE` hoặc `PERM_RBAC_MANAGE`; không lộ hồ sơ/hội thoại  |
-| M6     | GET `/lifestyle/templates`; GET/PUT `/lifestyle/plan`; PUT/DELETE `/lifestyle/completions/:activityId/:date`; GET/POST `/lifestyle/reminders`; PATCH/DELETE `/lifestyle/reminders/:id`           | Chính chủ, consent; template đã duyệt                                 |
+| M6     | GET `/lifestyle/templates`; GET/PUT `/lifestyle/plan`; PUT/DELETE `/lifestyle/completions/:activityId/:date`; GET/POST `/lifestyle/reminders`; PATCH/DELETE `/lifestyle/reminders/:id`           | `PERM_ACCOUNT_SELF_MANAGE`; dữ liệu theo chủ tài khoản, bắt buộc consent; template đã duyệt |
 
 ### M6 – UC-13 Theo dõi thói quen
 

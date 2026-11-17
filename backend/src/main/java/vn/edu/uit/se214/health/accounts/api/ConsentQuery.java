@@ -2,7 +2,7 @@ package vn.edu.uit.se214.health.accounts.api;
 
 import java.util.UUID;
 
-/** M5 public interface: consent checks for modules that process health data (UC-12 precondition). */
+/** M5 public interface: checks whether a user currently permits processing health data. */
 public interface ConsentQuery {
 
   /** Whether the user's latest consent accepts the processing of health data. False when none. */

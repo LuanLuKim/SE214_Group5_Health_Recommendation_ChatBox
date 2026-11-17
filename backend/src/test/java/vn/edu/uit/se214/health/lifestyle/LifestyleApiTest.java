@@ -28,6 +28,7 @@ import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
+import org.springframework.transaction.annotation.Transactional;
 import vn.edu.uit.se214.health.accounts.auth.AccessTokenService;
 import vn.edu.uit.se214.health.support.TestDatabase;
 
@@ -101,6 +102,22 @@ class LifestyleApiTest {
   }
 
   @Test
+  @Transactional
+  void healthTrackingRequiresCurrentConsent() throws Exception {
+    jdbc.sql("UPDATE accounts.consents SET health_data_processing_accepted = false WHERE user_id = ?")
+        .param(SEEDED_USER)
+        .update();
+
+    mvc.perform(signed(get("/api/v1/lifestyle/plan")))
+        .andExpect(status().isForbidden())
+        .andExpect(jsonPath("$.error.code").value("HEALTH_CONSENT_REQUIRED"));
+    mvc.perform(signed(put(completion())))
+        .andExpect(status().isForbidden())
+        .andExpect(jsonPath("$.error.code").value("HEALTH_CONSENT_REQUIRED"));
+    assertThat(stored()).isZero();
+  }
+
+  @Test
   void signedInUserMarksAndUnmarksTodaysActivity() throws Exception {
     mvc.perform(signed(get("/api/v1/lifestyle/plan")))
         .andExpect(status().isOk())
@@ -141,6 +158,20 @@ class LifestyleApiTest {
             "HA_ACCESS",
             tokens.issue(
                 UUID.fromString("00000000-0000-4000-8000-000000000002"), Instant.now().plus(10, ChronoUnit.MINUTES)));
+    jdbc.sql(
+            "INSERT INTO accounts.user_roles (user_id, role) VALUES (?, 'USER') ON CONFLICT DO NOTHING")
+        .param(UUID.fromString("00000000-0000-4000-8000-000000000002"))
+        .update();
+    jdbc.sql(
+            """
+            INSERT INTO accounts.consents
+              (user_id, terms_version, adult_confirmed, accepted_at,
+               health_data_processing_accepted, non_diagnostic_acknowledged)
+            VALUES (?, 'test-consent', true, now(), true, true)
+            ON CONFLICT DO NOTHING
+            """)
+        .param(UUID.fromString("00000000-0000-4000-8000-000000000002"))
+        .update();
     mvc.perform(get("/api/v1/lifestyle/plan").cookie(noPlan))
         .andExpect(status().isNotFound())
         .andExpect(jsonPath("$.error.code").value("LIFESTYLE_PLAN_NOT_FOUND"));

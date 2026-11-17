@@ -406,6 +406,40 @@ public class AccountRegistrationRepository {
         .update();
   }
 
+  public void upsertConsent(
+      UUID userId,
+      String termsVersion,
+      boolean adultConfirmed,
+      boolean healthDataProcessingAccepted,
+      boolean nonDiagnosticAcknowledged,
+      OffsetDateTime acceptedAt) {
+    jdbc.sql(
+            """
+            INSERT INTO accounts.consents
+                (user_id, terms_version, adult_confirmed, health_data_processing_accepted,
+                 non_diagnostic_acknowledged, accepted_at)
+            VALUES (:userId, :termsVersion, :adultConfirmed, :healthDataProcessingAccepted,
+                    :nonDiagnosticAcknowledged, :acceptedAt)
+            ON CONFLICT (user_id, terms_version) DO UPDATE SET
+                adult_confirmed = EXCLUDED.adult_confirmed,
+                health_data_processing_accepted = EXCLUDED.health_data_processing_accepted,
+                non_diagnostic_acknowledged = EXCLUDED.non_diagnostic_acknowledged,
+                accepted_at = EXCLUDED.accepted_at
+            WHERE accounts.consents.adult_confirmed IS DISTINCT FROM EXCLUDED.adult_confirmed
+               OR accounts.consents.health_data_processing_accepted
+                    IS DISTINCT FROM EXCLUDED.health_data_processing_accepted
+               OR accounts.consents.non_diagnostic_acknowledged
+                    IS DISTINCT FROM EXCLUDED.non_diagnostic_acknowledged
+            """)
+        .param("userId", userId)
+        .param("termsVersion", termsVersion)
+        .param("adultConfirmed", adultConfirmed)
+        .param("healthDataProcessingAccepted", healthDataProcessingAccepted)
+        .param("nonDiagnosticAcknowledged", nonDiagnosticAcknowledged)
+        .param("acceptedAt", acceptedAt)
+        .update();
+  }
+
   public boolean insertOAuthIdentity(
       OAuthProvider provider, String subject, UUID userId, OffsetDateTime createdAt) {
     return jdbc

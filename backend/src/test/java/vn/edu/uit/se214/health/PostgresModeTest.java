@@ -1,5 +1,6 @@
 package vn.edu.uit.se214.health;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -18,6 +19,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
@@ -55,6 +57,7 @@ class PostgresModeTest {
     registry.add("spring.datasource.password", () -> "postgres");
     registry.add("app.data-mode", () -> "postgres");
     registry.add("app.seed-synthetic", () -> "true");
+    registry.add("app.accounts.terms-version", () -> "v1");
     registry.add("app.accounts.auth-token.secret", () -> "test-only-auth-token-secret-at-least-32-bytes");
     registry.add("app.accounts.admin.bootstrap-enabled", () -> "true");
     registry.add("app.accounts.admin.email", () -> "admin@health.test");
@@ -78,6 +81,18 @@ class PostgresModeTest {
       org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder request) {
     return request
         .cookie(adminAccess, new Cookie("XSRF-TOKEN", csrf))
+        .header("X-XSRF-TOKEN", csrf);
+  }
+
+  private org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder signedAs(
+      UUID userId,
+      org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder request) {
+    Cookie access =
+        new Cookie(
+            "HA_ACCESS",
+            tokens.issue(userId, Instant.now().plus(10, ChronoUnit.MINUTES)));
+    return request
+        .cookie(access, new Cookie("XSRF-TOKEN", csrf))
         .header("X-XSRF-TOKEN", csrf);
   }
 
@@ -200,6 +215,36 @@ class PostgresModeTest {
         .andExpect(status().isCreated())
         .andExpect(jsonPath("$.data.email").value("created-by-admin@example.test"))
         .andExpect(jsonPath("$.data.roles[0]").value("USER"));
+    UUID createdUserId =
+        jdbc.queryForObject(
+            "SELECT id FROM accounts.users WHERE email = 'created-by-admin@example.test'",
+            UUID.class);
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT count(*) FROM accounts.consents WHERE user_id = ?",
+                Integer.class,
+                createdUserId))
+        .isZero();
+    mvc.perform(
+            signedAs(
+                    createdUserId,
+                    post("/api/v1/accounts/me/consent"))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    """
+                    {"termsAccepted":true,"healthDataProcessingAccepted":true,
+                     "nonDiagnosticAcknowledged":true,"adultConfirmed":true,"termsVersion":"v1"}
+                    """))
+        .andExpect(status().isOk());
+    assertThat(
+            jdbc.queryForObject(
+                """
+                SELECT health_data_processing_accepted FROM accounts.consents
+                WHERE user_id = ? AND terms_version = 'v1'
+                """,
+                Boolean.class,
+                createdUserId))
+        .isTrue();
 
     mvc.perform(signed(get("/api/v1/accounts/roles")))
         .andExpect(status().isOk())
@@ -285,5 +330,81 @@ class PostgresModeTest {
     mvc.perform(signed(get("/api/v1/accounts/audit-logs")).param("targetType", "USER"))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.data.total").value(5));
+  }
+
+  @Test
+  @Transactional
+  void privateRoutesCheckSessionAndMappedPermissions() throws Exception {
+    UUID userId = UUID.fromString("00000000-0000-4000-8000-000000000001");
+    mvc.perform(
+            get("/api/v1/knowledge/reviews")
+                .header("X-User-ID", userId.toString())
+                .header("X-Role", "CONTENT_EXPERT"))
+        .andExpect(status().isUnauthorized())
+        .andExpect(jsonPath("$.error.code").value("SESSION_INVALID"));
+    mvc.perform(
+            post("/api/v1/accounts/confirm-deletion")
+                .cookie(new Cookie("XSRF-TOKEN", csrf))
+                .header("X-XSRF-TOKEN", csrf))
+        .andExpect(status().isUnauthorized())
+        .andExpect(jsonPath("$.error.code").value("SESSION_INVALID"));
+
+    for (Object[] route :
+        List.of(
+            new Object[] {HttpMethod.GET, "/api/v1/safety/rules"},
+            new Object[] {HttpMethod.POST, "/api/v1/safety/rules"},
+            new Object[] {HttpMethod.GET, "/api/v1/safety/rules/00000000-0000-0000-0000-000000000000"},
+            new Object[] {HttpMethod.PATCH, "/api/v1/safety/rules/00000000-0000-0000-0000-000000000000"},
+            new Object[] {HttpMethod.POST, "/api/v1/safety/rules/00000000-0000-0000-0000-000000000000/submit"},
+            new Object[] {HttpMethod.POST, "/api/v1/knowledge/articles"},
+            new Object[] {HttpMethod.PATCH, "/api/v1/knowledge/articles/00000000-0000-0000-0000-000000000000"},
+            new Object[] {HttpMethod.DELETE, "/api/v1/knowledge/articles/00000000-0000-0000-0000-000000000000"},
+            new Object[] {HttpMethod.GET, "/api/v1/knowledge/reviews"},
+            new Object[] {HttpMethod.POST, "/api/v1/knowledge/reviews/00000000-0000-0000-0000-000000000000/decision"},
+            new Object[] {HttpMethod.GET, "/api/v1/knowledge/feedback"},
+            new Object[] {HttpMethod.PATCH, "/api/v1/knowledge/feedback/00000000-0000-0000-0000-000000000000"})) {
+      mvc.perform(
+              signedAs(
+                  userId,
+                  org.springframework.test.web.servlet.request.MockMvcRequestBuilders.request(
+                      (HttpMethod) route[0], (String) route[1])))
+          .andExpect(status().isForbidden())
+          .andExpect(jsonPath("$.error.code").value("ACCESS_DENIED"));
+    }
+
+    jdbc.update(
+        "INSERT INTO accounts.user_roles (user_id, role) VALUES (?, 'CONTENT_EXPERT')",
+        userId);
+    mvc.perform(signedAs(userId, get("/api/v1/safety/rules")))
+        .andExpect(status().isOk());
+    mvc.perform(
+            signedAs(userId, post("/api/v1/knowledge/articles"))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{}"))
+        .andExpect(status().isNotImplemented())
+        .andExpect(jsonPath("$.error.code").value("NOT_IMPLEMENTED"));
+
+    mvc.perform(
+            signed(post("/api/v1/accounts/confirm-deletion"))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{}"))
+        .andExpect(status().isNotImplemented())
+        .andExpect(jsonPath("$.error.code").value("NOT_IMPLEMENTED"));
+    mvc.perform(signed(get("/api/v1/health/statistics")))
+        .andExpect(status().isNotImplemented());
+    mvc.perform(
+            signedAs(userId, get("/api/v1/health/statistics")))
+        .andExpect(status().isForbidden())
+        .andExpect(jsonPath("$.error.code").value("ACCESS_DENIED"));
+
+    jdbc.update(
+        "UPDATE accounts.consents SET health_data_processing_accepted = false WHERE user_id = ?",
+        userId);
+    mvc.perform(
+            signedAs(userId, post("/api/v1/chat/messages"))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"message\":\"I have a fever\"}"))
+        .andExpect(status().isForbidden())
+        .andExpect(jsonPath("$.error.code").value("HEALTH_CONSENT_REQUIRED"));
   }
 }
