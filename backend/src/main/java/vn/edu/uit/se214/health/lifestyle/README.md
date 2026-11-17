@@ -19,7 +19,7 @@ Use case: **UC-12, UC-13, UC-14**. Phụ trách: Lữ Kim Luân (`LuanLuKim`).
 
 UC-13 đã chạy ở `DATA_MODE=postgres`: `LifestyleService` + `LifestyleRepository` (nối trong `LifestylePersistenceConfig`), route `GET /plan`, `PUT`/`DELETE /completions/{activityId}/{date}` (chi tiết ở `docs/API.md`). `ProgressCalculator` tính tiến độ ngày và streak; "hôm nay" theo múi giờ `app.lifestyle.zone` (`LIFESTYLE_ZONE`). Quy ước: đánh dấu được từ ngày bắt đầu lộ trình tới hôm nay, chỉ bỏ đánh dấu được hôm nay; mọi hoạt động trong `templates.activities` là hằng ngày. Ở chế độ mock, service không tồn tại và route trả 503. Lộ trình chỉ chọn từ mẫu đã duyệt (UC-17), không để AI tự sinh thực đơn hay giáo án.
 
-UC-12 (`LifestylePlanService`): `GET /templates`, `GET /templates/{id}`, `PUT /plan`.
+UC-12 (`LifestylePlanService`): `GET /templates`, `GET /templates/{id}`, `PUT /plan`. Lịch sử (`LifestyleService.pastPlans`, SCRUM-163): `GET /plans/history` trả các lộ trình đã kết thúc kèm số liệu, đọc từ `completions` hoặc từ cột tóm tắt trên `plans` (V019) khi job dọn dữ liệu đã xóa dữ liệu chi tiết; tối đa `app.lifestyle.history-limit`.
 
 - **Lọc mẫu:** theo mục tiêu, dị ứng (đọc qua `health.api.HealthProfileQuery`) và yêu cầu hồ sơ (`requires_profile`).
 - **Tiên điều kiện:** consent dữ liệu sức khỏe (đọc qua `accounts.api.ConsentQuery`). Hai interface này tạm có bản cài đặt đọc bảng (`JdbcHealthProfileQuery`, `JdbcConsentQuery`) trong module của M3 và M5, do hai module đó tiếp quản.

@@ -176,6 +176,53 @@ public class LifestyleRepository {
 
   private record CurrentPlan(UUID id, UUID templateId) {}
 
+  /** An ended plan with its figures: from the summary when kept, else from the completions. */
+  public record PastPlanRow(
+      UUID planId,
+      UUID templateId,
+      String templateTitle,
+      LocalDate startedOn,
+      LocalDate endedOn,
+      int activityCount,
+      int completionCount,
+      int completedDays) {}
+
+  /** SCRUM-163: the user's ended plans, latest first, at most {@code limit}. */
+  public List<PastPlanRow> endedPlans(UUID userId, int limit) {
+    return jdbc.sql(
+            """
+            SELECT p.id, p.template_id, t.title, p.started_on, p.ended_on,
+                   (SELECT count(DISTINCT a.activity ->> 'id')
+                      FROM jsonb_array_elements(
+                        CASE WHEN jsonb_typeof(t.activities) = 'array' THEN t.activities ELSE '[]'::jsonb END
+                      ) AS a(activity)
+                     WHERE coalesce(a.activity ->> 'id', '') <> '') AS activity_count,
+                   COALESCE(p.completion_count,
+                     (SELECT count(*) FROM lifestyle.completions c WHERE c.plan_id = p.id)) AS completion_count,
+                   COALESCE(p.completed_days,
+                     (SELECT count(DISTINCT c.completed_on) FROM lifestyle.completions c WHERE c.plan_id = p.id))
+                     AS completed_days
+            FROM lifestyle.plans p
+            JOIN lifestyle.templates t ON t.id = p.template_id
+            WHERE p.user_id = ? AND p.ended_on IS NOT NULL
+            ORDER BY p.ended_on DESC, p.started_on DESC, p.id
+            LIMIT ?
+            """)
+        .params(userId, limit)
+        .query(
+            (rs, row) ->
+                new PastPlanRow(
+                    rs.getObject("id", UUID.class),
+                    rs.getObject("template_id", UUID.class),
+                    rs.getString("title"),
+                    rs.getObject("started_on", LocalDate.class),
+                    rs.getObject("ended_on", LocalDate.class),
+                    rs.getInt("activity_count"),
+                    rs.getInt("completion_count"),
+                    rs.getInt("completed_days")))
+        .list();
+  }
+
   /** UC-13 A2: the primary key (plan, activity, day) keeps one row however often it is sent. */
   public boolean insertCompletion(UUID planId, String activityId, LocalDate day) {
     return jdbc.sql(

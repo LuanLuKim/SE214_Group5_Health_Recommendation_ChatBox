@@ -22,6 +22,7 @@ Một PostgreSQL instance, sáu schema cùng tên module. Không cần sáu data
 | `V016__accounts_rbac.sql`               | accounts  | roles, permissions, role_permissions, audit log UC-18; mở rộng user_roles       |
 | `V017__accounts_self_management.sql`    | accounts/knowledge | thông tin liên hệ/ảnh đại diện; ẩn danh reviewer và actor khi xóa tài khoản |
 | `V018__lifestyle_reminder_pause.sql`    | lifestyle | reminders: `disabled_reason` (`PLAN_SWITCH` khi đổi lộ trình tạm tắt nhắc) |
+| `V019__lifestyle_plan_summary.sql`      | lifestyle | plans: tóm tắt completion (`completion_count`, `completed_days`) cho lịch sử sau khi dọn dữ liệu chi tiết |
 
 Đây là schema khởi đầu, chưa đủ để tuyên bố hoàn thành SRS. Khi triển khai nghiệp vụ, cần versioning/audit và reviewer metadata đầy đủ; thông tin bản quyền và ngày nguồn; quản lý consent; dữ liệu eligibility/allergy phù hợp; lịch retry/delivery idempotency; chính sách retention và deletion cho feedback/backup.
 

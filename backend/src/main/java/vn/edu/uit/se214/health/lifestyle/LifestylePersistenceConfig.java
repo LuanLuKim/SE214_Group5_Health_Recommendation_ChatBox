@@ -34,7 +34,7 @@ class LifestylePersistenceConfig {
       ObjectMapper json,
       LifestyleProperties properties,
       ConsentQuery consents) {
-    return new LifestyleService(repository, json, clock(properties), consents);
+    return new LifestyleService(repository, json, clock(properties), consents, properties.historyLimit());
   }
 
   @Bean

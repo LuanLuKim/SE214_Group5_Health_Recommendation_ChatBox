@@ -300,7 +300,7 @@ class LifestylePlanServiceTest {
 
     // UC-13 now reads the new plan.
     TodayPlan today =
-        new LifestyleService(repository, json, Clock.fixed(NOW, VIETNAM), userId -> true)
+        new LifestyleService(repository, json, Clock.fixed(NOW, VIETNAM), userId -> true, 100)
             .today(USER);
     assertThat(today.planId()).isEqualTo(switched.planId());
     assertThat(today.activities()).noneMatch(TodayPlan.ActivityToday::completed);
@@ -446,6 +446,71 @@ class LifestylePlanServiceTest {
     reminders.delete(USER, water);
     assertThat(reminders.update(USER, walk, json.readTree("{\"enabled\":true}")).enabled()).isTrue();
     assertThat(reason(UUID.fromString(walk))).isNull();
+  }
+
+  /** SCRUM-163: ended plans with figures from the completions, then from the kept summary. */
+  @Test
+  void historyListsEndedPlansOfTheUserWithTheirFigures() {
+    LifestyleService habits =
+        new LifestyleService(repository, json, Clock.fixed(NOW, VIETNAM), new JdbcConsentQuery(jdbc), 100);
+    assertThat(habits.pastPlans(USER).plans()).isEmpty();
+
+    AppliedPlan first = service().apply(USER, body(SLEEP.toString())); // activities walk, sleep
+    jdbc.sql("UPDATE lifestyle.plans SET started_on = ? WHERE id = ?::uuid")
+        .params(TODAY.minusDays(13), first.planId())
+        .update();
+    for (Object[] done :
+        List.of(
+            new Object[] {"walk", TODAY.minusDays(13)},
+            new Object[] {"sleep", TODAY.minusDays(13)},
+            new Object[] {"walk", TODAY.minusDays(12)})) {
+      jdbc.sql("INSERT INTO lifestyle.completions (plan_id, activity_id, completed_on) VALUES (?::uuid, ?, ?)")
+          .params(first.planId(), done[0], done[1])
+          .update();
+    }
+    AppliedPlan second = service().apply(USER, body(SLEEP_ALT.toString()));
+    service().apply(USER, body(SLEEP.toString()));
+    service().apply(OTHER_USER, body(SLEEP.toString()));
+    service().apply(OTHER_USER, body(SLEEP_ALT.toString()));
+
+    List<PlanHistory.PastPlan> past = habits.pastPlans(USER).plans();
+    assertThat(past).extracting(PlanHistory.PastPlan::planId).containsExactly(second.planId(), first.planId());
+    assertThat(past.get(1))
+        .satisfies(p -> {
+          assertThat(p.templateId()).isEqualTo(SLEEP.toString());
+          assertThat(p.templateTitle()).isEqualTo("[TEST] Ngủ đúng giờ");
+          assertThat(p.startedOn()).isEqualTo(TODAY.minusDays(13));
+          assertThat(p.endedOn()).isEqualTo(TODAY);
+          assertThat(p.days()).isEqualTo(14);
+          assertThat(p.activityCount()).isEqualTo(2);
+          assertThat(p.completionCount()).isEqualTo(3);
+          assertThat(p.completedDays()).isEqualTo(2);
+          assertThat(p.completionRate()).isEqualTo(0.11); // 3 / (14 × 2)
+        });
+    assertThat(past.get(0).days()).isEqualTo(1);
+    assertThat(past.get(0).completionRate()).isEqualTo(0.0);
+
+    // Once the cleanup job keeps a summary and removes the rows, the figures stay the same.
+    jdbc.sql(
+            """
+            UPDATE lifestyle.plans
+            SET completion_count = 3, completed_days = 2, completions_summarized_at = now()
+            WHERE id = ?::uuid
+            """)
+        .param(first.planId())
+        .update();
+    jdbc.sql("DELETE FROM lifestyle.completions WHERE plan_id = ?::uuid").param(first.planId()).update();
+    assertThat(habits.pastPlans(USER).plans().get(1).completionCount()).isEqualTo(3);
+    assertThat(habits.pastPlans(USER).plans().get(1).completedDays()).isEqualTo(2);
+
+    assertThat(new LifestyleService(repository, json, Clock.fixed(NOW, VIETNAM), new JdbcConsentQuery(jdbc), 1)
+            .pastPlans(USER)
+            .plans())
+        .hasSize(1);
+    jdbc.sql("UPDATE accounts.consents SET health_data_processing_accepted = false WHERE user_id = ?")
+        .param(USER)
+        .update();
+    assertApiError(() -> habits.pastPlans(USER), HttpStatus.FORBIDDEN, "HEALTH_CONSENT_REQUIRED");
   }
 
   void assertApiError(ThrowingCallable call, HttpStatus status, String code) {

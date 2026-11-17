@@ -275,6 +275,23 @@ export interface AppliedPlan {
   remindersTurnedOff: number;
   restorableReminderIds: string[];
 }
+// GET /lifestyle/plans/history: ended plans, latest first. days counts start and end day;
+// completionRate = completionCount / (days * activityCount), 2 decimals, null without activities.
+export interface PastPlan {
+  planId: string;
+  templateId: string;
+  templateTitle: string;
+  startedOn: string;
+  endedOn: string;
+  days: number;
+  activityCount: number;
+  completedDays: number;
+  completionCount: number;
+  completionRate: number | null;
+}
+export interface PlanHistory {
+  plans: PastPlan[];
+}
 // M6 UC-14: localTime is HH:mm (24 h) in timezone; daysOfWeek uses ISO 1 = Monday … 7 = Sunday.
 // Instants (nextSendAt, scheduledFor, sentAt) are ISO-8601 UTC.
 export type ReminderChannel = 'EMAIL' | 'WEB_PUSH';

@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.time.format.DateTimeParseException;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -28,13 +29,41 @@ public class LifestyleService {
   private final ObjectMapper json;
   private final Clock clock;
   private final ConsentQuery consents;
+  private final int historyLimit;
 
+  /** {@code historyLimit}: most ended plans returned by {@link #pastPlans} (app.lifestyle.history-limit). */
   public LifestyleService(
-      LifestyleRepository repository, ObjectMapper json, Clock clock, ConsentQuery consents) {
+      LifestyleRepository repository, ObjectMapper json, Clock clock, ConsentQuery consents, int historyLimit) {
     this.repository = repository;
     this.json = json;
     this.clock = clock;
     this.consents = consents;
+    this.historyLimit = historyLimit;
+  }
+
+  /** SCRUM-163: the user's ended plans with their figures, latest first. Read only. */
+  public PlanHistory pastPlans(UUID userId) {
+    requireConsent(userId);
+    return new PlanHistory(
+        repository.endedPlans(userId, historyLimit).stream().map(LifestyleService::pastPlan).toList());
+  }
+
+  private static PlanHistory.PastPlan pastPlan(LifestyleRepository.PastPlanRow row) {
+    int days = (int) ChronoUnit.DAYS.between(row.startedOn(), row.endedOn()) + 1;
+    long possible = (long) days * row.activityCount();
+    Double rate =
+        possible == 0 ? null : Math.min(1.0, Math.round(row.completionCount() * 100.0 / possible) / 100.0);
+    return new PlanHistory.PastPlan(
+        row.planId().toString(),
+        row.templateId().toString(),
+        row.templateTitle(),
+        row.startedOn(),
+        row.endedOn(),
+        days,
+        row.activityCount(),
+        row.completedDays(),
+        row.completionCount(),
+        rate);
   }
 
   public TodayPlan today(UUID userId) {
