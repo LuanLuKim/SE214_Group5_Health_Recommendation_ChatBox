@@ -10,7 +10,9 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.time.OffsetDateTime;
 import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.UUID;
 import javax.sql.DataSource;
@@ -332,13 +334,14 @@ class LifestylePlanServiceTest {
     reminders.insert(walkOff, USER, reminder("walk", false), saved);
     reminders.insert(otherUsersWalk, OTHER_USER, reminder("walk", true), saved);
     // Sent before the switch: stays as history.
+    OffsetDateTime savedAt = OffsetDateTime.ofInstant(saved, ZoneOffset.UTC);
     jdbc.sql(
             """
             INSERT INTO lifestyle.reminder_deliveries
               (id, reminder_id, scheduled_for, channel, status, attempt_count, sent_at, created_at, updated_at)
             VALUES (?, ?, ?, 'EMAIL', 'SENT', 1, ?, ?, ?)
             """)
-        .params(UUID.randomUUID(), walk, saved, saved, saved, saved)
+        .params(UUID.randomUUID(), walk, savedAt, savedAt, savedAt, savedAt)
         .update();
 
     AppliedPlan switched = service().apply(USER, body(swimAndSleep.toString()));
