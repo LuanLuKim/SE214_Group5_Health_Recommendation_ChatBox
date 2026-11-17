@@ -6,8 +6,14 @@ import type { Config } from '../../config.js';
 import type { Pool } from 'pg';
 import { z } from 'zod';
 import { fail } from '../../shared/http.js';
+import { createArticleAuthoringRouter } from './article-router.js';
+import type { ContentAuthenticator } from './authoring-access.js';
 
-export function createKnowledgeRouter(config: Config, pool: Pool | null) {
+export function createKnowledgeRouter(
+  config: Config,
+  pool: Pool | null,
+  authenticate?: ContentAuthenticator,
+) {
   const knowledgeRouter = Router();
   const service = createKnowledgeService(config, pool);
   knowledgeRouter.get('/', (_request, response) =>
@@ -46,10 +52,8 @@ export function createKnowledgeRouter(config: Config, pool: Pool | null) {
     });
   });
 
-  // All private/authoring routes intentionally stop at requireSession until M5 implements auth.
-  knowledgeRouter.post('/articles', requireSession, notImplemented);
-  knowledgeRouter.patch('/articles/:id', requireSession, notImplemented);
-  knowledgeRouter.delete('/articles/:id', requireSession, notImplemented);
+  knowledgeRouter.use(createArticleAuthoringRouter(pool, authenticate));
+  // Review and feedback remain guarded until their own use cases and M5 are implemented.
   knowledgeRouter.get('/reviews', requireSession, notImplemented);
   knowledgeRouter.post('/reviews/:id/decision', requireSession, notImplemented);
   knowledgeRouter.get('/feedback', requireSession, notImplemented);

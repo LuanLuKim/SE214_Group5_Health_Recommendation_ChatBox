@@ -7,7 +7,7 @@ test('all module migrations execute, synthetic seed is idempotent, constraints h
   const db = new PGlite();
   try {
     const migrations = await readSqlFiles('migrations');
-    assert.equal(migrations.length, 8);
+    assert.equal(migrations.length, 9);
     for (const file of migrations) await db.exec(file.sql);
     for (let run = 0; run < 2; run++)
       for (const file of await readSqlFiles('seeds')) await db.exec(file.sql);

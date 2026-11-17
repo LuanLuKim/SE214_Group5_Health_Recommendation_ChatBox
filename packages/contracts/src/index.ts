@@ -116,6 +116,48 @@ export interface ArticleSummary {
   source: SourceReference;
   updatedAt: string;
 }
+
+const articleSourceUrlSchema = z
+  .string()
+  .trim()
+  .pipe(z.url().max(2000))
+  .refine((value) => {
+    const url = new URL(value);
+    return (
+      (url.protocol === 'https:' || url.protocol === 'http:') && !url.username && !url.password
+    );
+  });
+export const articleDraftInputSchema = z.strictObject({
+  title: z.string().trim().min(1).max(300),
+  topic: z.string().trim().min(1).max(200),
+  content: z.string().trim().min(1).max(30000),
+  sourceName: z.string().trim().min(1).max(200),
+  sourceUrl: articleSourceUrlSchema,
+  sourceUpdatedAt: z
+    .union([z.iso.date(), z.iso.datetime({ offset: true })])
+    .transform((value) => (value.length === 10 ? `${value}T00:00:00.000Z` : value))
+    .nullable()
+    .optional(),
+  copyrightNotes: z.string().trim().max(3000).optional(),
+});
+export const articleDraftPatchSchema = articleDraftInputSchema
+  .partial()
+  .refine((value) => Object.values(value).some((field) => field !== undefined), {
+    message: 'Cần ít nhất một trường để cập nhật.',
+  });
+export type ArticleDraftInput = z.infer<typeof articleDraftInputSchema>;
+export type ArticleDraftPatch = z.infer<typeof articleDraftPatchSchema>;
+export interface ArticleDraft extends ArticleDraftInput {
+  id: string;
+  sourceUpdatedAt: string | null;
+  copyrightNotes: string;
+  verifiedAt: string | null;
+  reviewStatus: ReviewStatus;
+  createdBy: string | null;
+  updatedBy: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
 export interface FacilitySummary {
   id: string;
   name: string;
@@ -157,9 +199,7 @@ export const ruleDraftInputSchema = z.strictObject({
     .refine((value) => {
       const url = new URL(value);
       return (
-        (url.protocol === 'https:' || url.protocol === 'http:') &&
-        !url.username &&
-        !url.password
+        (url.protocol === 'https:' || url.protocol === 'http:') && !url.username && !url.password
       );
     }),
 });

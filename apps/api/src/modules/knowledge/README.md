@@ -16,6 +16,8 @@ Provides approved-only retrieval to M4, approved rule review to M1, template rev
 
 ## Extend this module
 
+UC-15 article authoring is implemented in `article-drafts.ts`, `repository.ts`, and `article-router.ts`. The management roles are CONTENT_EXPERT and ADMIN. `authoring-access.ts` accepts a server-configured M5 session resolver; without it, the application keeps returning AUTH_NOT_CONFIGURED. Private list/detail routes use `/authoring/articles`; public article search stays separate. Only DRAFT/RETURNED rows can be changed or deleted. Creation and edits cannot publish content or set verification dates. See `docs/API.md` for fields, M7 mapping and response codes.
+
 Keep UI in `Page.tsx` and module-local components/hooks. Put HTTP parsing in `router.ts`, business rules in `service.ts`, and add a `repository.ts` for persistence. Do not call SQL from UI or route handlers. Add tests beside the relevant workspace test suite. These are starter files, not completed use cases.
 
 Use shared contracts for cross-module messages. Discuss contract/migration changes in a PR so the other owners can update their integration. Do not edit another module simply to avoid defining its interface.

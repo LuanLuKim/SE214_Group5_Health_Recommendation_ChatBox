@@ -16,6 +16,38 @@ Thành công: `{ "data": ..., "meta": { "status": "...", "total": 0 } }` (`meta`
 
 `q` là một chuỗi tối đa 200 ký tự. Danh sách và search metadata không chứa private user data. Fixture `[TEST]` chỉ dành kiểm thử; không trộn fixture vào kho kiến thức y tế thật.
 
+## Quản lý bản nháp bài viết (UC-15, phase 1)
+
+Các route dưới đây đã có nghiệp vụ PostgreSQL; truy cập qua ứng dụng hiện vẫn trả `503 AUTH_NOT_CONFIGURED` cho đến khi M5 cung cấp xác thực. M5 truyền `ContentAuthenticator` ở tham số thứ ba của `createKnowledgeRouter`: resolver phải xác thực phiên thật, trạng thái tài khoản và trả `{ userId, roles }` từ server hoặc `null` nếu chưa đăng nhập. Không lấy vai trò từ body, header giả hay query. `CONTENT_EXPERT` và `ADMIN` được quản lý nội dung; `USER` bị từ chối với `403 FORBIDDEN`. Khi resolver đã được nối, chưa đăng nhập trả `401 UNAUTHENTICATED`. Nếu chưa có database, người đã được xác thực trả `503 DATABASE_NOT_CONFIGURED`; không lưu bản nháp vào fixture mock.
+
+| Method | Route sau `/api/v1/knowledge` | Kết quả                                                                     |
+| ------ | ----------------------------- | --------------------------------------------------------------------------- |
+| GET    | `/authoring/articles`         | Danh sách quản trị tất cả trạng thái, sắp theo thời gian tạo giảm dần và ID |
+| GET    | `/authoring/articles/:id`     | Nội dung và metadata quản trị của một bài                                   |
+| POST   | `/articles`                   | Tạo bài `DRAFT`, trả `201`                                                  |
+| PATCH  | `/articles/:id`               | Sửa các trường được truyền của bài `DRAFT` hoặc `RETURNED`                  |
+| DELETE | `/articles/:id`               | Xóa bài `DRAFT` hoặc `RETURNED`, trả `204`                                  |
+
+POST bắt buộc `title` (1–300 ký tự), `topic` (1–200), `content` (1–30000), `sourceName` (1–200) và `sourceUrl` (URL HTTP/HTTPS tối đa 2000 ký tự, không chứa tài khoản/mật khẩu). Trường tùy chọn: `sourceUpdatedAt` (ngày ISO `YYYY-MM-DD`, timestamp ISO có timezone, hoặc `null`) và `copyrightNotes` (tối đa 3000 ký tự). PATCH dùng cùng các trường, cần ít nhất một trường. Giới hạn request JSON chung 32 KiB vẫn áp dụng. Client không được truyền `reviewStatus`, `verifiedAt`, `createdBy`, `updatedBy` hoặc `isSynthetic`; trường ngoài schema bị từ chối với `400 INVALID_INPUT`.
+
+Ví dụ body tạo bài tổng hợp:
+
+```json
+{
+  "title": "[TEST] Bài nháp thử nghiệm",
+  "topic": "Kiểm thử",
+  "content": "Văn bản giả lập, không có hướng dẫn y tế.",
+  "sourceName": "Synthetic fixture",
+  "sourceUrl": "https://example.invalid/article",
+  "sourceUpdatedAt": "2026-10-29",
+  "copyrightNotes": "Nội dung tổng hợp để kiểm thử."
+}
+```
+
+Response thành công bọc `ArticleDraft` trong `data`, gồm các trường đầu vào cùng `id`, `verifiedAt`, `reviewStatus`, `createdBy`, `updatedBy`, `createdAt`, `updatedAt`; ngày giờ trả theo ISO. Danh sách có thêm `meta.total`. Metadata người tạo/sửa do phiên server xác định. Bài mới có `verifiedAt = null`; sửa bài được trả về sẽ đặt lại `DRAFT` và xóa ngày xác minh cũ. Bài không tồn tại/UUID sai trả `404 NOT_FOUND`; sửa/xóa bài `PENDING_REVIEW`, `APPROVED` hoặc `RETIRED` trả `409 CONTENT_NOT_EDITABLE`. Chuyển trạng thái được chặn ngay trong câu lệnh ghi database.
+
+Migration `009_knowledge_article_drafts.sql` giữ nguyên các cột trong `NormalizedArticle.to_db_row()` của M7 và thêm metadata với giá trị mặc định. `db_row` dùng tên cột snake_case, còn API dùng camelCase (`source_name` → `sourceName`, `source_url` → `sourceUrl`). Đầu ra crawler không phải body API trực tiếp: loại các trường do server quản lý; không tin trạng thái duyệt/ngày xác minh từ dữ liệu nhập. `fetched_at` là ngày thu thập, không phải ngày xác minh. UC-15 phase 1 chưa cung cấp endpoint nhập file crawler hoặc phê duyệt; bài chưa duyệt tiếp tục bị loại khỏi tra cứu công khai.
+
 ## Các route đã dành chỗ
 
 Các public account action sau trả **501 NOT_IMPLEMENTED**: POST `/accounts/register`, `/accounts/login`, `/accounts/forgot-password`, `/accounts/reset-password`, `/accounts/confirm-deletion`.
