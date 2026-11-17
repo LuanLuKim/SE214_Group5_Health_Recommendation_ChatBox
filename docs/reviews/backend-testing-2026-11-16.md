@@ -22,6 +22,21 @@ Kiểm thử Spring Boot tại commit `f6751fe7a99166349cf4f1d24fa4aba6b4b0c188`
 - **14-08** · Tắt nhắc giữa bước đọc danh sách retry và bước giữ lượt gửi vẫn dẫn đến một lần gửi.
 - **14-03** · Worker vẫn gửi nhắc gắn với hoạt động cũ sau khi đổi lộ trình. Ca này báo FAIL theo giả định cần dừng nhắc khi lộ trình cũ kết thúc. Quy tắc nghiệp vụ còn chờ chốt. Ca 14-10 xác nhận nhắc độc lập vẫn gửi sau khi đổi lộ trình.
 
+## Theo dõi lỗi
+
+Mỗi lỗi có một task trên Jira (subtask của SCRUM-59) và một issue GitHub, hạn 27/11/2026. Ca 14-03 chưa được xem là lỗi cho đến khi chốt quy tắc nghiệp vụ.
+
+| Lỗi | Ca | Module | Phụ trách | GitHub | Jira | Trạng thái |
+| --- | --- | --- | --- | --- | --- | --- |
+| Đánh giá được tin nhắn role `user` | 08-01, 08-02 | M4 | Thành Đặng Việt | #152 | SCRUM-156 | Mở |
+| HTTP 500 khi chia sẻ câu trả lời không có câu hỏi liền trước | 08-07 | M4 | Thành Đặng Việt | #153 | SCRUM-157 | Mở |
+| Retry gửi lượt theo cấu hình cũ sau khi sửa giờ hoặc tắt rồi bật lại | 14-01, 14-13 | M6 | Lữ Kim Luân | #154 | SCRUM-158 | Mở |
+| Lỗi ở một lượt retry làm dừng cả chu kỳ gửi | 14-02 | M6 | Lữ Kim Luân | PR #151 | SCRUM-160 | Đã sửa |
+| Tắt nhắc giữa bước đọc và bước giữ chỗ retry vẫn gửi | 14-08 | M6 | Lữ Kim Luân | #155 | SCRUM-159 | Mở |
+| Nhắc gắn hoạt động của lộ trình cũ vẫn gửi sau khi đổi lộ trình | 14-03 | M6 | Lữ Kim Luân | – | – | Chờ chốt nghiệp vụ |
+
+Cột **Theo dõi lỗi** trong file Excel và trường `tracking` trong file JSON ghi cùng thông tin này.
+
 ## Chi tiết từng ca
 
 | Ca và use case | Lượt bổ sung | Cách tái hiện | Mong đợi | Kết quả thực tế | Trạng thái và ghi chú |

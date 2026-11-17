@@ -70,7 +70,12 @@
       "expected": "Service từ chối và ném `ApiException`.",
       "actual": "Service hoàn tất mà không ném ngoại lệ.",
       "result": "FAIL",
-      "notes": "Cùng lỗi với 08-02. Service kiểm tra quyền sở hữu phiên nhưng chưa kiểm tra role tin nhắn."
+      "notes": "Cùng lỗi với 08-02. Service kiểm tra quyền sở hữu phiên nhưng chưa kiểm tra role tin nhắn.",
+      "tracking": {
+        "github": "#152",
+        "jira": "SCRUM-156",
+        "status": "Mở"
+      }
     },
     {
       "id": "08-02",
@@ -81,7 +86,12 @@
       "expected": "HTTP 4xx và 0 bản ghi phản hồi cho yêu cầu.",
       "actual": "API trả HTTP 200. PostgreSQL có 1 dòng phản hồi theo ghi chú kiểm thử.",
       "result": "FAIL",
-      "notes": "Tái hiện lỗi UC08 qua cả API lẫn PostgreSQL. Hợp đồng hiện chưa quy định mã 4xx cụ thể cho role sai."
+      "notes": "Tái hiện lỗi UC08 qua cả API lẫn PostgreSQL. Hợp đồng hiện chưa quy định mã 4xx cụ thể cho role sai.",
+      "tracking": {
+        "github": "#152",
+        "jira": "SCRUM-156",
+        "status": "Mở"
+      }
     },
     {
       "id": "08-03",
@@ -132,7 +142,12 @@
       "expected": "API xử lý dữ liệu thiếu bằng 4xx có kiểm soát. PostgreSQL ghi 0 phản hồi.",
       "actual": "HTTP 500 `INTERNAL_ERROR`. PostgreSQL có 0 phản hồi mới vì từ chối thao tác ghi.",
       "result": "FAIL",
-      "notes": "Ứng dụng thử lưu câu trả lời với `shared_question=NULL`. Ràng buộc `feedback_check` yêu cầu cả hai trường cùng có giá trị hoặc cùng NULL. Mã 4xx là kỳ vọng kiểm thử cho trường hợp đính kèm không thực hiện được."
+      "notes": "Ứng dụng thử lưu câu trả lời với `shared_question=NULL`. Ràng buộc `feedback_check` yêu cầu cả hai trường cùng có giá trị hoặc cùng NULL. Mã 4xx là kỳ vọng kiểm thử cho trường hợp đính kèm không thực hiện được.",
+      "tracking": {
+        "github": "#153",
+        "jira": "SCRUM-157",
+        "status": "Mở"
+      }
     },
     {
       "id": "09-01",
@@ -293,7 +308,12 @@
       "expected": "Số lượt gửi theo lịch cũ bằng 0.",
       "actual": "Worker báo đã gửi 1 lượt lúc 07:01.",
       "result": "FAIL",
-      "notes": "Bản ghi retry theo lịch cũ còn được chọn sau khi cấu hình giờ đổi."
+      "notes": "Bản ghi retry theo lịch cũ còn được chọn sau khi cấu hình giờ đổi.",
+      "tracking": {
+        "github": "#154",
+        "jira": "SCRUM-158",
+        "status": "Mở"
+      }
     },
     {
       "id": "14-02",
@@ -304,7 +324,12 @@
       "expected": "`runOnce()` hoàn tất và nhắc khác vẫn được gửi.",
       "actual": "`UncategorizedSQLException` thoát khỏi `runOnce()` tại câu UPDATE `SENT` do trigger. Worker dừng trước vòng lặp gửi các nhắc mới.",
       "result": "FAIL",
-      "notes": "Vòng lặp retry thiếu xử lý lỗi theo từng lượt. Trace chỉ ra lỗi PostgreSQL giả lập tại `markSent`."
+      "notes": "Vòng lặp retry thiếu xử lý lỗi theo từng lượt. Trace chỉ ra lỗi PostgreSQL giả lập tại `markSent`.",
+      "tracking": {
+        "github": "PR #151",
+        "jira": "SCRUM-160",
+        "status": "Đã sửa"
+      }
     },
     {
       "id": "14-03",
@@ -316,7 +341,12 @@
       "actual": "Worker gửi 1 lượt. JUnit báo fail với giả định 0 lượt.",
       "result": "FAIL",
       "expectation_pending": true,
-      "notes": "Đặc tả API chưa quy định nhắc gắn hoạt động sẽ tự dừng khi đổi lộ trình. Cần chốt kỳ vọng nghiệp vụ."
+      "notes": "Đặc tả API chưa quy định nhắc gắn hoạt động sẽ tự dừng khi đổi lộ trình. Cần chốt kỳ vọng nghiệp vụ.",
+      "tracking": {
+        "github": null,
+        "jira": null,
+        "status": "Chờ chốt nghiệp vụ"
+      }
     },
     {
       "id": "14-04",
@@ -367,7 +397,12 @@
       "expected": "Sau khi đã tắt, claim không gửi lại và dòng vẫn `FAILED`, 1 lần thử.",
       "actual": "Nhắc đã lưu `enabled=false` nhưng worker gửi 1 lượt. PostgreSQL chuyển dòng cũ sang `SENT`, 2 lần thử.",
       "result": "FAIL",
-      "notes": "Phát hiện mới. `retryable` lọc cờ bật ở bước đọc, còn `claimRetry` chỉ kiểm tra trạng thái dòng và số lần thử."
+      "notes": "Phát hiện mới. `retryable` lọc cờ bật ở bước đọc, còn `claimRetry` chỉ kiểm tra trạng thái dòng và số lần thử.",
+      "tracking": {
+        "github": "#155",
+        "jira": "SCRUM-159",
+        "status": "Mở"
+      }
     },
     {
       "id": "14-09",
@@ -419,7 +454,12 @@
       "expected": "Không gửi lượt có giờ trước lần lưu cấu hình mới. Dòng cũ vẫn `FAILED`, số lần thử là 1.",
       "actual": "Worker gửi 1 lượt lúc 07:01. Dòng cũ chuyển sang `SENT`, số lần thử là 2.",
       "result": "FAIL",
-      "notes": "Truy vấn retry dùng cờ bật hiện tại và tuổi lượt gửi, thiếu đối chiếu `scheduled_for` với thời điểm lưu cấu hình. Cùng nhóm lỗi với 14-01."
+      "notes": "Truy vấn retry dùng cờ bật hiện tại và tuổi lượt gửi, thiếu đối chiếu `scheduled_for` với thời điểm lưu cấu hình. Cùng nhóm lỗi với 14-01.",
+      "tracking": {
+        "github": "#154",
+        "jira": "SCRUM-158",
+        "status": "Mở"
+      }
     },
     {
       "id": "14-14",
@@ -464,4 +504,3 @@
     }
   ]
 }
-
