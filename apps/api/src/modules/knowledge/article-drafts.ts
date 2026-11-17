@@ -51,5 +51,23 @@ export function createArticleDraftService(db: KnowledgeDatabase) {
       if (!(await repository.get(normalizedId))) throw missing();
       throw conflict();
     },
+    async submit(actor: ContentActor, id: string) {
+      assertContentAuthor(actor);
+      const normalizedId = requireId(id);
+      const current = await repository.get(normalizedId);
+      if (!current) throw missing();
+      if (!['DRAFT', 'RETURNED'].includes(current.reviewStatus)) {
+        throw new AuthoringError(
+          409,
+          'CONTENT_NOT_SUBMITTABLE',
+          'Bài viết không ở trạng thái được gửi duyệt.',
+        );
+      }
+      articleDraftInputSchema.strip().parse(current);
+      const submitted = await repository.submit(normalizedId, actor.userId, current.revision);
+      if (!submitted)
+        throw new AuthoringError(409, 'CONTENT_CHANGED', 'Nội dung đã thay đổi. Vui lòng tải lại.');
+      return submitted;
+    },
   };
 }

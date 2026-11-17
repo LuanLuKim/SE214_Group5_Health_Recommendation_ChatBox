@@ -157,6 +157,76 @@ export interface ArticleDraft extends ArticleDraftInput {
   updatedBy: string | null;
   createdAt: string;
   updatedAt: string;
+  revision: number;
+  submittedAt: string | null;
+  submittedBy: string | null;
+}
+
+export const planTemplateGoalSchema = z.enum([
+  'WEIGHT_GAIN',
+  'WEIGHT_LOSS',
+  'MAINTENANCE',
+  'SLEEP',
+]);
+const templateText = z.string().trim().min(1).max(200);
+export const planTemplateDraftInputSchema = z.strictObject({
+  title: z.string().trim().min(1).max(300),
+  goal: planTemplateGoalSchema,
+  activities: z
+    .array(
+      z.strictObject({
+        id: z.string().trim().min(1).max(100),
+        title: z.string().trim().min(1).max(300),
+        description: z.string().trim().max(2000).optional(),
+      }),
+    )
+    .min(1)
+    .max(100)
+    .refine((items) => new Set(items.map((item) => item.id)).size === items.length, {
+      message: 'ID hoạt động phải duy nhất trong một mẫu.',
+    }),
+  durationDays: z.number().int().min(1).max(365),
+  applicability: z.string().trim().min(1).max(3000),
+  contraindications: z.array(templateText).max(50),
+  excludedAllergens: z.array(templateText).max(50),
+  advisory: z.string().trim().min(1).max(3000),
+  sourceName: articleDraftInputSchema.shape.sourceName,
+  sourceUrl: articleDraftInputSchema.shape.sourceUrl,
+  sourceUpdatedAt: articleDraftInputSchema.shape.sourceUpdatedAt,
+  copyrightNotes: articleDraftInputSchema.shape.copyrightNotes,
+});
+export const planTemplateDraftPatchSchema = planTemplateDraftInputSchema
+  .partial()
+  .refine((value) => Object.values(value).some((field) => field !== undefined), {
+    message: 'Cần ít nhất một trường để cập nhật.',
+  });
+export type PlanTemplateDraftInput = z.infer<typeof planTemplateDraftInputSchema>;
+export type PlanTemplateDraftPatch = z.infer<typeof planTemplateDraftPatchSchema>;
+export interface PlanTemplateDraft extends Omit<PlanTemplateDraftInput, 'durationDays'> {
+  id: string;
+  durationDays: number | null;
+  sourceUpdatedAt: string | null;
+  copyrightNotes: string;
+  verifiedAt: string | null;
+  reviewStatus: ReviewStatus;
+  createdBy: string | null;
+  updatedBy: string | null;
+  createdAt: string;
+  updatedAt: string;
+  revision: number;
+  submittedAt: string | null;
+  submittedBy: string | null;
+}
+// M2 -> M6: selection/allergy filtering belongs to M6; editorial identities are omitted.
+export interface ApprovedPlanTemplate extends PlanTemplateDraftInput {
+  id: string;
+  verifiedAt: string;
+  reviewStatus: 'APPROVED';
+  updatedAt: string;
+}
+export interface ApprovedTemplateProvider {
+  listApprovedTemplates(): Promise<ApprovedPlanTemplate[]>;
+  getApprovedTemplate(id: string): Promise<ApprovedPlanTemplate | null>;
 }
 export interface FacilitySummary {
   id: string;

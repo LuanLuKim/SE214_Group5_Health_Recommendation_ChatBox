@@ -8,6 +8,7 @@ import { z } from 'zod';
 import { fail } from '../../shared/http.js';
 import { createArticleAuthoringRouter } from './article-router.js';
 import type { ContentAuthenticator } from './authoring-access.js';
+import { createTemplateAuthoringRouter } from './template-router.js';
 
 export function createKnowledgeRouter(
   config: Config,
@@ -53,6 +54,7 @@ export function createKnowledgeRouter(
   });
 
   knowledgeRouter.use(createArticleAuthoringRouter(pool, authenticate));
+  knowledgeRouter.use(createTemplateAuthoringRouter(pool, authenticate));
   // Review and feedback remain guarded until their own use cases and M5 are implemented.
   knowledgeRouter.get('/reviews', requireSession, notImplemented);
   knowledgeRouter.post('/reviews/:id/decision', requireSession, notImplemented);

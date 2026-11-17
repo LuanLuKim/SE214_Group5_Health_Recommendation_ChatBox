@@ -6,7 +6,8 @@ export interface KnowledgeDatabase {
 }
 
 const articleFields = `id, title, topic, content, source_name, source_url, source_updated_at,
-  copyright_notes, verified_at, review_status, created_by, updated_by, created_at, updated_at`;
+  copyright_notes, verified_at, review_status, created_by, updated_by, created_at, updated_at,
+  revision, submitted_at, submitted_by`;
 
 function mapArticle(row: Record<string, unknown>): ArticleDraft {
   return {
@@ -24,6 +25,9 @@ function mapArticle(row: Record<string, unknown>): ArticleDraft {
     updatedBy: row.updated_by as string | null,
     createdAt: (row.created_at as Date).toISOString(),
     updatedAt: (row.updated_at as Date).toISOString(),
+    revision: row.revision as number,
+    submittedAt: (row.submitted_at as Date | null)?.toISOString() ?? null,
+    submittedBy: row.submitted_by as string | null,
   };
 }
 
@@ -85,9 +89,21 @@ export function createArticleRepository(db: KnowledgeDatabase) {
       }
       const result = await db.query(
         `UPDATE knowledge.articles SET ${assignments.join(', ')}, updated_by = $2,
-           review_status = 'DRAFT', verified_at = NULL, updated_at = now()
+           review_status = 'DRAFT', verified_at = NULL, updated_at = now(),
+           revision = revision + 1, submitted_at = NULL, submitted_by = NULL
          WHERE id = $1 AND review_status IN ('DRAFT','RETURNED') RETURNING ${articleFields}`,
         values,
+      );
+      return result.rows[0] ? mapArticle(result.rows[0]) : null;
+    },
+    async submit(id: string, actorId: string, revision: number): Promise<ArticleDraft | null> {
+      const result = await db.query(
+        `UPDATE knowledge.articles SET review_status = 'PENDING_REVIEW', verified_at = NULL,
+           submitted_at = now(), submitted_by = $2, updated_by = $2, updated_at = now(),
+           revision = revision + 1
+         WHERE id = $1 AND review_status IN ('DRAFT','RETURNED') AND revision = $3
+         RETURNING ${articleFields}`,
+        [id, actorId, revision],
       );
       return result.rows[0] ? mapArticle(result.rows[0]) : null;
     },

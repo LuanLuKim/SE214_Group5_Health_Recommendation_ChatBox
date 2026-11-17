@@ -1,14 +1,8 @@
-import { Router, type Request, type Response, type RequestHandler } from 'express';
-import { z } from 'zod';
-import { fail } from '../../shared/http.js';
+import { Router } from 'express';
 import { createArticleDraftService } from './article-drafts.js';
-import {
-  AuthoringError,
-  requireContentAuthor,
-  type ContentActor,
-  type ContentAuthenticator,
-} from './authoring-access.js';
+import { requireContentAuthor, type ContentAuthenticator } from './authoring-access.js';
 import type { KnowledgeDatabase } from './repository.js';
+import { createAuthoringHandler, validateSubmissionBody } from './authoring-http.js';
 
 export function createArticleAuthoringRouter(
   db: KnowledgeDatabase | null,
@@ -17,37 +11,7 @@ export function createArticleAuthoringRouter(
   const router = Router();
   const guard = requireContentAuthor(authenticate);
   const service = db ? createArticleDraftService(db) : null;
-  const handle =
-    (
-      action: (
-        request: Request,
-        response: Response,
-        actor: ContentActor,
-        drafts: NonNullable<typeof service>,
-      ) => Promise<void>,
-    ): RequestHandler =>
-    async (request, response, next) => {
-      if (!service) {
-        fail(response, 503, 'DATABASE_NOT_CONFIGURED', 'Chưa cấu hình cơ sở dữ liệu nội dung.');
-        return;
-      }
-      try {
-        await action(request, response, response.locals.contentActor as ContentActor, service);
-      } catch (error) {
-        if (error instanceof z.ZodError) {
-          fail(
-            response,
-            400,
-            'INVALID_INPUT',
-            'Nội dung bài viết hoặc nguồn tham khảo không hợp lệ.',
-          );
-        } else if (error instanceof AuthoringError) {
-          fail(response, error.status, error.code, error.message);
-        } else {
-          next(error);
-        }
-      }
-    };
+  const handle = createAuthoringHandler(service);
 
   router.get(
     '/authoring/articles',
@@ -87,6 +51,14 @@ export function createArticleAuthoringRouter(
     handle(async (request, response, actor, drafts) => {
       await drafts.delete(actor, request.params.id as string);
       response.status(204).end();
+    }),
+  );
+  router.post(
+    '/articles/:id/submit',
+    guard,
+    handle(async (request, response, actor, drafts) => {
+      validateSubmissionBody(request.body);
+      response.json({ data: await drafts.submit(actor, request.params.id as string) });
     }),
   );
   return router;
