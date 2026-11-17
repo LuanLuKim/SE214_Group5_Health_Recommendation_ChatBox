@@ -110,7 +110,7 @@ Tất cả route UC-18 yêu cầu authority tương ứng (mặc định chỉ A
 | M4     | POST `/chat/messages`; GET `/chat/sessions`; GET `/chat/sessions/:id/messages`; DELETE `/chat/sessions/:id`; POST `/chat/messages/:id/feedback`                                                  | `PERM_ACCOUNT_SELF_MANAGE`; dữ liệu theo chủ phiên; gửi chat cần consent, chia sẻ feedback là opt-in |
 | M5     | POST `/accounts/logout`; GET/PUT `/accounts/me`; POST `/accounts/me/change-password`; POST `/accounts/me/deletion-request`; POST `/accounts/me/consent`; POST `/accounts/confirm-deletion`     | `PERM_ACCOUNT_SELF_MANAGE`; consent do chính chủ xác nhận; xóa cần email |
 | M5     | GET/POST/PATCH `/accounts/users`; PUT `/accounts/users/:id/roles`; CRUD `/accounts/roles`, `/accounts/permissions`; GET `/accounts/audit-logs`                                                    | `PERM_USER_MANAGE` hoặc `PERM_RBAC_MANAGE`; không lộ hồ sơ/hội thoại  |
-| M6     | GET `/lifestyle/templates`; GET/PUT `/lifestyle/plan`; PUT/DELETE `/lifestyle/completions/:activityId/:date`; GET/POST `/lifestyle/reminders`; PATCH/DELETE `/lifestyle/reminders/:id`           | `PERM_ACCOUNT_SELF_MANAGE`; dữ liệu theo chủ tài khoản, bắt buộc consent; template đã duyệt |
+| M6     | GET `/lifestyle/templates`; GET/PUT `/lifestyle/plan`; PUT/DELETE `/lifestyle/completions/:activityId/:date`; GET/POST `/lifestyle/reminders`; PATCH/DELETE `/lifestyle/reminders/:id`           | `PERM_ACCOUNT_SELF_MANAGE`; dữ liệu theo chủ tài khoản, bắt buộc consent (trừ xem, tắt và xóa nhắc); template đã duyệt |
 
 ### M6 – UC-13 Theo dõi thói quen
 
@@ -138,7 +138,7 @@ Lỗi: 403 `HEALTH_CONSENT_REQUIRED`, 400 `INVALID_GOAL`, 400 `INVALID_TEMPLATE_
 
 ### M6 – UC-14 Thiết lập nhắc nhở
 
-Cùng điều kiện đăng nhập như UC-13; mỗi người chỉ thấy và sửa nhắc của mình. Kiểu dữ liệu: `ReminderList`, `Reminder`, `ReminderInput` trong `packages/contracts`.
+Cùng điều kiện đăng nhập như UC-13; mỗi người chỉ thấy và sửa nhắc của mình. Tạo nhắc, bật lại hay sửa nhắc cần consent xử lý dữ liệu sức khỏe (403 `HEALTH_CONSENT_REQUIRED`). Khi đã rút consent, chủ nhắc vẫn xem danh sách, tắt bằng body chỉ có `{"enabled": false}` và xóa được; worker không gửi nhắc nào cho người không còn consent. Kiểu dữ liệu: `ReminderList`, `Reminder`, `ReminderInput` trong `packages/contracts`.
 
 | Route                             | Kết quả                                                                                                                                                                              |
 | --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -149,8 +149,8 @@ Cùng điều kiện đăng nhập như UC-13; mỗi người chỉ thấy và s
 
 Trường: `content` 1–200 ký tự, không có ký tự điều khiển; `localTime` dạng 24 giờ `HH:mm`; `daysOfWeek` danh sách khác rỗng các số 1 (thứ Hai) đến 7 (Chủ nhật); `timezone` mã múi giờ IANA; `channel` `EMAIL` hoặc `WEB_PUSH`; `activityId` mã hoạt động của lộ trình đang dùng hoặc `null`; `enabled`. Thời điểm trong kết quả là ISO-8601 UTC.
 
-Gửi nhắc: worker trong backend chạy mỗi `REMINDERS_POLL` (mặc định 1 phút), giữ chỗ từng lần gửi trong `lifestyle.reminder_deliveries` (UNIQUE `reminder_id, scheduled_for`) rồi mới gửi, nên chạy lại, thử lại hay nhiều backend cùng lúc không gửi trùng. Lần gửi lỗi ghi `FAILED` kèm mã lỗi và được thử lại trên cùng dòng, tối đa `REMINDERS_MAX_ATTEMPTS` lần (A3). Nhắc trễ quá `REMINDERS_WINDOW` (mặc định 10 phút) thì bỏ qua. Email dùng `SMTP_*` và `MAIL_FROM` như M5; địa chỉ đọc qua `accounts.api.AccountContactQuery`. `REMINDERS_ENABLED=false` chỉ dừng việc gửi.
+Gửi nhắc: worker trong backend chạy mỗi `REMINDERS_POLL` (mặc định 1 phút), giữ chỗ từng lần gửi trong `lifestyle.reminder_deliveries` (UNIQUE `reminder_id, scheduled_for`) rồi mới gửi, nên chạy lại, thử lại hay nhiều backend cùng lúc không gửi trùng. Lần gửi lỗi ghi `FAILED` kèm mã lỗi và được thử lại trên cùng dòng, tối đa `REMINDERS_MAX_ATTEMPTS` lần (A3). Nhắc trễ quá `REMINDERS_WINDOW` (mặc định 10 phút) thì bỏ qua. Trước khi giữ chỗ, worker đọc consent của người dùng; không còn consent thì bỏ qua cả lần gửi mới lẫn lần thử lại và không ghi dòng gửi. Email dùng `SMTP_*` và `MAIL_FROM` như M5; địa chỉ đọc qua `accounts.api.AccountContactQuery`. `REMINDERS_ENABLED=false` chỉ dừng việc gửi.
 
-Lỗi: 400 `INVALID_REMINDER` (A1, `message` nói trường nào sai; trường lạ cũng bị từ chối), 404 `REMINDER_NOT_FOUND` (không tồn tại hoặc của người khác), 404 `ACTIVITY_NOT_IN_PLAN`, 409 `REMINDER_CHANNEL_UNAVAILABLE` (A2: kênh chưa cấu hình hoặc chưa được phép; Web Push chưa có nên luôn trả lỗi này khi bật), 409 `REMINDER_LIMIT_REACHED` (quá `REMINDERS_MAX_PER_USER`, mặc định 20).
+Lỗi: 403 `HEALTH_CONSENT_REQUIRED`, 400 `INVALID_REMINDER` (A1, `message` nói trường nào sai; trường lạ cũng bị từ chối), 404 `REMINDER_NOT_FOUND` (không tồn tại hoặc của người khác), 404 `ACTIVITY_NOT_IN_PLAN`, 409 `REMINDER_CHANNEL_UNAVAILABLE` (A2: kênh chưa cấu hình hoặc chưa được phép; Web Push chưa có nên luôn trả lỗi này khi bật), 409 `REMINDER_LIMIT_REACHED` (quá `REMINDERS_MAX_PER_USER`, mặc định 20).
 
 Đây là route ban đầu để chia việc, không phải danh sách API cuối. Chi tiết bài viết, form mẫu kế hoạch, email/OAuth, hàng đợi duyệt và các nhánh UC cần được chủ module bổ sung, cập nhật tài liệu và contract. Không đánh dấu một UC hoàn thành chỉ vì route đã tồn tại.
