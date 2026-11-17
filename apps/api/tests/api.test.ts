@@ -29,6 +29,12 @@ test('public synthetic search works and does not expose the draft fixture', asyn
   const facilities = await request(app).get('/api/v1/knowledge/facilities');
   assert.equal(facilities.body.data.length, 1);
   assert.match(facilities.body.data[0].address, /không có thật/);
+  const facilityDetail = await request(app).get(
+    `/api/v1/knowledge/facilities/${facilities.body.data[0].id}`,
+  );
+  assert.equal(facilityDetail.status, 200);
+  assert.deepEqual(facilityDetail.body.data, facilities.body.data[0]);
+  assert.equal(facilityDetail.body.meta.status, 'SYNTHETIC_DATA');
   assert.equal((await request(app).get('/api/v1/knowledge/articles?q=a&q=b')).status, 400);
   assert.equal(
     (await request(app).get(`/api/v1/knowledge/articles?q=${'x'.repeat(201)}`)).status,

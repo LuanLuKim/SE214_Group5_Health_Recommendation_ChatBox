@@ -2,12 +2,13 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import express from 'express';
 import { PGlite } from '@electric-sql/pglite';
-import type { FacilitySummary } from '@health/contracts';
+import type { FacilityLookup, FacilitySummary } from '@health/contracts';
 import type { Pool } from 'pg';
 import request from 'supertest';
 import { readSqlFiles } from '../scripts/database-files.js';
 import { loadConfig } from '../src/config.js';
 import { createKnowledgeRouter } from '../src/modules/knowledge/router.js';
+import { createKnowledgeService } from '../src/modules/knowledge/service.js';
 import { syntheticFacilities } from '../src/modules/knowledge/synthetic.js';
 import { errorHandler, requestContext } from '../src/shared/http.js';
 
@@ -80,7 +81,7 @@ async function insertFacility(db: PGlite, item: FacilitySummary) {
 }
 
 for (const mode of ['mock', 'postgres'] as const) {
-  test(`${mode}: public facility search`, async (t) => {
+  test(`${mode}: public facility search and details`, async (t) => {
     const fixtures = searchFixtures();
     let db: PGlite | null = null;
     if (mode === 'postgres') {
@@ -105,6 +106,56 @@ for (const mode of ['mock', 'postgres'] as const) {
       createKnowledgeRouter(loadConfig({ DATA_MODE: mode }), db as unknown as Pool | null),
     );
     app.use(errorHandler);
+
+    await t.test(
+      'detail returns the verified directory record with all source fields',
+      async () => {
+        const response = await request(app).get(`${path}/${idFor(1)}`);
+        assert.equal(response.status, 200);
+        assert.deepEqual(response.body, {
+          data: fixtures[0],
+          meta: { status: mode === 'mock' ? 'SYNTHETIC_DATA' : 'DATABASE_RESULTS' },
+        });
+      },
+    );
+
+    await t.test(
+      'invalid, unknown and unverified IDs return the same safe 404 response',
+      async () => {
+        const ids = ['not-a-uuid', idFor(999), ...[90, 91, 92, 93, 94].map(idFor)];
+        for (const id of ids) {
+          const response = await request(app).get(`${path}/${id}`);
+          assert.equal(response.status, 404, id);
+          assert.ok(response.headers['x-request-id']);
+          assert.deepEqual(response.body, {
+            error: {
+              code: 'NOT_FOUND',
+              message: 'Không tìm thấy cơ sở y tế.',
+              requestId: response.headers['x-request-id'],
+            },
+          });
+        }
+      },
+    );
+
+    await t.test('FacilityLookup returns the same verified records as the public API', async () => {
+      const lookup: FacilityLookup = createKnowledgeService(
+        loadConfig({ DATA_MODE: mode }),
+        db as unknown as Pool | null,
+      );
+      const filters = { province: 'tỉnh a', specialty: 'tim mạch' };
+      const response = await request(app).get(path).query(filters);
+      assert.equal(response.status, 200);
+      const results = await lookup.listFacilities(filters);
+      assert.deepEqual(results, [fixtures[0]]);
+      assert.deepEqual(results, response.body.data);
+      assert.deepEqual(await lookup.getFacility(idFor(1)), results[0]);
+      assert.equal((await lookup.listFacilities()).length, 6);
+      assert.deepEqual(await lookup.listFacilities({ specialty: 'Không tồn tại' }), []);
+      for (const id of ['not-a-uuid', idFor(999), ...[90, 91, 92, 93, 94].map(idFor)]) {
+        assert.equal(await lookup.getFacility(id), null, id);
+      }
+    });
 
     await t.test('filters independently and combines all supplied filters with AND', async () => {
       const cases: Array<{ query: Record<string, string>; ids: number[] }> = [
@@ -206,3 +257,36 @@ for (const mode of ['mock', 'postgres'] as const) {
     });
   });
 }
+
+test('database failures reject lookup calls and return safe HTTP errors', async () => {
+  const failure = new Error('PRIVATE_DATABASE_DETAIL');
+  const pool = {
+    async query() {
+      throw failure;
+    },
+  } as unknown as Pool;
+  const config = loadConfig({ DATA_MODE: 'postgres' });
+  const lookup: FacilityLookup = createKnowledgeService(config, pool);
+  await assert.rejects(
+    () => lookup.listFacilities(),
+    (error) => error === failure,
+  );
+  await assert.rejects(
+    () => lookup.getFacility(idFor(1)),
+    (error) => error === failure,
+  );
+
+  const app = express();
+  app.use(requestContext);
+  app.use('/api/v1/knowledge', createKnowledgeRouter(config, pool));
+  app.use(errorHandler);
+  for (const url of [path, `${path}/${idFor(1)}`]) {
+    const response = await request(app).get(url);
+    assert.equal(response.status, 500);
+    assert.equal(response.body.error.code, 'INTERNAL_ERROR');
+    assert.equal(response.body.data, undefined);
+    assert.ok(response.body.error.requestId);
+    assert.equal(response.body.error.requestId, response.headers['x-request-id']);
+    assert.doesNotMatch(JSON.stringify(response.body), /PRIVATE_DATABASE_DETAIL|stack/);
+  }
+});
