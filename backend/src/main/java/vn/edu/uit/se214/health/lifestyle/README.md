@@ -23,7 +23,7 @@ UC-12 (`LifestylePlanService`): `GET /templates`, `GET /templates/{id}`, `PUT /p
 
 - **Lọc mẫu:** theo mục tiêu, dị ứng (đọc qua `health.api.HealthProfileQuery`) và yêu cầu hồ sơ (`requires_profile`).
 - **Tiên điều kiện:** consent dữ liệu sức khỏe (đọc qua `accounts.api.ConsentQuery`). Hai interface này tạm có bản cài đặt đọc bảng (`JdbcHealthProfileQuery`, `JdbcConsentQuery`) trong module của M3 và M5, do hai module đó tiếp quản.
-- **Đổi lộ trình:** chạy trong một transaction, đặt `ended_on` cho lộ trình cũ rồi thêm lộ trình mới. Index một phần `plans_one_active_per_user` bảo đảm mỗi người chỉ một lộ trình đang dùng.
+- **Đổi lộ trình:** chạy trong một transaction, đặt `ended_on` cho lộ trình cũ rồi thêm lộ trình mới. Index một phần `plans_one_active_per_user` bảo đảm mỗi người chỉ một lộ trình đang dùng. Cùng transaction đó tắt các nhắc UC-14 đang bật có `activity_id` không còn trong mẫu mới (so theo mã hoạt động); nhắc độc lập và lịch sử gửi giữ nguyên, `AppliedPlan.remindersTurnedOff` trả số nhắc đã tắt. Bật lại nhắc như vậy cần `activityId` của lộ trình đang dùng hoặc `null`.
 - **UC-13:** chỉ đọc lộ trình đang dùng (`ended_on IS NULL`).
 - **Thông tin xem trước** (`summary`, `duration_days`, `not_suitable_for`, `requires_profile`) là cột của `lifestyle.templates`. UC-15 (M2) nhập các cột này khi soạn mẫu.
 

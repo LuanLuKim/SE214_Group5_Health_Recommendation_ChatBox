@@ -262,6 +262,7 @@ export interface TemplatePreview {
   advice: string;
 }
 // PUT /lifestyle/plan {templateId}. changed: false when the template was already active.
+// remindersTurnedOff: UC-14 reminders turned off because they follow an activity the new plan lacks.
 export interface AppliedPlan {
   planId: string;
   templateId: string;
@@ -269,6 +270,7 @@ export interface AppliedPlan {
   startedOn: string;
   changed: boolean;
   previousPlanId: string | null;
+  remindersTurnedOff: number;
 }
 // M6 UC-14: localTime is HH:mm (24 h) in timezone; daysOfWeek uses ISO 1 = Monday … 7 = Sunday.
 // Instants (nextSendAt, scheduledFor, sentAt) are ISO-8601 UTC.

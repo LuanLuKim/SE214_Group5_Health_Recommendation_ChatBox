@@ -6,9 +6,12 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.time.ZoneId;
+import java.util.List;
 import java.util.UUID;
 import javax.sql.DataSource;
 import org.assertj.core.api.ThrowableAssert.ThrowingCallable;
@@ -21,6 +24,7 @@ import org.springframework.jdbc.datasource.DataSourceTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 import vn.edu.uit.se214.health.accounts.persistence.JdbcConsentQuery;
 import vn.edu.uit.se214.health.health.JdbcHealthProfileQuery;
+import vn.edu.uit.se214.health.lifestyle.ReminderRepository.Fields;
 import vn.edu.uit.se214.health.lifestyle.TemplateCatalog.TemplateSummary;
 import vn.edu.uit.se214.health.shared.web.ApiException;
 import vn.edu.uit.se214.health.support.TestDatabase;
@@ -298,6 +302,98 @@ class LifestylePlanServiceTest {
             .today(USER);
     assertThat(today.planId()).isEqualTo(switched.planId());
     assertThat(today.activities()).noneMatch(TodayPlan.ActivityToday::completed);
+  }
+
+  /** UC-14 rule for test case 14-03: switching plans stops reminders of activities the new plan lacks. */
+  @Test
+  void switchingPlansTurnsOffRemindersOfActivitiesTheNewPlanLacks() {
+    UUID swimAndSleep = UUID.fromString("00000000-0000-4000-8000-000000000717");
+    jdbc.sql(
+            """
+            INSERT INTO lifestyle.templates
+              (id, title, goal, activities, review_status, source_url, is_synthetic, summary, duration_days)
+            VALUES (?, '[TEST] Bơi và ngủ sớm', 'SLEEP',
+                    '[{"id":"swim","title":"[TEST] Bơi"},{"id":"sleep","title":"[TEST] Ngủ sớm"}]'::jsonb,
+                    'APPROVED', 'https://example.invalid/template', false, '[TEST] Mô tả', 14)
+            """)
+        .param(swimAndSleep)
+        .update();
+    service().apply(USER, body(SLEEP.toString())); // activities walk, sleep
+    ReminderRepository reminders = new ReminderRepository(jdbc);
+    Instant saved = NOW.minus(Duration.ofHours(1));
+    UUID walk = UUID.randomUUID();
+    UUID sleep = UUID.randomUUID();
+    UUID standalone = UUID.randomUUID();
+    UUID walkOff = UUID.randomUUID();
+    UUID otherUsersWalk = UUID.randomUUID();
+    reminders.insert(walk, USER, reminder("walk", true), saved);
+    reminders.insert(sleep, USER, reminder("sleep", true), saved);
+    reminders.insert(standalone, USER, reminder(null, true), saved);
+    reminders.insert(walkOff, USER, reminder("walk", false), saved);
+    reminders.insert(otherUsersWalk, OTHER_USER, reminder("walk", true), saved);
+    // Sent before the switch: stays as history.
+    jdbc.sql(
+            """
+            INSERT INTO lifestyle.reminder_deliveries
+              (id, reminder_id, scheduled_for, channel, status, attempt_count, sent_at, created_at, updated_at)
+            VALUES (?, ?, ?, 'EMAIL', 'SENT', 1, ?, ?, ?)
+            """)
+        .params(UUID.randomUUID(), walk, saved, saved, saved, saved)
+        .update();
+
+    AppliedPlan switched = service().apply(USER, body(swimAndSleep.toString()));
+    assertThat(switched.changed()).isTrue();
+    assertThat(switched.remindersTurnedOff()).isEqualTo(1);
+    assertThat(enabled(walk)).isFalse();
+    assertThat(enabled(sleep)).isTrue(); // the new plan also has "sleep"
+    assertThat(enabled(standalone)).isTrue();
+    assertThat(enabled(walkOff)).isFalse();
+    assertThat(enabled(otherUsersWalk)).isTrue();
+    assertThat(
+            jdbc.sql("SELECT count(*) FROM lifestyle.reminder_deliveries WHERE reminder_id = ? AND status = 'SENT'")
+                .param(walk)
+                .query(Integer.class)
+                .single())
+        .isEqualTo(1);
+    assertThat(service().apply(USER, body(swimAndSleep.toString())).remindersTurnedOff()).isZero();
+
+    // At the reminder time only the reminders still on are sent.
+    ReminderDispatcherTest.FakeChannel channel = new ReminderDispatcherTest.FakeChannel();
+    ReminderDispatcher.Result result =
+        new ReminderDispatcher(
+                reminders,
+                new JdbcConsentQuery(jdbc),
+                List.of(channel),
+                Clock.fixed(NOW, VIETNAM),
+                ReminderDispatcherTest.PROPERTIES)
+            .runOnce();
+    assertThat(result).isEqualTo(new ReminderDispatcher.Result(3, 0));
+    assertThat(channel.sent).containsExactlyInAnyOrder(USER, USER, OTHER_USER);
+    assertThat(
+            jdbc.sql("SELECT count(*) FROM lifestyle.reminder_deliveries WHERE reminder_id = ?")
+                .param(walk)
+                .query(Integer.class)
+                .single())
+        .isEqualTo(1);
+  }
+
+  /** Every day at NOW's local time (10:00 in Vietnam), by email. */
+  Fields reminder(String activityId, boolean enabled) {
+    return new Fields(
+        "[TEST] Nhắc",
+        activityId,
+        LocalTime.ofInstant(NOW, VIETNAM),
+        List.of(1, 2, 3, 4, 5, 6, 7),
+        VIETNAM,
+        ReminderChannel.Type.EMAIL,
+        enabled);
+  }
+
+  boolean enabled(UUID reminderId) {
+    return jdbc.sql("SELECT enabled FROM lifestyle.reminders WHERE id = ?")
+        .param(reminderId)
+        .query(Boolean.class)
+        .single();
   }
 
   @Test

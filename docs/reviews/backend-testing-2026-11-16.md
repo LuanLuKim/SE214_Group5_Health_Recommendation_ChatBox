@@ -24,7 +24,7 @@ Kiểm thử Spring Boot tại commit `f6751fe7a99166349cf4f1d24fa4aba6b4b0c188`
 
 ## Theo dõi lỗi
 
-Mỗi lỗi có một task trên Jira (subtask của SCRUM-59) và một issue GitHub, hạn 27/11/2026. Ca 14-03 chưa được xem là lỗi cho đến khi chốt quy tắc nghiệp vụ.
+Mỗi lỗi có một task trên Jira (subtask của SCRUM-59) và một issue GitHub, hạn 27/11/2026. Ca 14-03 đã chốt quy tắc: khi đổi lộ trình, nhắc gắn hoạt động không còn trong lộ trình mới thì không gửi nữa, còn lần đã gửi trước khi đổi giữ nguyên.
 
 | Lỗi | Ca | Module | Phụ trách | GitHub | Jira | Trạng thái |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -33,7 +33,7 @@ Mỗi lỗi có một task trên Jira (subtask của SCRUM-59) và một issue G
 | Retry gửi lượt theo cấu hình cũ sau khi sửa giờ hoặc tắt rồi bật lại | 14-01, 14-13 | M6 | Lữ Kim Luân | #154 | SCRUM-158 | Mở |
 | Lỗi ở một lượt retry làm dừng cả chu kỳ gửi | 14-02 | M6 | Lữ Kim Luân | PR #151 | SCRUM-160 | Đã sửa |
 | Tắt nhắc giữa bước đọc và bước giữ chỗ retry vẫn gửi | 14-08 | M6 | Lữ Kim Luân | #155 | SCRUM-159 | Mở |
-| Nhắc gắn hoạt động của lộ trình cũ vẫn gửi sau khi đổi lộ trình | 14-03 | M6 | Lữ Kim Luân | – | – | Chờ chốt nghiệp vụ |
+| Nhắc gắn hoạt động của lộ trình cũ vẫn gửi sau khi đổi lộ trình | 14-03 | M6 | Lữ Kim Luân | #156 | SCRUM-161 | Mở |
 
 Cột **Theo dõi lỗi** trong file Excel và trường `tracking` trong file JSON ghi cùng thông tin này.
 

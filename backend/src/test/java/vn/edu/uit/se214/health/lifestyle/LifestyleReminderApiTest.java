@@ -249,6 +249,34 @@ class LifestyleReminderApiTest {
         .andExpect(jsonPath("$.error.code").value("ACTIVITY_NOT_IN_PLAN"));
   }
 
+  /** After a plan switch turned it off, a reminder of an old activity comes back only relinked or unlinked. */
+  @Test
+  @Transactional
+  void aReminderOfAnActivityNoLongerInThePlanIsTurnedOnOnlyRelinkedOrUnlinked() throws Exception {
+    String id = create("{\"activityId\":\"demo\",\"localTime\":\"06:00\"}");
+    // What the plan switch leaves behind: off, still pointing at the old plan's activity.
+    jdbc.sql("UPDATE lifestyle.reminders SET enabled = false, activity_id = 'old-plan-walk' WHERE id = ?::uuid")
+        .param(id)
+        .update();
+
+    send(SEEDED_USER, patch(REMINDERS + "/" + id), "{\"enabled\":true}")
+        .andExpect(status().isNotFound())
+        .andExpect(jsonPath("$.error.code").value("ACTIVITY_NOT_IN_PLAN"));
+    send(SEEDED_USER, patch(REMINDERS + "/" + id), "{\"content\":\"[TEST] Đi bộ\"}")
+        .andExpect(status().isOk()); // still off: no check needed
+    send(SEEDED_USER, patch(REMINDERS + "/" + id), "{\"enabled\":true,\"activityId\":\"demo\"}")
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.data.enabled").value(true))
+        .andExpect(jsonPath("$.data.activityId").value("demo"));
+    jdbc.sql("UPDATE lifestyle.reminders SET enabled = false, activity_id = 'old-plan-walk' WHERE id = ?::uuid")
+        .param(id)
+        .update();
+    send(SEEDED_USER, patch(REMINDERS + "/" + id), "{\"enabled\":true,\"activityId\":null}")
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.data.enabled").value(true))
+        .andExpect(jsonPath("$.data.activityId").doesNotExist());
+  }
+
   int count() {
     return jdbc.sql("SELECT count(*) FROM lifestyle.reminders").query(Integer.class).single();
   }

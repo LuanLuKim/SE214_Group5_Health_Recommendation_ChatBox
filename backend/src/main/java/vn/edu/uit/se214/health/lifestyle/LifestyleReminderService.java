@@ -122,8 +122,19 @@ public class LifestyleReminderService {
             input.has("channel") ? channel(input.get("channel")) : current.channel(),
             input.has("enabled") ? enabled(input.get("enabled")) : current.enabled());
     requireChannel(userId, fields);
+    requireActivityInPlan(userId, input, fields);
     if (!reminders.update(userId, id, fields, clock.instant())) throw LifestyleErrors.reminderNotFound();
     return read(userId, id);
+  }
+
+  /**
+   * A reminder that is on and keeps its activity must still follow an activity of the active plan.
+   * A plan switch turns off reminders of activities the new plan lacks; turning one back on needs a
+   * new {@code activityId} or {@code null}. A new {@code activityId} is checked by activityId().
+   */
+  private void requireActivityInPlan(UUID userId, JsonNode input, Fields fields) {
+    if (fields.enabled() && fields.activityId() != null && !input.has("activityId"))
+      activity(userId, fields.activityId());
   }
 
   /** Deleting one's own data never needs consent. */

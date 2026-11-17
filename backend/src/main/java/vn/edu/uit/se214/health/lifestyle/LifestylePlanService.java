@@ -95,7 +95,7 @@ public class LifestylePlanService {
     eligible(userId, id);
     PlanWrite write;
     try {
-      write = repository.applyPlan(userId, id, LocalDate.now(clock));
+      write = repository.applyPlan(userId, id, LocalDate.now(clock), clock.instant());
     } catch (DuplicateKeyException e) {
       throw LifestyleErrors.planConflict();
     }
@@ -106,7 +106,8 @@ public class LifestylePlanService {
         plan.templateTitle(),
         plan.startedOn(),
         write.changed(),
-        write.previousPlanId() == null ? null : write.previousPlanId().toString());
+        write.previousPlanId() == null ? null : write.previousPlanId().toString(),
+        write.remindersTurnedOff());
   }
 
   private void requireConsent(UUID userId) {
