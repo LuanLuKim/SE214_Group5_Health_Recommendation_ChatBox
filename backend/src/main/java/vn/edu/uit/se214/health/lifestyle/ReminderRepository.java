@@ -22,7 +22,7 @@ public class ReminderRepository {
   private static final String COLUMNS =
       """
       r.id, r.user_id, r.content, r.activity_id, r.local_time, r.days_of_week, r.timezone,
-      r.channel, r.enabled, r.updated_at, d.scheduled_for, d.status, d.sent_at""";
+      r.channel, r.enabled, r.disabled_reason, r.updated_at, d.scheduled_for, d.status, d.sent_at""";
   private static final String LAST_DELIVERY =
       """
       LEFT JOIN LATERAL (
@@ -66,8 +66,9 @@ public class ReminderRepository {
         .optional();
   }
 
+  /** Reminders that count towards the per-user limit: all but those paused by a plan switch. */
   int count(UUID userId) {
-    return jdbc.sql("SELECT count(*) FROM lifestyle.reminders WHERE user_id = ?")
+    return jdbc.sql("SELECT count(*) FROM lifestyle.reminders WHERE user_id = ? AND disabled_reason IS NULL")
         .param(userId)
         .query(Integer.class)
         .single();
@@ -96,13 +97,17 @@ public class ReminderRepository {
         .update();
   }
 
-  /** False when the reminder does not exist or belongs to someone else. */
+  /**
+   * False when the reminder does not exist or belongs to someone else. Turning it on clears the
+   * reason it was off; a reminder paused by a plan switch that stays off keeps its reason.
+   */
   boolean update(UUID userId, UUID id, Fields fields, Instant now) {
     return jdbc.sql(
                 """
                 UPDATE lifestyle.reminders
                 SET content = ?, activity_id = ?, local_time = ?, days_of_week = ?::smallint[],
-                    timezone = ?, channel = ?, enabled = ?, updated_at = ?
+                    timezone = ?, channel = ?, enabled = ?, updated_at = ?,
+                    disabled_reason = CASE WHEN ? THEN NULL ELSE disabled_reason END
                 WHERE id = ? AND user_id = ?
                 """)
             .params(
@@ -114,6 +119,7 @@ public class ReminderRepository {
                 fields.channel().name(),
                 fields.enabled(),
                 timestamp(now),
+                fields.enabled(),
                 id,
                 userId)
             .update()
@@ -244,6 +250,7 @@ public class ReminderRepository {
         ZoneId.of(rs.getString("timezone")),
         ReminderChannel.Type.valueOf(rs.getString("channel")),
         rs.getBoolean("enabled"),
+        rs.getString("disabled_reason"),
         rs.getObject("updated_at", OffsetDateTime.class).toInstant(),
         scheduledFor == null
             ? null

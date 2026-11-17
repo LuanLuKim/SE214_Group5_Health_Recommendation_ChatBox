@@ -70,6 +70,12 @@ public class LifestyleController {
     return ApiResponse.of(service().today(CurrentUser.id(principal)));
   }
 
+  /** SCRUM-163: ended plans with their figures, latest first. Read only. */
+  @GetMapping("/plans/history")
+  public ApiResponse.Success<PlanHistory> planHistory(@AuthenticationPrincipal Jwt principal) {
+    return ApiResponse.of(service().pastPlans(CurrentUser.id(principal)));
+  }
+
   /** UC-12: apply or switch to an approved template, body {@code {"templateId": "<uuid>"}}. */
   @PutMapping("/plan")
   public ApiResponse.Success<AppliedPlan> choosePlan(

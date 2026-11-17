@@ -66,7 +66,7 @@ class LifestyleServiceTest {
 
   LifestyleService at(Instant instant) {
     return new LifestyleService(
-        repository, new ObjectMapper(), Clock.fixed(instant, VIETNAM), userId -> true);
+        repository, new ObjectMapper(), Clock.fixed(instant, VIETNAM), userId -> true, 100);
   }
 
   LifestyleService service() {

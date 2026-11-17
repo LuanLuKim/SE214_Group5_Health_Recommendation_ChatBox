@@ -77,6 +77,8 @@ app:
   lifestyle:
     # Múi giờ quyết định "hôm nay" khi ghi nhận thói quen (UC-13): qua nửa đêm giờ này là sang ngày mới.
     zone: ${LIFESTYLE_ZONE:Asia/Ho_Chi_Minh}
+    # Số lộ trình đã kết thúc tối đa mà GET /lifestyle/plans/history trả về (mới nhất trước).
+    history-limit: ${LIFESTYLE_HISTORY_LIMIT:100}
     # UC-14: worker gửi nhắc nhở qua email (SMTP_* và MAIL_FROM như M5). REMINDERS_ENABLED=false
     # chỉ dừng việc gửi, route nhắc nhở vẫn chạy.
     reminders:
@@ -87,6 +89,16 @@ app:
       max-attempts: ${REMINDERS_MAX_ATTEMPTS:3}
       max-per-user: ${REMINDERS_MAX_PER_USER:20}
       from-address: ${MAIL_FROM:}
+    # Dọn dữ liệu M6 mỗi ngày (SCRUM-164). Thời hạn theo ISO-8601 (P90D = 90 ngày); cron theo múi giờ zone.
+    # Nhắc do người dùng tự tắt không bao giờ bị job xóa.
+    retention:
+      enabled: ${LIFESTYLE_RETENTION_ENABLED:true}
+      cron: ${LIFESTYLE_RETENTION_CRON:0 30 3 * * *}
+      sent-deliveries: ${LIFESTYLE_RETENTION_SENT_DELIVERIES:P90D}
+      failed-deliveries: ${LIFESTYLE_RETENTION_FAILED_DELIVERIES:P30D}
+      ended-plan-completions: ${LIFESTYLE_RETENTION_ENDED_PLAN_COMPLETIONS:P365D}
+      paused-reminders: ${LIFESTYLE_RETENTION_PAUSED_REMINDERS:P90D}
+      batch-size: ${LIFESTYLE_RETENTION_BATCH_SIZE:1000}
   # Chạy dữ liệu tổng hợp trong database/seeds sau migration (chỉ máy phát triển).
   seed-synthetic: ${SEED_SYNTHETIC:false}
   database-dir: ${DATABASE_DIR:../database}

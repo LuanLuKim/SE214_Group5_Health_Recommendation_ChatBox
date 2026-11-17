@@ -118,6 +118,14 @@ class LifestyleApiTest {
   }
 
   @Test
+  void planHistoryIsReadOnlyAndNeedsASession() throws Exception {
+    mvc.perform(get("/api/v1/lifestyle/plans/history")).andExpect(status().isUnauthorized());
+    mvc.perform(signed(get("/api/v1/lifestyle/plans/history")))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.data.plans").isArray());
+  }
+
+  @Test
   void signedInUserMarksAndUnmarksTodaysActivity() throws Exception {
     mvc.perform(signed(get("/api/v1/lifestyle/plan")))
         .andExpect(status().isOk())

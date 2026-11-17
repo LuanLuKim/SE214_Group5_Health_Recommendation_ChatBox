@@ -34,7 +34,7 @@ class LifestylePersistenceConfig {
       ObjectMapper json,
       LifestyleProperties properties,
       ConsentQuery consents) {
-    return new LifestyleService(repository, json, clock(properties), consents);
+    return new LifestyleService(repository, json, clock(properties), consents, properties.historyLimit());
   }
 
   @Bean
@@ -85,6 +85,24 @@ class LifestylePersistenceConfig {
       LifestyleProperties lifestyle,
       ReminderProperties properties) {
     return new ReminderDispatcher(reminders, consents, channels, clock(lifestyle), properties);
+  }
+
+  @Bean
+  RetentionRepository retentionRepository(JdbcClient jdbc, PlatformTransactionManager transactions) {
+    return new RetentionRepository(jdbc, new TransactionTemplate(transactions));
+  }
+
+  @Bean
+  LifestyleRetention lifestyleRetention(
+      RetentionRepository repository, RetentionProperties properties, LifestyleProperties lifestyle) {
+    return new LifestyleRetention(repository, properties, clock(lifestyle));
+  }
+
+  /** SCRUM-164 cleanup job; LIFESTYLE_RETENTION_ENABLED=false keeps all data. */
+  @Bean
+  @ConditionalOnProperty(name = "app.lifestyle.retention.enabled", havingValue = "true")
+  RetentionScheduler retentionScheduler(LifestyleRetention retention) {
+    return new RetentionScheduler(retention);
   }
 
   /** The sending worker; REMINDERS_ENABLED=false keeps the routes and stops sending. */

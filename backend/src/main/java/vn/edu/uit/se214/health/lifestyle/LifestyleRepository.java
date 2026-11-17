@@ -89,9 +89,16 @@ public class LifestyleRepository {
 
   /**
    * Result of {@link #applyPlan}. {@code previousPlanId} is the plan ended by a switch, or null;
-   * {@code remindersTurnedOff} counts the UC-14 reminders turned off by the switch.
+   * {@code remindersTurnedOff} counts the UC-14 reminders turned off by the switch;
+   * {@code restorableReminderIds} are reminders paused by an earlier switch whose activity the new
+   * plan has again. They stay off until the user turns them on.
    */
-  public record PlanWrite(UUID planId, boolean changed, UUID previousPlanId, int remindersTurnedOff) {}
+  public record PlanWrite(
+      UUID planId,
+      boolean changed,
+      UUID previousPlanId,
+      int remindersTurnedOff,
+      List<UUID> restorableReminderIds) {}
 
   /**
    * UC-12: make {@code templateId} the user's active plan from {@code today}. Applying the template
@@ -100,8 +107,10 @@ public class LifestyleRepository {
    * active plans.
    *
    * <p>In the same transaction, reminders that are on and follow an activity the new template does
-   * not have are turned off (UC-14), so they stop being sent. Their past deliveries stay as they
-   * are. Reminders without an activity, or whose activity id the new template also has, keep going.
+   * not have are paused (UC-14): turned off with reason PLAN_SWITCH, so they stop being sent. Their
+   * past deliveries stay as they are. Reminders without an activity, or whose activity id the new
+   * template also has, keep going. Paused reminders that follow an activity of the new template are
+   * returned, not turned on.
    */
   public PlanWrite applyPlan(UUID userId, UUID templateId, LocalDate today, Instant now) {
     return transactions.execute(
@@ -119,7 +128,7 @@ public class LifestyleRepository {
                           new CurrentPlan(rs.getObject("id", UUID.class), rs.getObject("template_id", UUID.class)))
                   .optional();
           if (current.isPresent() && current.get().templateId().equals(templateId))
-            return new PlanWrite(current.get().id(), false, null, 0);
+            return new PlanWrite(current.get().id(), false, null, 0, List.of());
           current.ifPresent(
               plan ->
                   jdbc.sql("UPDATE lifestyle.plans SET ended_on = GREATEST(?, started_on) WHERE id = ?")
@@ -132,7 +141,8 @@ public class LifestyleRepository {
           int turnedOff =
               jdbc.sql(
                       """
-                      UPDATE lifestyle.reminders r SET enabled = false, updated_at = ?
+                      UPDATE lifestyle.reminders r
+                      SET enabled = false, disabled_reason = 'PLAN_SWITCH', updated_at = ?
                       WHERE r.user_id = ? AND r.enabled AND r.activity_id IS NOT NULL
                         AND NOT EXISTS (
                           SELECT 1 FROM lifestyle.templates t
@@ -143,11 +153,75 @@ public class LifestyleRepository {
                       """)
                   .params(OffsetDateTime.ofInstant(now, ZoneOffset.UTC), userId, templateId)
                   .update();
-          return new PlanWrite(planId, true, current.map(CurrentPlan::id).orElse(null), turnedOff);
+          List<UUID> restorable =
+              jdbc.sql(
+                      """
+                      SELECT r.id FROM lifestyle.reminders r
+                      WHERE r.user_id = ? AND r.disabled_reason = 'PLAN_SWITCH'
+                        AND EXISTS (
+                          SELECT 1 FROM lifestyle.templates t
+                          CROSS JOIN LATERAL jsonb_array_elements(
+                            CASE WHEN jsonb_typeof(t.activities) = 'array' THEN t.activities ELSE '[]'::jsonb END
+                          ) AS a(activity)
+                          WHERE t.id = ? AND a.activity ->> 'id' = r.activity_id)
+                      ORDER BY r.local_time, r.created_at, r.id
+                      """)
+                  .params(userId, templateId)
+                  .query(UUID.class)
+                  .list();
+          return new PlanWrite(
+              planId, true, current.map(CurrentPlan::id).orElse(null), turnedOff, restorable);
         });
   }
 
   private record CurrentPlan(UUID id, UUID templateId) {}
+
+  /** An ended plan with its figures: from the summary when kept, else from the completions. */
+  public record PastPlanRow(
+      UUID planId,
+      UUID templateId,
+      String templateTitle,
+      LocalDate startedOn,
+      LocalDate endedOn,
+      int activityCount,
+      int completionCount,
+      int completedDays) {}
+
+  /** SCRUM-163: the user's ended plans, latest first, at most {@code limit}. */
+  public List<PastPlanRow> endedPlans(UUID userId, int limit) {
+    return jdbc.sql(
+            """
+            SELECT p.id, p.template_id, t.title, p.started_on, p.ended_on,
+                   (SELECT count(DISTINCT a.activity ->> 'id')
+                      FROM jsonb_array_elements(
+                        CASE WHEN jsonb_typeof(t.activities) = 'array' THEN t.activities ELSE '[]'::jsonb END
+                      ) AS a(activity)
+                     WHERE coalesce(a.activity ->> 'id', '') <> '') AS activity_count,
+                   COALESCE(p.completion_count,
+                     (SELECT count(*) FROM lifestyle.completions c WHERE c.plan_id = p.id)) AS completion_count,
+                   COALESCE(p.completed_days,
+                     (SELECT count(DISTINCT c.completed_on) FROM lifestyle.completions c WHERE c.plan_id = p.id))
+                     AS completed_days
+            FROM lifestyle.plans p
+            JOIN lifestyle.templates t ON t.id = p.template_id
+            WHERE p.user_id = ? AND p.ended_on IS NOT NULL
+            ORDER BY p.ended_on DESC, p.started_on DESC, p.id
+            LIMIT ?
+            """)
+        .params(userId, limit)
+        .query(
+            (rs, row) ->
+                new PastPlanRow(
+                    rs.getObject("id", UUID.class),
+                    rs.getObject("template_id", UUID.class),
+                    rs.getString("title"),
+                    rs.getObject("started_on", LocalDate.class),
+                    rs.getObject("ended_on", LocalDate.class),
+                    rs.getInt("activity_count"),
+                    rs.getInt("completion_count"),
+                    rs.getInt("completed_days")))
+        .list();
+  }
 
   /** UC-13 A2: the primary key (plan, activity, day) keeps one row however often it is sent. */
   public boolean insertCompletion(UUID planId, String activityId, LocalDate day) {
