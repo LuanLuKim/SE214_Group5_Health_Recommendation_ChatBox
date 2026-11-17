@@ -388,8 +388,8 @@ class PostgresModeTest {
             signed(post("/api/v1/accounts/confirm-deletion"))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{}"))
-        .andExpect(status().isNotImplemented())
-        .andExpect(jsonPath("$.error.code").value("NOT_IMPLEMENTED"));
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.error.code").value("OTP_INVALID"));
     mvc.perform(signed(get("/api/v1/health/statistics")))
         .andExpect(status().isNotImplemented());
     mvc.perform(
