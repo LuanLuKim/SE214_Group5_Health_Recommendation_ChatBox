@@ -5,6 +5,8 @@ import java.time.Duration;
 import java.time.Instant;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
+import vn.edu.uit.se214.health.accounts.auth.AccountConsentRequest;
+import vn.edu.uit.se214.health.accounts.auth.AccountConsentUseCase;
 import vn.edu.uit.se214.health.accounts.auth.AccountLoginRequest;
 import vn.edu.uit.se214.health.accounts.auth.AccountAuthenticationUseCase;
 import vn.edu.uit.se214.health.accounts.auth.AccountLoginResult;
@@ -47,15 +49,18 @@ import vn.edu.uit.se214.health.system.ModuleRegistry;
 public class AccountsController {
   private final AccountRegistrationUseCase registration;
   private final AccountAuthenticationUseCase authentication;
+  private final AccountConsentUseCase consent;
   private final AccountSelfManagementUseCase selfManagement;
 
   public AccountsController(
       AccountRegistrationUseCase registration,
       AccountAuthenticationUseCase authentication,
-      AccountSelfManagementUseCase selfManagement) {
+      AccountSelfManagementUseCase selfManagement,
+      AccountConsentUseCase consent) {
     this.registration = registration;
     this.authentication = authentication;
     this.selfManagement = selfManagement;
+    this.consent = consent;
   }
 
   @GetMapping
@@ -168,6 +173,14 @@ public class AccountsController {
       @AuthenticationPrincipal Jwt principal) {
     selfManagement.requestDeletion(CurrentUser.id(principal));
     return ResponseEntity.accepted().body(ApiResponse.of(null));
+  }
+
+  @PostMapping("/me/consent")
+  public ApiResponse.Success<Void> acceptConsent(
+      @AuthenticationPrincipal Jwt principal,
+      @RequestBody(required = false) AccountConsentRequest body) {
+    consent.accept(CurrentUser.id(principal), body);
+    return ApiResponse.of(null);
   }
 
   private static final String ACCESS_COOKIE = "HA_ACCESS";

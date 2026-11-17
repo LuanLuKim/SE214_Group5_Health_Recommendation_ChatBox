@@ -23,8 +23,8 @@ import vn.edu.uit.se214.health.system.ModuleRegistry;
 
 /**
  * M1 – UC-07, UC-16. Rule authoring routes are wired to {@link RuleDraftService} and require
- * authentication (SpringSecurityConfiguration); the CONTENT_EXPERT role check still belongs here
- * before any service call. Nothing in these routes approves or activates a rule.
+ * authentication plus SAFETY_RULE_MANAGE (SpringSecurityConfiguration). Nothing in these routes
+ * approves or activates a rule.
  */
 @RestController
 @RequestMapping("/api/v1/safety")

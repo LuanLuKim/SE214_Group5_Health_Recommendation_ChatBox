@@ -17,6 +17,7 @@ import java.util.UUID;
 import java.util.function.Function;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+import vn.edu.uit.se214.health.accounts.api.ConsentQuery;
 import vn.edu.uit.se214.health.lifestyle.ReminderList.Delivery;
 import vn.edu.uit.se214.health.lifestyle.ReminderList.Reminder;
 import vn.edu.uit.se214.health.lifestyle.ReminderRepository.Fields;
@@ -40,6 +41,7 @@ public class LifestyleReminderService {
   private final LifestyleRepository plans;
   private final ObjectMapper json;
   private final Clock clock;
+  private final ConsentQuery consents;
   private final Map<ReminderChannel.Type, ReminderChannel> channels;
   private final int maxPerUser;
 
@@ -49,17 +51,20 @@ public class LifestyleReminderService {
       LifestyleRepository plans,
       ObjectMapper json,
       Clock clock,
+      ConsentQuery consents,
       List<ReminderChannel> channels,
       int maxPerUser) {
     this.reminders = reminders;
     this.plans = plans;
     this.json = json;
     this.clock = clock;
+    this.consents = consents;
     this.channels = channels.stream().collect(Collectors.toMap(ReminderChannel::type, Function.identity()));
     this.maxPerUser = maxPerUser;
   }
 
   public ReminderList list(UUID userId) {
+    requireConsent(userId);
     Instant now = clock.instant();
     List<Reminder> rows = reminders.list(userId).stream().map(r -> view(r, now)).toList();
     List<ReminderChannel.Type> available = new ArrayList<>();
@@ -73,6 +78,7 @@ public class LifestyleReminderService {
    * the content) are required. Defaults: every day, app.lifestyle.zone, EMAIL, on.
    */
   public Reminder create(UUID userId, JsonNode body) {
+    requireConsent(userId);
     JsonNode input = object(body);
     String activityId = activityId(userId, input, null);
     String content =
@@ -96,6 +102,7 @@ public class LifestyleReminderService {
 
   /** Changes only the fields sent; {@code {"enabled": false}} stops every later send. */
   public Reminder update(UUID userId, String reminderId, JsonNode body) {
+    requireConsent(userId);
     UUID id = id(reminderId);
     JsonNode input = object(body);
     ReminderRow current = reminders.find(userId, id).orElseThrow(LifestyleErrors::reminderNotFound);
@@ -114,7 +121,12 @@ public class LifestyleReminderService {
   }
 
   public void delete(UUID userId, String reminderId) {
+    requireConsent(userId);
     if (!reminders.delete(userId, id(reminderId))) throw LifestyleErrors.reminderNotFound();
+  }
+
+  private void requireConsent(UUID userId) {
+    if (!consents.healthDataProcessingAccepted(userId)) throw LifestyleErrors.consentRequired();
   }
 
   private Reminder read(UUID userId, UUID id) {

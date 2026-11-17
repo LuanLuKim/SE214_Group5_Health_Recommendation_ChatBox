@@ -137,6 +137,8 @@ class ApiTest {
             new Object[] {HttpMethod.POST, "/chat/messages/example/feedback"},
             new Object[] {HttpMethod.GET, "/accounts/me"},
             new Object[] {HttpMethod.GET, "/accounts/users"},
+            new Object[] {HttpMethod.POST, "/accounts/confirm-deletion"},
+            new Object[] {HttpMethod.POST, "/accounts/me/consent"},
             new Object[] {HttpMethod.GET, "/lifestyle/templates"},
             new Object[] {HttpMethod.GET, "/lifestyle/plan"},
             new Object[] {HttpMethod.PUT, "/lifestyle/completions/demo/2026-11-14"},

@@ -23,7 +23,7 @@ import vn.edu.uit.se214.health.system.ModuleRegistry;
 
 /**
  * M2 – UC-10, UC-11, UC-15, UC-17. Public search is open; authoring, the shared review queue
- * (UC-17, both the M1 and M2 parts) and feedback require authentication. Role checks remain pending.
+ * (UC-17, both the M1 and M2 parts) and feedback require CONTENT_MANAGE.
  */
 @RestController
 @RequestMapping("/api/v1/knowledge")

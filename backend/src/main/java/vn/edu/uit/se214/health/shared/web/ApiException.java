@@ -53,6 +53,13 @@ public class ApiException extends RuntimeException {
     return invalid("CONSENT_REQUIRED", "Bạn cần đồng ý các điều khoản và xác nhận bắt buộc.");
   }
 
+  public static ApiException healthConsentRequired() {
+    return new ApiException(
+        HttpStatus.FORBIDDEN,
+        "HEALTH_CONSENT_REQUIRED",
+        "Bạn cần đồng ý cho phép xử lý dữ liệu sức khỏe để sử dụng chức năng này.");
+  }
+
   public static ApiException adultConfirmationRequired() {
     return invalid("ADULT_CONFIRMATION_REQUIRED", "Chỉ người từ đủ 18 tuổi mới được đăng ký.");
   }

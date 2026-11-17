@@ -38,12 +38,9 @@ final class LifestyleErrors {
         HttpStatus.CONFLICT, "COMPLETION_LOCKED", "Chỉ bỏ đánh dấu được hoạt động của hôm nay.");
   }
 
-  /** UC-12 precondition: templates are filtered with the user's health data. */
+  /** Health-data operations require the user's current consent. */
   static ApiException consentRequired() {
-    return new ApiException(
-        HttpStatus.FORBIDDEN,
-        "HEALTH_CONSENT_REQUIRED",
-        "Bạn cần đồng ý cho phép xử lý dữ liệu sức khỏe trước khi chọn lộ trình sinh hoạt.");
+    return ApiException.healthConsentRequired();
   }
 
   static ApiException invalidGoal() {

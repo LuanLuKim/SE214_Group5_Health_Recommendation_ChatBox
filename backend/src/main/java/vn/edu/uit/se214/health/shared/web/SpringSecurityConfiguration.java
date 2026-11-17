@@ -125,6 +125,49 @@ public class SpringSecurityConfiguration {
                     "/api/v1/accounts/roles/*",
                     "/api/v1/accounts/permissions/*")
                 .hasAuthority("PERM_RBAC_MANAGE")
+                .requestMatchers(
+                    HttpMethod.GET,
+                    "/api/v1/safety/rules",
+                    "/api/v1/safety/rules/*")
+                .hasAuthority("PERM_SAFETY_RULE_MANAGE")
+                .requestMatchers(
+                    HttpMethod.POST,
+                    "/api/v1/safety/rules",
+                    "/api/v1/safety/rules/*/submit")
+                .hasAuthority("PERM_SAFETY_RULE_MANAGE")
+                .requestMatchers(HttpMethod.PATCH, "/api/v1/safety/rules/*")
+                .hasAuthority("PERM_SAFETY_RULE_MANAGE")
+                .requestMatchers(
+                    HttpMethod.POST,
+                    "/api/v1/knowledge/articles",
+                    "/api/v1/knowledge/reviews/*/decision")
+                .hasAuthority("PERM_CONTENT_MANAGE")
+                .requestMatchers(
+                    HttpMethod.PATCH,
+                    "/api/v1/knowledge/articles/*",
+                    "/api/v1/knowledge/feedback/*")
+                .hasAuthority("PERM_CONTENT_MANAGE")
+                .requestMatchers(HttpMethod.DELETE, "/api/v1/knowledge/articles/*")
+                .hasAuthority("PERM_CONTENT_MANAGE")
+                .requestMatchers(
+                    HttpMethod.GET,
+                    "/api/v1/knowledge/reviews",
+                    "/api/v1/knowledge/feedback")
+                .hasAuthority("PERM_CONTENT_MANAGE")
+                .requestMatchers(HttpMethod.GET, "/api/v1/health/statistics")
+                .hasAuthority("PERM_SYSTEM_STATS_VIEW")
+                .requestMatchers(
+                    "/api/v1/accounts/me",
+                    "/api/v1/accounts/me/**",
+                    "/api/v1/accounts/confirm-deletion")
+                .hasAuthority("PERM_ACCOUNT_SELF_MANAGE")
+                .requestMatchers(
+                    "/api/v1/chat/**",
+                    "/api/v1/health/profile",
+                    "/api/v1/health/metrics",
+                    "/api/v1/health/metrics/*",
+                    "/api/v1/lifestyle/**")
+                .hasAuthority("PERM_ACCOUNT_SELF_MANAGE")
                     .requestMatchers(SpringSecurityConfiguration::requiresAuthentication)
                     .authenticated()
                     .anyRequest()

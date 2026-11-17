@@ -15,6 +15,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
+import vn.edu.uit.se214.health.accounts.api.ConsentQuery;
 import vn.edu.uit.se214.health.integrations.PythonServiceClient;
 import vn.edu.uit.se214.health.safety.RuleRepository;
 import vn.edu.uit.se214.health.shared.web.ApiException;
@@ -23,6 +24,8 @@ class ChatServiceTest {
   private InMemoryChatRepository repository;
   private PythonServiceClient aiClient;
   private ObjectProvider<RuleRepository> ruleRepositoryProvider;
+  private ObjectProvider<ConsentQuery> consentQueryProvider;
+  private ConsentQuery consents;
   private ChatService chatService;
 
   @BeforeEach
@@ -31,8 +34,31 @@ class ChatServiceTest {
     repository = new InMemoryChatRepository();
     aiClient = mock(PythonServiceClient.class);
     ruleRepositoryProvider = mock(ObjectProvider.class);
+    consentQueryProvider = mock(ObjectProvider.class);
+    consents = mock(ConsentQuery.class);
+    when(consents.healthDataProcessingAccepted(any(UUID.class))).thenReturn(true);
+    when(consentQueryProvider.getIfAvailable()).thenReturn(consents);
     when(ruleRepositoryProvider.getIfAvailable()).thenReturn(null);
-    chatService = new ChatService(repository, aiClient, ruleRepositoryProvider, new ObjectMapper());
+    chatService =
+        new ChatService(
+            repository, aiClient, ruleRepositoryProvider, new ObjectMapper(), consentQueryProvider);
+  }
+
+  @Test
+  void sendRequiresHealthDataConsent() {
+    UUID userId = UUID.randomUUID();
+    when(consents.healthDataProcessingAccepted(userId)).thenReturn(false);
+
+    assertThatThrownBy(
+            () ->
+                chatService.send(
+                    userId, new SendMessageRequest(null, "Tôi bị sốt", List.of())))
+        .isInstanceOf(ApiException.class)
+        .satisfies(
+            error -> {
+              assertThat(((ApiException) error).status()).isEqualTo(org.springframework.http.HttpStatus.FORBIDDEN);
+              assertThat(((ApiException) error).code()).isEqualTo("HEALTH_CONSENT_REQUIRED");
+            });
   }
 
   @Test
