@@ -159,7 +159,8 @@ public class ReminderRepository {
 
   /**
    * A3: failed sends of reminders that are still on, scheduled at or after {@code since}, with
-   * fewer than {@code maxAttempts} attempts.
+   * fewer than {@code maxAttempts} attempts. A send scheduled before the reminder was last saved
+   * belongs to the old schedule and is not tried again, like {@link ReminderSchedule#due}.
    */
   List<Retry> retryable(int maxAttempts, Instant since) {
     return jdbc.sql(
@@ -168,6 +169,7 @@ public class ReminderRepository {
             FROM lifestyle.reminder_deliveries d
             JOIN lifestyle.reminders r ON r.id = d.reminder_id
             WHERE d.status = 'FAILED' AND d.attempt_count < ? AND d.scheduled_for >= ? AND r.enabled
+              AND r.updated_at <= d.scheduled_for
             ORDER BY d.scheduled_for, d.id
             """)
         .params(maxAttempts, timestamp(since))
@@ -181,12 +183,19 @@ public class ReminderRepository {
         .list();
   }
 
-  /** Takes a failed send back to PENDING on the same row; only one worker run can win it. */
+  /**
+   * Takes a failed send back to PENDING on the same row; only one worker run can win it. The
+   * schedule is checked again here, so a save between {@link #retryable} and this call still
+   * stops the retry.
+   */
   boolean claimRetry(UUID deliveryId, int maxAttempts, Instant now) {
     return jdbc.sql(
                 """
-                UPDATE lifestyle.reminder_deliveries SET status = 'PENDING', updated_at = ?
-                WHERE id = ? AND status = 'FAILED' AND attempt_count < ?
+                UPDATE lifestyle.reminder_deliveries d SET status = 'PENDING', updated_at = ?
+                WHERE d.id = ? AND d.status = 'FAILED' AND d.attempt_count < ?
+                  AND EXISTS (
+                    SELECT 1 FROM lifestyle.reminders r
+                    WHERE r.id = d.reminder_id AND r.updated_at <= d.scheduled_for)
                 """)
             .params(timestamp(now), deliveryId, maxAttempts)
             .update()
