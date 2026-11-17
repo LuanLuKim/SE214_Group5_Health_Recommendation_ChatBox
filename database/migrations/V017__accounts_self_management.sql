@@ -12,6 +12,10 @@ ALTER TABLE knowledge.review_events
   ADD CONSTRAINT review_events_reviewer_id_fkey
     FOREIGN KEY (reviewer_id) REFERENCES accounts.users(id) ON DELETE SET NULL;
 
+-- Bỏ NOT NULL trước, rồi mới gỡ actor không còn tồn tại, cuối cùng mới thêm FK.
+ALTER TABLE accounts.admin_audit_logs
+  ALTER COLUMN actor_user_id DROP NOT NULL;
+
 UPDATE accounts.admin_audit_logs
 SET actor_user_id = NULL
 WHERE NOT EXISTS (
@@ -19,6 +23,5 @@ WHERE NOT EXISTS (
 );
 
 ALTER TABLE accounts.admin_audit_logs
-  ALTER COLUMN actor_user_id DROP NOT NULL,
   ADD CONSTRAINT admin_audit_logs_actor_user_id_fkey
     FOREIGN KEY (actor_user_id) REFERENCES accounts.users(id) ON DELETE SET NULL;
