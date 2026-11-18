@@ -111,6 +111,15 @@ class PostgresModeTest {
     // LIKE wildcards in user input are matched literally.
     mvc.perform(get("/api/v1/knowledge/facilities").param("q", "%"))
         .andExpect(jsonPath("$.data.length()").value(0));
+    // UC-11: filters and the detail are public, like the search
+    mvc.perform(get("/api/v1/knowledge/facilities").param("province", "tỉnh kiểm thử"))
+        .andExpect(jsonPath("$.data.length()").value(1));
+    mvc.perform(get("/api/v1/knowledge/facilities/00000000-0000-4000-8000-000000000020"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.data.name").value("[TEST] Cơ sở giả lập A"))
+        .andExpect(jsonPath("$.meta.status").value("DATABASE_RESULTS"));
+    mvc.perform(get("/api/v1/knowledge/facilities/00000000-0000-4000-8000-000000000999"))
+        .andExpect(status().isNotFound());
     // PostgreSQL rejects NUL in text; the query must be refused before it reaches the database.
     mvc.perform(get("/api/v1/knowledge/articles").param("q", "a\u0000b"))
         .andExpect(status().isBadRequest())

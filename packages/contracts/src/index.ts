@@ -136,6 +136,13 @@ export interface FacilitySummary {
   source: SourceReference;
 }
 
+// UC-11 query of GET /api/v1/knowledge/facilities; specialty is a directory label.
+export interface FacilitySearchParams {
+  q?: string | undefined;
+  province?: string | undefined;
+  specialty?: string | undefined;
+}
+
 // M1 -> M4: care direction is controlled by reviewed rules, never an LLM.
 export interface SafetyDecision {
   status: 'EVALUATED' | 'UNAVAILABLE';

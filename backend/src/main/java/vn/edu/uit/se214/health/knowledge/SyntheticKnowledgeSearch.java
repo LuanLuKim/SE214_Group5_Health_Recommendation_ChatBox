@@ -71,9 +71,38 @@ public class SyntheticKnowledgeSearch implements KnowledgeSearch {
   }
 
   @Override
-  public List<FacilitySummary> facilities(String query) {
-    String q = query.toLowerCase(VI);
-    return FACILITIES.stream().filter(f -> f.name().toLowerCase(VI).contains(q)).toList();
+  public List<FacilitySummary> facilities(FacilityFilter filter) {
+    return facilities(FACILITIES, filter);
+  }
+
+  @Override
+  public Optional<FacilitySummary> facility(UUID id) {
+    return FACILITIES.stream()
+        .filter(f -> f.id().equals(id.toString()) && verified(f))
+        .findFirst();
+  }
+
+  /** Same rules as {@link JdbcKnowledgeSearch#facilities}, on a list (the fixture, or a test's). */
+  static List<FacilitySummary> facilities(List<FacilitySummary> all, FacilityFilter filter) {
+    String q = filter.query().toLowerCase(VI);
+    String province = filter.province().toLowerCase(VI);
+    String specialty = filter.specialty().toLowerCase(VI);
+    return all.stream()
+        .filter(SyntheticKnowledgeSearch::verified)
+        .filter(f -> f.name().toLowerCase(VI).contains(q))
+        .filter(f -> province.isEmpty() || f.province().toLowerCase(VI).equals(province))
+        .filter(f -> specialty.isEmpty()
+            || f.specialties().stream().anyMatch(s -> s.toLowerCase(VI).equals(specialty)))
+        .sorted(Comparator.comparing(FacilitySummary::name).thenComparing(FacilitySummary::id))
+        .limit(MAX_FACILITIES)
+        .toList();
+  }
+
+  static boolean verified(FacilitySummary f) {
+    return f.source() != null
+        && f.source().name() != null && !f.source().name().isBlank()
+        && f.source().url() != null && !f.source().url().isBlank()
+        && f.source().verifiedAt() != null && !f.source().verifiedAt().isBlank();
   }
 
   @Override
