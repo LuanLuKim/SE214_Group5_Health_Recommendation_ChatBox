@@ -24,7 +24,7 @@ from urllib.request import Request, urlopen
 
 from .glossary import Rules
 
-PROMPT_VERSION = "fusion-1"
+PROMPT_VERSION = "fusion-2"
 STOP_STATUS = {401, 402, 403, 429}  # auth, quota, rate limit: stop and keep what is done
 
 
@@ -91,8 +91,8 @@ def _table(rows: list[dict[str, str]]) -> str:
 
 
 def system_prompt(rules: Rules) -> str:
-    return f"""You are the final editor of an English -> Vietnamese translation of public health information (NHS pages) \
-for ordinary readers in Viet Nam. A chatbot will quote these texts, so they must be exact.
+    return f"""You are the final editor of an English -> Vietnamese translation of public health information (NHS and \
+WHO pages) for ordinary readers in Viet Nam. A chatbot will quote these texts, so they must be exact.
 
 Input: a JSON array of items. Each item has "id", "title", "section", optional "medicine_names", and "lines".
 Each line has "en" (the source line) and "mt" (drafts from machine-translation systems; they may contain errors, \
@@ -103,7 +103,16 @@ For every line write ONE Vietnamese line. Use the drafts as raw material: keep w
 and follow the source when the drafts disagree with it.
 
 Rules
-1. Faithful: add nothing, drop nothing, never weaken or strengthen a warning. Do not explain, do not summarise.
+1. Faithful: add nothing, drop nothing, never weaken or strengthen a warning. Do not explain, do not summarise. \
+Human reviewers returned lines for these changes of meaning, so check each of them:
+   - negation and conditions: keep every not / never / without / unless / if / except
+   - scope: keep only / any / all / both / either / each on the same words; "any" refers to what the source refers \
+to; never narrow or widen a group ("cut yourself" is any cut, babies are not only newborns)
+   - certainty: may / might / can / likely / unlikely / usually keep their strength ("unlikely" = "ít có khả năng")
+   - time and order: before / after / during / within ("straight after you have been in water" = "ngay sau khi lên \
+khỏi nước")
+   - route and form: oral is never "tiêm"; keep tablet / pessary / ring / cream / vaginal as in the source
+   - names of products stay as written (Aqueous Cream)
 2. Keep every number, dose, unit, age, duration, temperature and percentage exactly as digits; do not convert units.
 3. One output line per input line, same order. Never merge, split, reorder or skip lines. A heading stays a short \
 heading, a list item stays a list item (no bullet character, no full stop if the source has none).
@@ -111,11 +120,12 @@ heading, a list item stays a list item (no bullet character, no full stop if the
 ibuprofen...). Translate names of medicine groups (antibiotics -> thuốc kháng sinh). Never replace a name with a brand.
 5. Plain, natural Vietnamese that a patient understands; address the reader as "bạn". No English left except \
 proper names and medicine names.
-6. Localise UK services for Viet Nam:
+6. Localise UK services for Viet Nam; what exists only in the UK keeps its UK context:
 {_table(rules.tables.get("service_table", []))}
-7. Ages: say them the way Vietnamese doctors and parents do, never "nhũ nhi" or "trẻ chập chững":
+7. Ages: say them the way Vietnamese doctors and parents do, never "nhũ nhi" or "trẻ chập chững"; follow the \
+source word and the context, never add an age limit the source does not give:
 {_table(rules.tables.get("age_table", []))}
-8. Preferred terms:
+8. Preferred terms (a UK programme name such as 5 A Day is explained once in Vietnamese):
 {_table(rules.tables.get("terminology", []))}
 
 Answer ONLY a JSON array, one object per item, same ids, "vi" with exactly as many strings as the item has lines:
