@@ -14,5 +14,58 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
+
+  # Cả stack trong Docker (chỉ dùng thử/demo trên máy): docker compose --profile full up --build
+  # Khóa dịch vụ dưới đây chỉ dùng cục bộ. Triển khai từ image đã build: deploy/compose.yaml (docs/DEPLOY.md).
+  backend:
+    profiles: [full]
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    environment:
+      DATA_MODE: postgres
+      SEED_SYNTHETIC: 'true'
+      DATABASE_URL: jdbc:postgresql://db:5432/health_assistant
+      DATABASE_USER: health_dev
+      DATABASE_PASSWORD: local_dev_only
+      WEB_ORIGIN: http://localhost:5173
+      AI_SERVICE_URL: http://ai:8001
+      AI_SERVICE_KEY: local_dev_only_key
+      STATS_SERVICE_URL: http://stats:8002
+      STATS_SERVICE_KEY: local_dev_only_key
+      # Chỉ dùng trên máy phát triển, đủ 32 byte. Không dùng lại trên server.
+      AUTH_TOKEN_SECRET: local_dev_only_auth_token_secret_32b
+      EMAIL_OTP_HASH_SECRET: local_dev_only_email_otp_secret_32b
+      ADMIN_BOOTSTRAP_ENABLED: ${ADMIN_BOOTSTRAP_ENABLED:-false}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
+    ports:
+      - '127.0.0.1:4000:4000'
+    depends_on:
+      db:
+        condition: service_healthy
+      ai:
+        condition: service_healthy
+      stats:
+        condition: service_healthy
+
+  ai:
+    profiles: [full]
+    build:
+      context: .
+      dockerfile: services/ai/Dockerfile
+    environment:
+      AI_SERVICE_KEY: local_dev_only_key
+      LLM_ENABLED: 'false'
+
+  stats:
+    profiles: [full]
+    build:
+      context: .
+      dockerfile: services/stats/Dockerfile
+    environment:
+      STATS_SERVICE_KEY: local_dev_only_key
+      DJANGO_ALLOWED_HOSTS: stats,localhost,127.0.0.1
+
 volumes:
   postgres_data:

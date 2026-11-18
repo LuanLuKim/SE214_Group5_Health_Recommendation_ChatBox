@@ -97,9 +97,31 @@ class RuntimeTests(unittest.TestCase):
         self.assertEqual(self.net.urls.count(URL), 2)
         self.collect()
         self.assertEqual(self.net.urls.count(URL), 2)
-        self.batch.state['requests'] = 200
+        self.batch.usage()['requests'] = 200
         with self.assertRaises(http.Limit):
             self.batch.fetch_response(URL, 'text/html')
+
+    def test_each_group_has_its_own_budget(self):
+        self.batch.usage()['requests'] = 200
+        with self.assertRaises(http.Limit):
+            self.batch.fetch_response(URL, 'text/html')
+        other = http.Batch(self.root / 'crawl', self.net, 'urls_lifestyle')
+        other.state = self.batch.state
+        other.fetch_response(URL, 'text/html')
+        self.assertEqual(self.batch.state['groups']['urls_lifestyle']['requests'], 1)
+        self.assertEqual(self.batch.state['groups']['default']['requests'], 200)
+        self.assertEqual(self.batch.state['requests'], 1)
+        line = json.loads((self.root / 'crawl' / 'events.jsonl').read_text(encoding='utf-8').splitlines()[-1])
+        self.assertEqual((line['group'], line['group_number']), ('urls_lifestyle', 1))
+        self.assertLess(self.batch.state['groups']['urls_lifestyle']['charged_bytes'], http.BODY_LIMIT)
+        with self.assertRaises(ValueError):
+            http.Batch(self.root / 'crawl', self.net, '../x')
+
+    def test_old_checkpoint_without_groups_refuses_to_fetch(self):
+        self.batch.state = {'requests': 5, 'charged_bytes': 0, 'attempts': {}, 'last_request': 0, 'blocked': {}}
+        with self.assertRaises(http.Limit):
+            self.batch.fetch_response(URL, 'text/html')
+        self.assertEqual(self.net.urls, [])
 
     def test_reextract_missing_raw_is_failure_without_network(self):
         self.assertEqual(self.collect(reextract=True)['exit_code'], 1)
@@ -120,7 +142,7 @@ class RuntimeTests(unittest.TestCase):
         self.assertEqual(self.batch.state['requests'], 1)
 
     def test_run_budget_produces_failure_receipt(self):
-        self.batch.state['requests'] = 200
+        self.batch.usage()['requests'] = 200
         self.assertEqual(self.collect()['exit_code'], 1)
         self.assertEqual(json.loads((self.store.root / 'latest.json').read_text())['stop_reason'], 'LIMIT')
 
@@ -170,6 +192,23 @@ class RuntimeTests(unittest.TestCase):
         self.collect()
         self.collect()
         self.assertEqual(self.net.urls.count(robots), 2)
+
+
+class BudgetAllocationTests(unittest.TestCase):
+    def test_history_goes_to_list_robots_to_next_page_redirect_to_previous(self):
+        from crawler.budget import allocate, memberships, split_bytes
+        with tempfile.TemporaryDirectory() as directory:
+            a, b = Path(directory) / 'urls.txt', Path(directory) / 'urls_lifestyle.txt'
+            a.write_text('https://www.nhs.uk/a/ topic\n# disabled https://www.nhs.uk/old/\n', encoding='utf-8')
+            b.write_text('https://www.nhs.uk/b/#x\nhttps://www.nhs.uk/a/ duplicate\n', encoding='utf-8')
+            groups = memberships([a, b])
+        self.assertEqual(groups['https://www.nhs.uk/a/'], 'urls')
+        self.assertEqual(groups['https://www.nhs.uk/old/'], 'urls')
+        requests = ['https://www.nhs.uk/robots.txt', 'https://www.nhs.uk/a/', 'https://www.nhs.uk/moved/',
+                    'https://www.nhs.uk/robots.txt', 'https://www.nhs.uk/b/', 'https://www.nhs.uk/b/', 'https://www.nhs.uk/old/']
+        self.assertEqual(allocate(requests, groups), {'urls': 4, 'urls_lifestyle': 3})
+        self.assertEqual(allocate(['https://www.nhs.uk/unknown/'], groups), {'unassigned': 1})
+        self.assertEqual(split_bytes(10, {'urls': 2, 'urls_lifestyle': 1}), {'urls': 7, 'urls_lifestyle': 3})
 
 
 if __name__ == '__main__':

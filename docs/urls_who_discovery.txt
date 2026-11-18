@@ -1,0 +1,10 @@
+# urls_who_discovery.txt — trang mục lục WHO, CHỈ để tìm URL (discover.py), KHÔNG chuẩn hóa, KHÔNG vào RAG (#106).
+# Crawl: python -B tools/crawl/run.py --urls docs/urls_who_discovery.txt
+# Nhóm ngân sách riêng: urls_who_discovery (200 request, 200 URL).
+
+# WHO Việt Nam: danh mục chủ đề sức khỏe tiếng Việt (trang con chọn bằng discover.py --prefix /vietnam/vi/health-topics/).
+https://www.who.int/vietnam/vi/health-topics                 topic_index
+# Danh mục hỏi đáp WHO Việt Nam (/vietnam/vi/news/questions-and-answers) chỉ có một bài (sốt xuất huyết),
+# đã nằm trong docs/urls.txt, nên không đưa vào danh sách này.
+# WHO toàn cầu: danh mục fact sheet tiếng Anh.
+https://www.who.int/news-room/fact-sheets                    factsheet_index

@@ -1,12 +1,12 @@
 # M5 Tài khoản & phân quyền
 
-Use cases: **UC-01, UC-02, UC-03, UC-18**. Owner: unassigned.
+Use cases: **UC-01, UC-02, UC-03, UC-18**. Owner: Võ Ngọc Tài (`vongoctaijk-sketch`).
 
 ## Navigation
 
 - Frontend: `apps/web/src/modules/accounts/`
-- Backend: `apps/api/src/modules/accounts/`
-- Database: `database/migrations/005_accounts.sql`
+- Backend: `backend/src/main/java/vn/edu/uit/se214/health/accounts/`
+- Database: `database/migrations/V005__accounts.sql`
 - Shared contracts: `packages/contracts/src/index.ts`
 - Routes and access expectations: `docs/API.md`
 
@@ -16,6 +16,6 @@ Owns the shared session, role, consent and ownership boundary for all modules. R
 
 ## Extend this module
 
-Keep UI in `Page.tsx` and module-local components/hooks. Put HTTP parsing in `router.ts`, business rules in `service.ts`, and add a `repository.ts` for persistence. Do not call SQL from UI or route handlers. Add tests beside the relevant workspace test suite. These are starter files, not completed use cases.
+Keep UI in `Page.tsx` and module-local components/hooks. Backend code lives in the module package (Controller, Service, Repository); see its README.md. Do not call SQL from UI or route handlers. Add tests beside the relevant workspace test suite. These are starter files, not completed use cases.
 
 Use shared contracts for cross-module messages. Discuss contract/migration changes in a PR so the other owners can update their integration. Do not edit another module simply to avoid defining its interface.

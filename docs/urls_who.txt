@@ -1,0 +1,139 @@
+# urls_who.txt — nội dung WHO cho RAG và làm nguồn tham khảo quy tắc Safety Gate (#106).
+# Nhóm ngân sách riêng: urls_who (200 request, 200 URL). Chỉ dùng nội bộ (usage_scope internal_review_only).
+# Crawl: python -B tools/crawl/run.py --urls docs/urls_who.txt  (mỗi lượt tối đa 20 request, chạy lại tới khi hết)
+# Mọi URL lấy từ trang mục lục trong docs/urls_who_discovery.txt (discover.py), không đoán slug.
+# Chọn theo phạm vi chatbot: dấu hiệu cần cấp cứu/đi khám, bệnh thường gặp và mạn tính, lối sống.
+# Không lấy: trang chính sách/thống kê, trang về thuốc (dự án không tra cứu thuốc), bệnh không lưu hành ở Việt Nam.
+
+# --- WHO Việt Nam: chủ đề sức khỏe tiếng Việt (link từ https://www.who.int/vietnam/vi/health-topics) ---
+# https://www.who.int/vietnam/vi/health-topics/acute-watery-diarrhoea-and-cholera  (404 dù có link trên mục lục; thay bằng health-topics/cholera và Q&A cholera-outbreaks bên dưới)
+https://www.who.int/vietnam/vi/health-topics/ageing-and-health                                       general
+https://www.who.int/vietnam/vi/health-topics/air-pollution                                           environment
+https://www.who.int/vietnam/vi/health-topics/avian-and-other-zoonotic-influenza                      infectious
+https://www.who.int/vietnam/vi/health-topics/breastfeeding                                           pediatric
+https://www.who.int/vietnam/vi/health-topics/cancer                                                  oncology
+https://www.who.int/vietnam/vi/health-topics/dengue                                                  infectious
+# https://www.who.int/vietnam/vi/health-topics/disability  (trang không có nội dung, chỉ có link; thay bằng health-topics/disability và fact sheet disability-and-health)
+https://www.who.int/vietnam/vi/health-topics/food-safety                                             nutrition
+https://www.who.int/vietnam/vi/health-topics/hand-foot-and-mouth-disease-(hfmd)                      infectious
+https://www.who.int/vietnam/vi/health-topics/health-promotion                                        general
+# https://www.who.int/vietnam/vi/health-topics/immunization  (404 dù có link trên mục lục; thay bằng health-topics/vaccines-and-immunization và fact sheet immunization-coverage)
+https://www.who.int/vietnam/vi/health-topics/malaria                                                 infectious
+https://www.who.int/vietnam/vi/health-topics/maternal-health                                         maternal
+https://www.who.int/vietnam/vi/health-topics/rehabilitation                                          general
+# Không đưa vào (vẫn ghi để discover.py không gợi ý lại):
+# https://www.who.int/vietnam/vi/health-topics/influenza-(seasonal)  (trùng influenza-%28seasonal%29 trong docs/urls.txt)
+# https://www.who.int/vietnam/vi/health-topics/disaster  (chính sách ứng phó thảm họa, không phải thông tin sức khỏe cá nhân)
+# https://www.who.int/vietnam/vi/health-topics/field-epidemiology-training-program-(fetp)  (chương trình đào tạo)
+# https://www.who.int/vietnam/vi/health-topics/health-financing  (chính sách)
+# https://www.who.int/vietnam/vi/health-topics/health-systems-governance  (chính sách)
+# https://www.who.int/vietnam/vi/health-topics/health-workforce  (chính sách)
+# https://www.who.int/vietnam/vi/health-topics/hospitals  (chính sách)
+# https://www.who.int/vietnam/vi/health-topics/quality-and-patient-safety  (chính sách)
+# https://www.who.int/vietnam/vi/health-topics/universal-health-coverage-(uhc)  (chính sách)
+
+# --- WHO fact sheet (tiếng Anh, link từ https://www.who.int/news-room/fact-sheets): Dấu hiệu cấp cứu, sơ cứu (nguồn cho quy tắc Safety Gate) ---
+https://www.who.int/news-room/fact-sheets/detail/heart-attack                                        cardiovascular
+https://www.who.int/news-room/fact-sheets/detail/stroke                                              neurology
+https://www.who.int/news-room/fact-sheets/detail/sepsis                                              infectious
+https://www.who.int/news-room/fact-sheets/detail/meningitis                                          infectious
+https://www.who.int/news-room/fact-sheets/detail/burns                                               first_aid
+https://www.who.int/news-room/fact-sheets/detail/drowning                                            first_aid
+https://www.who.int/news-room/fact-sheets/detail/falls                                               first_aid
+https://www.who.int/news-room/fact-sheets/detail/snakebite-envenoming                                first_aid
+https://www.who.int/news-room/fact-sheets/detail/animal-bites                                        first_aid
+https://www.who.int/news-room/fact-sheets/detail/road-traffic-injuries                               first_aid
+https://www.who.int/news-room/fact-sheets/detail/suicide                                             mental_health
+https://www.who.int/news-room/fact-sheets/detail/pre-eclampsia                                       maternal
+
+# --- WHO fact sheet (tiếng Anh, link từ https://www.who.int/news-room/fact-sheets): Bệnh truyền nhiễm thường gặp ---
+https://www.who.int/news-room/fact-sheets/detail/dengue-and-severe-dengue                            infectious
+https://www.who.int/news-room/fact-sheets/detail/diarrhoeal-disease                                  digestive
+https://www.who.int/news-room/fact-sheets/detail/cholera                                             infectious
+https://www.who.int/news-room/fact-sheets/detail/typhoid                                             infectious
+https://www.who.int/news-room/fact-sheets/detail/tetanus                                             infectious
+https://www.who.int/news-room/fact-sheets/detail/japanese-encephalitis                               infectious
+https://www.who.int/news-room/fact-sheets/detail/malaria                                             infectious
+https://www.who.int/news-room/fact-sheets/detail/measles                                             infectious
+https://www.who.int/news-room/fact-sheets/detail/rubella                                             infectious
+https://www.who.int/news-room/fact-sheets/detail/rabies                                              infectious
+https://www.who.int/news-room/fact-sheets/detail/chikungunya                                         infectious
+https://www.who.int/news-room/fact-sheets/detail/zika-virus                                          infectious
+https://www.who.int/news-room/fact-sheets/detail/hiv-aids                                            infectious
+https://www.who.int/news-room/fact-sheets/detail/sexually-transmitted-infections-(stis)              infectious
+https://www.who.int/news-room/fact-sheets/detail/influenza-(seasonal)                                respiratory
+https://www.who.int/news-room/fact-sheets/detail/influenza-(avian-and-other-zoonotic)                respiratory
+https://www.who.int/news-room/fact-sheets/detail/coronavirus-disease-(covid-19)                      respiratory
+https://www.who.int/news-room/fact-sheets/detail/post-covid-19-condition-(long-covid)                respiratory
+https://www.who.int/news-room/fact-sheets/detail/respiratory-syncytial-virus-(rsv)                   respiratory
+https://www.who.int/news-room/fact-sheets/detail/pneumonia                                           respiratory
+https://www.who.int/news-room/fact-sheets/detail/tuberculosis                                        respiratory
+https://www.who.int/news-room/fact-sheets/detail/hepatitis-a                                         digestive
+https://www.who.int/news-room/fact-sheets/detail/hepatitis-b                                         digestive
+https://www.who.int/news-room/fact-sheets/detail/hepatitis-c                                         digestive
+https://www.who.int/news-room/fact-sheets/detail/hepatitis-e                                         digestive
+https://www.who.int/news-room/fact-sheets/detail/scabies                                             skin
+https://www.who.int/news-room/fact-sheets/detail/shingles-(herpes-zoster)                            skin
+https://www.who.int/news-room/fact-sheets/detail/ringworm-(tinea)                                    skin
+https://www.who.int/news-room/fact-sheets/detail/herpes-simplex-virus                                skin
+https://www.who.int/news-room/fact-sheets/detail/candidiasis-(yeast-infection)                       skin
+
+# --- WHO fact sheet (tiếng Anh, link từ https://www.who.int/news-room/fact-sheets): Bệnh mạn tính và không lây nhiễm ---
+https://www.who.int/news-room/fact-sheets/detail/hypertension                                        cardiovascular
+https://www.who.int/news-room/fact-sheets/detail/cardiovascular-diseases-(cvds)                      cardiovascular
+https://www.who.int/news-room/fact-sheets/detail/dyslipidaemia                                       cardiovascular
+https://www.who.int/news-room/fact-sheets/detail/diabetes                                            endocrine
+https://www.who.int/news-room/fact-sheets/detail/chronic-obstructive-pulmonary-disease-(copd)        respiratory
+https://www.who.int/news-room/fact-sheets/detail/asthma                                              respiratory
+https://www.who.int/news-room/fact-sheets/detail/kidney-disease                                      urology
+https://www.who.int/news-room/fact-sheets/detail/obesity-and-overweight                              weight
+https://www.who.int/news-room/fact-sheets/detail/cancer                                              oncology
+https://www.who.int/news-room/fact-sheets/detail/breast-cancer                                       oncology
+https://www.who.int/news-room/fact-sheets/detail/cervical-cancer                                     oncology
+https://www.who.int/news-room/fact-sheets/detail/colorectal-cancer                                   oncology
+https://www.who.int/news-room/fact-sheets/detail/lung-cancer                                         oncology
+https://www.who.int/news-room/fact-sheets/detail/osteoarthritis                                      bone_health
+https://www.who.int/news-room/fact-sheets/detail/fragility-fractures                                 bone_health
+https://www.who.int/news-room/fact-sheets/detail/musculoskeletal-conditions                          bone_health
+https://www.who.int/news-room/fact-sheets/detail/low-back-pain                                       pain
+https://www.who.int/news-room/fact-sheets/detail/oral-health                                         oral_health
+https://www.who.int/news-room/fact-sheets/detail/sugars-and-dental-caries                            oral_health
+https://www.who.int/news-room/fact-sheets/detail/anaemia                                             nutrition
+https://www.who.int/news-room/fact-sheets/detail/epilepsy                                            neurology
+https://www.who.int/news-room/fact-sheets/detail/headache-disorders                                  neurology
+https://www.who.int/news-room/fact-sheets/detail/dementia                                            neurology
+https://www.who.int/news-room/fact-sheets/detail/parkinson-disease                                   neurology
+https://www.who.int/news-room/fact-sheets/detail/depression                                          mental_health
+https://www.who.int/news-room/fact-sheets/detail/anxiety-disorders                                   mental_health
+https://www.who.int/news-room/fact-sheets/detail/mental-disorders                                    mental_health
+https://www.who.int/news-room/fact-sheets/detail/mental-health-of-older-adults                       mental_health
+https://www.who.int/news-room/fact-sheets/detail/menopause                                           general
+https://www.who.int/news-room/fact-sheets/detail/blindness-and-visual-impairment                     general
+https://www.who.int/news-room/fact-sheets/detail/deafness-and-hearing-loss                           general
+
+# --- WHO fact sheet (tiếng Anh, link từ https://www.who.int/news-room/fact-sheets): Lối sống, dinh dưỡng, môi trường (M6) ---
+https://www.who.int/news-room/fact-sheets/detail/healthy-diet                                        nutrition
+https://www.who.int/news-room/fact-sheets/detail/physical-activity                                   exercise
+https://www.who.int/news-room/fact-sheets/detail/sodium-reduction                                    nutrition
+https://www.who.int/news-room/fact-sheets/detail/trans-fat                                           nutrition
+https://www.who.int/news-room/fact-sheets/detail/malnutrition                                        nutrition
+https://www.who.int/news-room/fact-sheets/detail/food-safety                                         nutrition
+https://www.who.int/news-room/fact-sheets/detail/infant-and-young-child-feeding                      pediatric
+https://www.who.int/news-room/fact-sheets/detail/alcohol                                             alcohol
+https://www.who.int/news-room/fact-sheets/detail/tobacco                                             smoking
+https://www.who.int/news-room/fact-sheets/detail/drinking-water                                      hygiene
+https://www.who.int/news-room/fact-sheets/detail/sanitation                                          hygiene
+https://www.who.int/news-room/fact-sheets/detail/household-air-pollution-and-health                  environment
+https://www.who.int/news-room/fact-sheets/detail/ambient-(outdoor)-air-quality-and-health            environment
+https://www.who.int/news-room/fact-sheets/detail/climate-change-heat-and-health                      environment
+https://www.who.int/news-room/fact-sheets/detail/ultraviolet-radiation                               skin
+https://www.who.int/news-room/fact-sheets/detail/self-care-health-interventions                      general
+https://www.who.int/news-room/fact-sheets/detail/ageing-and-health                                   general
+
+# --- Thay thế 3 chủ đề WHO Việt Nam lỗi/rỗng (tiếng Anh). Link lấy từ các trang WHO đã crawl ở trên. ---
+https://www.who.int/health-topics/cholera                                                            infectious
+https://www.who.int/news-room/questions-and-answers/item/cholera-outbreaks                           infectious
+https://www.who.int/health-topics/vaccines-and-immunization                                          infectious
+https://www.who.int/news-room/fact-sheets/detail/immunization-coverage                               infectious
+https://www.who.int/health-topics/disability                                                         general
+https://www.who.int/news-room/fact-sheets/detail/disability-and-health                               general

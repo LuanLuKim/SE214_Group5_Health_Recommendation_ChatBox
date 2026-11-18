@@ -27,6 +27,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - name: Tạo nhánh cho issue và báo người được gán
         env:
           GH_TOKEN: ${{ github.token }}
@@ -75,7 +78,8 @@ jobs:
           REPO: ${{ github.repository }}
           EVENT: ${{ github.event_name }}
           BRANCH: ${{ github.head_ref || github.ref_name }}
-          ACTOR: ${{ github.event.pull_request.user.login || github.actor }}
+          # PR do auto-pr mở có tác giả là github-actions[bot]; khi đó kiểm tra người push/sửa PR.
+          ACTOR: ${{ (github.event.pull_request.user.type != 'Bot' && github.event.pull_request.user.login) || github.actor }}
           PR_BODY: ${{ github.event.pull_request.body }}
         run: |
           set -euo pipefail

@@ -1,12 +1,12 @@
 # M2 Tra cứu & quản lý nội dung
 
-Use cases: **UC-10, UC-11, UC-15, UC-17**. Owner: unassigned.
+Use cases: **UC-10, UC-11, UC-15, UC-17**. Owner: Trường Giang (`Ziang05`).
 
 ## Navigation
 
 - Frontend: `apps/web/src/modules/knowledge/`
-- Backend: `apps/api/src/modules/knowledge/`
-- Database: `database/migrations/002_knowledge.sql`
+- Backend: `backend/src/main/java/vn/edu/uit/se214/health/knowledge/`
+- Database: `database/migrations/V002__knowledge.sql`
 - Shared contracts: `packages/contracts/src/index.ts`
 - Routes and access expectations: `docs/API.md`
 
@@ -16,6 +16,6 @@ Provides approved-only retrieval to M4, approved rule review to M1, template rev
 
 ## Extend this module
 
-Keep UI in `Page.tsx` and module-local components/hooks. Put HTTP parsing in `router.ts`, business rules in `service.ts`, and add a `repository.ts` for persistence. Do not call SQL from UI or route handlers. Add tests beside the relevant workspace test suite. These are starter files, not completed use cases.
+Keep UI in `Page.tsx` and module-local components/hooks. Backend code lives in the module package (Controller, Service, Repository); see its README.md. Do not call SQL from UI or route handlers. Add tests beside the relevant workspace test suite. These are starter files, not completed use cases.
 
 Use shared contracts for cross-module messages. Discuss contract/migration changes in a PR so the other owners can update their integration. Do not edit another module simply to avoid defining its interface.

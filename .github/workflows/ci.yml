@@ -23,8 +23,42 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
-      # Gồm typecheck, toàn bộ test (API, database, LLM, giao diện) và build.
+      # Frontend và contracts: typecheck, test giao diện, build.
       - run: npm run check
+
+  backend:
+    name: backend
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+      # Spring Boot: biên dịch, test API, test PostgreSQL nhúng (Flyway + seed), đóng gói jar.
+      - run: mvn -B -f backend/pom.xml verify
+
+  services:
+    name: services
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: services/*/requirements.txt
+      - run: python -m pip install -r services/ai/requirements.txt -r services/stats/requirements.txt
+      - name: FastAPI (services/ai)
+        working-directory: services/ai
+        run: python -m pytest
+      - name: Django (services/stats)
+        working-directory: services/stats
+        run: python manage.py test
+
   data-tools:
     name: data-tools
     runs-on: ubuntu-latest
@@ -39,3 +73,136 @@ jobs:
       - run: python -m pip install -r tools/crawl/requirements.txt
       - run: python -B -m unittest discover -s tools/crawl -p "test_*.py"
       - run: python -B tools/normalize/test_normalize.py
+      - run: python -B tools/translate/test_translate.py
+
+  # SCRUM-45: kiểm thử hạ tầng. PostgreSQL thật, migration + seed chạy khi backend khởi động,
+  # ba service trả /healthz, backend đọc được dữ liệu đã seed.
+  infra-smoke:
+    name: infra-smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      db:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: health_dev
+          POSTGRES_PASSWORD: local_dev_only
+          POSTGRES_DB: health_assistant
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U health_dev -d health_assistant"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      DATA_MODE: postgres
+      SEED_SYNTHETIC: 'true'
+      DATABASE_URL: jdbc:postgresql://127.0.0.1:5432/health_assistant
+      DATABASE_USER: health_dev
+      DATABASE_PASSWORD: local_dev_only
+      DATABASE_DIR: ${{ github.workspace }}/database
+      AI_SERVICE_KEY: ci-smoke-key
+      STATS_SERVICE_KEY: ci-smoke-key
+      AUTH_TOKEN_SECRET: ci-smoke-auth-token-secret-at-least-32-bytes
+      EMAIL_OTP_HASH_SECRET: ci-smoke-email-otp-secret-at-least-32-bytes
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: services/*/requirements.txt
+      - run: mvn -B -q -f backend/pom.xml -DskipTests package
+      - run: python -m pip install -r services/ai/requirements.txt -r services/stats/requirements.txt
+      - name: Khởi động ba service
+        run: |
+          java -jar backend/target/health-assistant-backend-0.1.0.jar > backend.log 2>&1 &
+          (cd services/ai && python -m uvicorn app.main:app --host 127.0.0.1 --port 8001 > ../../ai.log 2>&1 &)
+          (cd services/stats && python manage.py runserver 127.0.0.1:8002 --noreload > ../../stats.log 2>&1 &)
+      - name: Chờ /healthz
+        run: |
+          for url in http://127.0.0.1:4000/healthz http://127.0.0.1:8001/healthz http://127.0.0.1:8002/healthz; do
+            for i in $(seq 1 60); do curl -fs "$url" > /dev/null && break; sleep 2; done
+            curl -fs "$url" | jq -e '.data.status == "ok"'
+          done
+      - name: Backend đọc PostgreSQL đã migrate và seed
+        run: |
+          curl -fs http://127.0.0.1:4000/api/v1/knowledge/articles \
+            | jq -e '.meta.status == "DATABASE_RESULTS" and (.data | length) == 1'
+          # Route riêng tư không có cookie HA_ACCESS: 401 SESSION_INVALID (chế độ postgres).
+          test "$(curl -s -o me.json -w '%{http_code}' http://127.0.0.1:4000/api/v1/accounts/me)" = 401
+          jq -e '.error.code == "SESSION_INVALID"' me.json
+      - name: Service Python từ chối lời gọi không có khóa
+        run: |
+          test "$(curl -s -o /dev/null -w '%{http_code}' -X POST http://127.0.0.1:8001/v1/safety/evaluate -H 'Content-Type: application/json' -d '{"text":"ci"}')" = 401
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8002/v1/system/statistics)" = 401
+      - name: Log khi lỗi
+        if: failure()
+        run: tail -n 80 backend.log ai.log stats.log || true
+
+  # Dựng cả stack bằng Docker Compose, rồi chạy bản triển khai (deploy/compose.yaml) theo docs/DEPLOY.md
+  # với chính các image vừa build. Phần kiểm tra nằm trong .github/scripts/compose-smoke.sh.
+  compose-smoke:
+    name: compose-smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      DEV: docker compose --profile full
+      DEPLOY: docker compose -f deploy/compose.yaml
+    steps:
+      - uses: actions/checkout@v4
+      - name: File .env mẫu chưa điền bí mật thì bản triển khai không khởi động
+        run: |
+          if $DEPLOY --env-file deploy/.env.example config --quiet 2> missing.log; then
+            echo "deploy/compose.yaml chấp nhận file .env chưa điền bí mật"; exit 1
+          fi
+          cat missing.log
+          # Thông báo lỗi phải nêu tên một biến đang để trống trong file mẫu.
+          grep -qE "$(grep -E '^[A-Z_]+=$' deploy/.env.example | cut -d= -f1 | paste -sd '|')" missing.log
+      - name: Dựng stack phát triển (build image) và chờ healthy
+        run: $DEV up --build --detach --wait --wait-timeout 420
+      - name: Kiểm tra stack phát triển
+        run: bash .github/scripts/compose-smoke.sh backend,db --profile full
+      - name: Điền deploy/.env từ file mẫu
+        run: |
+          cp deploy/.env.example deploy/.env
+          fill() { grep -q "^$1=" deploy/.env && sed -i "s|^$1=.*|$1=$2|" deploy/.env; }
+          fill IMAGE_TAG ci
+          fill WEB_ORIGIN https://ci.invalid
+          fill APP_ENV demo
+          fill SEED_SYNTHETIC true
+          # Biến bắt buộc (cú pháp :? trong deploy/compose.yaml) còn trống thì nhận một chuỗi ngẫu nhiên.
+          for name in $(grep -oE '\$\{[A-Z_]+:\?' deploy/compose.yaml | tr -d '${:?' | sort -u); do
+            if grep -q "^$name=$" deploy/.env; then fill "$name" "$(openssl rand -hex 16)"; fi
+          done
+      - name: Gắn cho image vừa build tên mà bản triển khai sẽ dùng
+        run: |
+          # PR chưa đẩy image lên registry, nên lấy image của stack phát triển thay cho bước "pull".
+          for name in $($DEV config --format json | jq -r '.services | to_entries[] | select(.value.build) | .key'); do
+            built=$(docker inspect --format '{{.Image}}' "$($DEV ps -q "$name")")
+            wanted=$($DEPLOY config --format json | jq -r --arg name "$name" '.services[$name].image')
+            docker tag "$built" "$wanted"
+          done
+          $DEV down --volumes
+      - name: Bản triển khai khởi động theo docs/DEPLOY.md
+        run: $DEPLOY up --detach --wait --wait-timeout 300 --pull never
+      - name: Kiểm tra bản triển khai
+        run: bash .github/scripts/compose-smoke.sh backend -f deploy/compose.yaml
+      - name: Trạng thái và log khi lỗi
+        if: failure()
+        run: |
+          $DEV ps
+          $DEV logs --tail 80
+          if [ -f deploy/.env ]; then
+            $DEPLOY ps
+            $DEPLOY logs --tail 80
+          fi
+      - name: Dọn dẹp
+        if: always()
+        run: |
+          $DEV down --volumes
+          if [ -f deploy/.env ]; then $DEPLOY down --volumes; fi

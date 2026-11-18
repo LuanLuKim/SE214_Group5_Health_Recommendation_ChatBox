@@ -1,0 +1,247 @@
+{
+  "status": "APPLIED_HUMAN_CONFIRMED",
+  "scope": "Corrections applied to copies of supplied MD/XLSX documents; not the production translation corpus.",
+  "corrected_chunks": 18,
+  "corrected_lines": 27,
+  "total_chunks": 79,
+  "total_lines": 1478,
+  "source_sha256": {
+    "duyet_79_chunk_cap_cuu.xlsx": "80dd9f1864d4e3f634aa423af9ef54be1273d6c80b846a468669f069a0145899",
+    "duyet_79_chunk_cap_cuu.md": "e579c8d9f92a56f5fa8d9f8b6768c5de75ae26276d1acf979e1afdbed7360f8d"
+  },
+  "output_sha256": {
+    "duyet_79_chunk_cap_cuu_da_sua.md": "b2885d1c32d92b93fb646738588924cc28777cc449fda0fce422bc015048a70a",
+    "duyet_79_chunk_cap_cuu_da_sua.xlsx": "3c49826db161a199260b7d0cc957c65d51ce9d538b353684a5f63a4f22f6404c"
+  },
+  "human_approval": {
+    "record": "approval_record.json",
+    "recorded_at_utc": "2026-11-15T15:37:06Z",
+    "reviewer": "Người dùng xác nhận trong cuộc hội thoại",
+    "scope": "79 corrected document chunks; original proposed_decision/findings retained as history."
+  },
+  "corpus_updated": false,
+  "database_updated": false,
+  "rag_activated": false,
+  "corrections": [
+    {
+      "number": 1,
+      "chunk_id": "080dc96c-9bc0-53a2-9b55-d1643c217494",
+      "line": 30,
+      "en": "• a child is limp, floppy or not responding like they normally do (their head may fall to the side, backwards or forwards, or they may find it difficult to lift their head or focus on your face)",
+      "old_vi": "• trẻ không cử động được, mềm nhũn hoặc không phản ứng như bình thường (đầu trẻ có thể nghiêng sang một bên, ra sau hoặc ra trước, hoặc trẻ có thể khó nhấc đầu lên hoặc tập trung nhìn vào mặt bạn)",
+      "new_vi": "• trẻ lả đi, mềm nhũn hoặc không phản ứng như bình thường (đầu trẻ có thể nghiêng sang một bên, ra sau hoặc ra trước, hoặc trẻ có thể khó nhấc đầu lên hoặc tập trung nhìn vào mặt bạn)"
+    },
+    {
+      "number": 10,
+      "chunk_id": "876628ae-10a0-596f-aeb0-7050c4383012",
+      "line": 4,
+      "en": "Atopic eczema can appear in different areas of the body, but it's common on the elbows, knees and hands. In babies and toddlers, it's also common on the face.",
+      "old_vi": "Chàm cơ địa có thể xuất hiện ở nhiều vùng khác nhau trên cơ thể, nhưng thường gặp ở khuỷu tay, đầu gối và bàn tay. Ở trẻ sơ sinh và trẻ nhỏ từ 1 đến 3 tuổi, bệnh cũng thường xuất hiện ở mặt.",
+      "new_vi": "Chàm cơ địa có thể xuất hiện ở nhiều vùng khác nhau trên cơ thể, nhưng thường gặp ở khuỷu tay, đầu gối và bàn tay. Ở trẻ nhũ nhi và trẻ tập đi, bệnh cũng thường xuất hiện ở mặt."
+    },
+    {
+      "number": 12,
+      "chunk_id": "5c6b50de-4649-58ab-a850-a531a7b63f5d",
+      "line": 14,
+      "en": "• are so breathless you're unable to say short sentences when resting or your breathing has suddenly got worse – in babies their stomach may suck in under their ribs",
+      "old_vi": "• khó thở đến mức không thể nói những câu ngắn khi nghỉ ngơi hoặc hơi thở đột nhiên trở nên tệ hơn – ở trẻ sơ sinh, bụng có thể hóp vào dưới xương sườn",
+      "new_vi": "• khó thở đến mức không thể nói những câu ngắn khi nghỉ ngơi hoặc tình trạng hô hấp đột nhiên nặng hơn – ở trẻ nhũ nhi, vùng bụng dưới xương sườn có thể bị rút lõm vào"
+    },
+    {
+      "number": 14,
+      "chunk_id": "ff2d2728-9bec-5373-8c78-6957256045c3",
+      "line": 6,
+      "en": "• Chest pain symptoms: Starts after eating, bringing up food or bitter tasting fluids, feeling full and bloated; Possible cause: Heartburn or indigestion",
+      "old_vi": "• Triệu chứng đau ngực: Bắt đầu sau khi ăn, nôn ra thức ăn hoặc dịch có vị đắng, cảm thấy no và chướng bụng; Nguyên nhân có thể: Ợ nóng hoặc khó tiêu",
+      "new_vi": "• Triệu chứng đau ngực: Bắt đầu sau khi ăn, thức ăn hoặc dịch có vị đắng trào ngược lên, cảm thấy no và chướng bụng; Nguyên nhân có thể: Ợ nóng hoặc khó tiêu"
+    },
+    {
+      "number": 17,
+      "chunk_id": "55ea56fe-ca41-5e4e-aade-4f7e36f0bab5",
+      "line": 16,
+      "en": "• you've cut yourself and also feel generally unwell or have a high temperature",
+      "old_vi": "• bạn bị đứt tay và cũng cảm thấy không khỏe hoặc bị sốt cao",
+      "new_vi": "• bạn có vết cắt và cũng cảm thấy không khỏe hoặc bị sốt cao"
+    },
+    {
+      "number": 18,
+      "chunk_id": "cb5b3c33-5d89-569c-bd22-135a8754e06c",
+      "line": 11,
+      "en": "• you have dark yellow pee or you're peeing less than normal (or your baby has fewer wet nappies)",
+      "old_vi": "• nước tiểu của bạn có màu vàng sẫm hoặc bạn đi tiểu ít hơn bình thường (hoặc trẻ sơ sinh của bạn có ít tã ướt hơn)",
+      "new_vi": "• nước tiểu của bạn có màu vàng sẫm hoặc bạn đi tiểu ít hơn bình thường (hoặc trẻ nhũ nhi của bạn có ít tã ướt hơn)"
+    },
+    {
+      "number": 18,
+      "chunk_id": "cb5b3c33-5d89-569c-bd22-135a8754e06c",
+      "line": 14,
+      "en": "• your baby has a soft spot on their head that sinks inwards (sunken fontanelle)",
+      "old_vi": "• trẻ sơ sinh của bạn có thóp lõm vào trong",
+      "new_vi": "• trẻ nhũ nhi của bạn có thóp lõm vào trong"
+    },
+    {
+      "number": 27,
+      "chunk_id": "efaa7c2b-e525-5899-b2ef-62452514e5de",
+      "line": 6,
+      "en": "• surgery where arteries are taken from another part of your body and used in your heart to take blood around a blocked artery (coronary artery bypass)",
+      "old_vi": "• phẫu thuật lấy động mạch từ một bộ phận khác của cơ thể và dùng chúng để đưa máu qua động mạch bị tắc trong tim (phẫu thuật bắc cầu động mạch vành)",
+      "new_vi": "• phẫu thuật lấy động mạch từ một bộ phận khác của cơ thể để tạo đường dẫn máu đi vòng qua đoạn động mạch bị tắc ở tim (phẫu thuật bắc cầu động mạch vành)"
+    },
+    {
+      "number": 36,
+      "chunk_id": "6eb9ca55-ae04-5b66-b9f9-313cfabd1e47",
+      "line": 15,
+      "en": "• the bleeding started after a blow to your head",
+      "old_vi": "• chảy máu bắt đầu sau khi bạn bị đánh vào đầu",
+      "new_vi": "• chảy máu bắt đầu sau khi đầu bạn bị va đập"
+    },
+    {
+      "number": 37,
+      "chunk_id": "ee1538b8-2007-5ead-b392-fca407644cf7",
+      "line": 2,
+      "en": "Pneumonia is inflammation of the lungs, usually caused by an infection. Some people will need to be treated with antibiotics, but babies, older people, and people with heart or lung conditions are at risk of getting seriously ill and may need treatment in hospital.",
+      "old_vi": "Viêm phổi là tình trạng viêm ở phổi, thường do nhiễm trùng gây ra. Một số người cần được điều trị bằng thuốc kháng sinh, nhưng trẻ sơ sinh (dưới 28 ngày tuổi), người cao tuổi và người mắc bệnh tim hoặc phổi có nguy cơ bị bệnh nặng và có thể cần điều trị tại bệnh viện.",
+      "new_vi": "Viêm phổi là tình trạng viêm ở phổi, thường do nhiễm trùng gây ra. Một số người cần được điều trị bằng thuốc kháng sinh, nhưng các em bé, người cao tuổi và người mắc bệnh tim hoặc phổi có nguy cơ bị bệnh nặng và có thể cần điều trị tại bệnh viện."
+    },
+    {
+      "number": 37,
+      "chunk_id": "ee1538b8-2007-5ead-b392-fca407644cf7",
+      "line": 13,
+      "en": "• making wheezing noises when you breathe – babies may also make grunting noises",
+      "old_vi": "• thở khò khè – trẻ sơ sinh (dưới 28 ngày tuổi) cũng có thể phát ra tiếng rên",
+      "new_vi": "• thở khò khè – các em bé cũng có thể phát ra tiếng rên"
+    },
+    {
+      "number": 38,
+      "chunk_id": "29b6ed8e-c6ee-5c95-b20d-18328dad32b2",
+      "line": 6,
+      "en": "You can buy these treatments from a supermarket or pharmacy without a prescription.",
+      "old_vi": "Bạn có thể mua các loại thuốc này ở siêu thị hoặc nhà thuốc mà không cần đơn thuốc.",
+      "new_vi": "Tại Anh, bạn có thể mua các loại thuốc này ở siêu thị hoặc nhà thuốc mà không cần đơn thuốc."
+    },
+    {
+      "number": 38,
+      "chunk_id": "29b6ed8e-c6ee-5c95-b20d-18328dad32b2",
+      "line": 10,
+      "en": "You'll only be given antibiotics by a pharmacist or GP if you could have a bacterial infection.",
+      "old_vi": "Bạn chỉ được dược sĩ hoặc bác sĩ kê thuốc kháng sinh nếu có thể bạn bị nhiễm khuẩn.",
+      "new_vi": "Tại Anh, dược sĩ hoặc bác sĩ chỉ cấp thuốc kháng sinh cho bạn nếu có khả năng bạn bị nhiễm khuẩn."
+    },
+    {
+      "number": 38,
+      "chunk_id": "29b6ed8e-c6ee-5c95-b20d-18328dad32b2",
+      "line": 14,
+      "en": "A pharmacist can give the same antibiotic treatment as a GP for a sore throat, if you need it. They can also give advice or direct you to other medical help.",
+      "old_vi": "Nếu cần, dược sĩ có thể cung cấp cho bạn liệu trình kháng sinh giống như bác sĩ để điều trị đau họng. Dược sĩ cũng có thể tư vấn hoặc hướng dẫn bạn tìm trợ giúp y tế khác.",
+      "new_vi": "Tại Anh, nếu cần, dược sĩ có thể cung cấp cho bạn liệu trình kháng sinh giống như bác sĩ để điều trị đau họng. Dược sĩ cũng có thể tư vấn hoặc hướng dẫn bạn tìm trợ giúp y tế khác."
+    },
+    {
+      "number": 38,
+      "chunk_id": "29b6ed8e-c6ee-5c95-b20d-18328dad32b2",
+      "line": 19,
+      "en": "• you have a sore throat and symptoms like a lump in your mouth or neck, or a mouth ulcer that lasts for more than 3 weeks",
+      "old_vi": "• bạn bị đau họng và có các triệu chứng như cảm giác có khối u trong miệng hoặc cổ, hoặc vết loét miệng kéo dài hơn 3 tuần",
+      "new_vi": "• bạn bị đau họng và có các triệu chứng như khối bất thường trong miệng hoặc ở cổ, hoặc vết loét miệng kéo dài hơn 3 tuần"
+    },
+    {
+      "number": 43,
+      "chunk_id": "2d791679-f8a4-585e-b547-e9be10ee96f3",
+      "line": 1,
+      "en": "Stress › Where to get NHS help for stress",
+      "old_vi": "Căng thẳng › Nơi tìm trợ giúp về căng thẳng",
+      "new_vi": "Căng thẳng › Nơi tìm trợ giúp của NHS (tại Anh) về căng thẳng"
+    },
+    {
+      "number": 43,
+      "chunk_id": "2d791679-f8a4-585e-b547-e9be10ee96f3",
+      "line": 3,
+      "en": "NHS talking therapies for anxiety and depression may be able to help with stress.",
+      "old_vi": "Các liệu pháp trò chuyện về lo âu và trầm cảm có thể giúp bạn giảm căng thẳng.",
+      "new_vi": "Các liệu pháp trò chuyện của NHS (tại Anh) dành cho lo âu và trầm cảm có thể giúp giảm căng thẳng."
+    },
+    {
+      "number": 43,
+      "chunk_id": "2d791679-f8a4-585e-b547-e9be10ee96f3",
+      "line": 4,
+      "en": "If you're 18 or over (or 16 or over in some areas), you can refer yourself directly without talking to a GP.",
+      "old_vi": "Nếu bạn từ 18 tuổi trở lên (hoặc từ 16 tuổi trở lên ở một số khu vực), bạn có thể tự đăng ký trực tiếp mà không cần trao đổi với bác sĩ.",
+      "new_vi": "Đối với dịch vụ NHS tại Anh, nếu bạn từ 18 tuổi trở lên (hoặc từ 16 tuổi trở lên ở một số khu vực), bạn có thể tự đăng ký trực tiếp mà không cần trao đổi với bác sĩ."
+    },
+    {
+      "number": 46,
+      "chunk_id": "4589555a-b32b-55f0-a22a-bd4d18ccbd1f",
+      "line": 6,
+      "en": "• you have a very high or low temperature, feel hot or cold, or are shivering",
+      "old_vi": "• bạn bị sốt rất cao hoặc rất thấp, cảm thấy nóng hoặc lạnh, hoặc run rẩy",
+      "new_vi": "• thân nhiệt của bạn rất cao hoặc thấp, bạn cảm thấy nóng hoặc lạnh, hoặc run rẩy"
+    },
+    {
+      "number": 47,
+      "chunk_id": "f1838381-4085-594f-9373-e4136282730f",
+      "line": 14,
+      "en": "• treatment with appropriate antivenom when applicable; and",
+      "old_vi": "• điều trị bằng thuốc kháng nọc độc thích hợp khi có thể; và",
+      "new_vi": "• điều trị bằng thuốc kháng nọc độc thích hợp khi có chỉ định phù hợp; và"
+    },
+    {
+      "number": 49,
+      "chunk_id": "e1ee8d86-2d77-5776-a3f9-ea62c000093b",
+      "line": 11,
+      "en": "• Avoid hypothermia, especially in infants, older people and people with large burns; cooling the entire person is not the aim.",
+      "old_vi": "• Tránh hạ thân nhiệt, đặc biệt ở trẻ sơ sinh, người lớn tuổi và người bị bỏng rộng; không nhằm mục đích làm mát toàn bộ cơ thể.",
+      "new_vi": "• Tránh hạ thân nhiệt, đặc biệt ở trẻ nhũ nhi (dưới 1 tuổi), người lớn tuổi và người bị bỏng rộng; không nhằm mục đích làm mát toàn bộ cơ thể."
+    },
+    {
+      "number": 50,
+      "chunk_id": "ab6bbf7c-8ec2-5332-89ab-30622d4a376c",
+      "line": 5,
+      "en": "In addition the person may experience difficulty in breathing or shortness of breath; nausea or vomiting; light-headedness or faintness; a cold sweat; and turning pale. Women are more likely than men to have shortness of breath, nausea, vomiting, and back or jaw pain.",
+      "old_vi": "Ngoài ra, người bệnh có thể bị khó thở; buồn nôn hoặc nôn; choáng váng hoặc ngất xỉu; đổ mồ hôi lạnh; và xanh xao. Phụ nữ có khả năng bị khó thở, buồn nôn, nôn, đau lưng hoặc đau hàm cao hơn nam giới.",
+      "new_vi": "Ngoài ra, người bệnh có thể bị khó thở; buồn nôn hoặc nôn; choáng váng hoặc cảm giác sắp ngất; đổ mồ hôi lạnh; và xanh xao. Phụ nữ có khả năng bị khó thở, buồn nôn, nôn, đau lưng hoặc đau hàm cao hơn nam giới."
+    },
+    {
+      "number": 53,
+      "chunk_id": "c9cfec2d-0170-50e0-a7cf-655de5692b22",
+      "line": 3,
+      "en": "There is a vaccine available against cholera. It is called the oral cholera vaccine, or OCV. Being vaccinated with OCV reduces your chances of getting infected with cholera. Vaccination is a critical tool to stopping cholera, but access to safe water and sanitation is the most important thing to protect communities.",
+      "old_vi": "Hiện có vắc-xin phòng bệnh tả. Vắc-xin này được gọi là vắc-xin tả đường uống, hay OCV. Tiêm OCV giúp giảm nguy cơ mắc bệnh tả. Tiêm chủng là một biện pháp quan trọng để ngăn chặn bệnh tả, nhưng việc tiếp cận nguồn nước an toàn và điều kiện vệ sinh tốt là điều quan trọng nhất để bảo vệ cộng đồng.",
+      "new_vi": "Hiện có vắc-xin phòng bệnh tả. Vắc-xin này được gọi là vắc-xin tả đường uống, hay OCV. Uống OCV giúp giảm nguy cơ mắc bệnh tả. Sử dụng vắc-xin là một biện pháp quan trọng để ngăn chặn bệnh tả, nhưng việc tiếp cận nguồn nước an toàn và điều kiện vệ sinh tốt là điều quan trọng nhất để bảo vệ cộng đồng."
+    },
+    {
+      "number": 53,
+      "chunk_id": "c9cfec2d-0170-50e0-a7cf-655de5692b22",
+      "line": 5,
+      "en": "OCV can be given to children over one year and adults. It is safe for you to receive the vaccine if you are pregnant.",
+      "old_vi": "Có thể tiêm OCV cho trẻ trên 1 tuổi và người lớn. Bạn có thể tiêm vắc-xin này an toàn khi đang mang thai.",
+      "new_vi": "Có thể cho trẻ trên 1 tuổi và người lớn uống OCV. Bạn có thể sử dụng vắc-xin đường uống này an toàn khi đang mang thai."
+    },
+    {
+      "number": 55,
+      "chunk_id": "96b5f069-24dd-52ee-9597-a7da042a8bfb",
+      "line": 7,
+      "en": "• 1 litre of safe drinking water or lightly salted rice water.",
+      "old_vi": "• 1 lít nước uống an toàn hoặc nước vo gạo hơi mặn.",
+      "new_vi": "• 1 lít nước uống an toàn hoặc nước cơm có pha ít muối."
+    },
+    {
+      "number": 74,
+      "chunk_id": "c08de3f1-3591-55fa-9617-5885e8316e26",
+      "line": 5,
+      "en": "• pregnant or recently pregnant women",
+      "old_vi": "• phụ nữ đang mang thai hoặc mới mang thai gần đây",
+      "new_vi": "• phụ nữ đang mang thai hoặc mới kết thúc thai kỳ"
+    },
+    {
+      "number": 74,
+      "chunk_id": "c08de3f1-3591-55fa-9617-5885e8316e26",
+      "line": 28,
+      "en": "In children under 5 years old, it can cause difficulty feeding, frequent vomiting or lack of urination.",
+      "old_vi": "Ở trẻ dưới 5 tuổi, tình trạng này có thể gây khó bú, nôn thường xuyên hoặc tiểu ít.",
+      "new_vi": "Ở trẻ dưới 5 tuổi, tình trạng này có thể gây khó ăn hoặc khó bú, nôn thường xuyên hoặc không đi tiểu."
+    }
+  ],
+  "approved_output_sha256": {
+    "duyet_79_chunk_cap_cuu_da_duyet.md": "11466fbec7a766649eb3f55fba6dfd746f4e4e1f4bb44cb85cd8269a37265e3e",
+    "duyet_79_chunk_cap_cuu_da_duyet.xlsx": "4ada50200aea2be70353342e029904d5a627b13deab42f4bfc6ca881d46c1fc0"
+  }
+}
