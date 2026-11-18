@@ -25,7 +25,12 @@ public class DatabaseJwtAuthenticationConverter
   public Collection<GrantedAuthority> convert(Jwt jwt) {
     try {
       UUID userId = UUID.fromString(jwt.getSubject());
-      if (!repository.userExists(userId)) throw new BadCredentialsException("The account was deleted.");
+      String status =
+          repository
+              .findUserStatus(userId, false)
+              .orElseThrow(() -> new BadCredentialsException("The account was deleted."));
+      if (!"ACTIVE".equals(status))
+        throw new BadCredentialsException("The account is locked.");
       return repository.findAuthorities(userId).stream()
           .map(SimpleGrantedAuthority::new)
           .map(GrantedAuthority.class::cast)

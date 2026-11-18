@@ -12,6 +12,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import java.sql.Connection;
 import java.sql.Statement;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.UUID;
 import jakarta.servlet.http.Cookie;
 import org.junit.jupiter.api.BeforeEach;
@@ -34,6 +36,7 @@ import vn.edu.uit.se214.health.accounts.oauth.OAuthProvider;
 import vn.edu.uit.se214.health.accounts.oauth.OAuthProviderVerifier;
 import vn.edu.uit.se214.health.accounts.oauth.VerifiedOAuthIdentity;
 import vn.edu.uit.se214.health.accounts.registration.EmailOtpSender;
+import vn.edu.uit.se214.health.accounts.auth.AccessTokenService;
 import vn.edu.uit.se214.health.shared.web.ApiException;
 import vn.edu.uit.se214.health.support.TestDatabase;
 
@@ -46,6 +49,7 @@ class AccountRegistrationTest {
   @Autowired MockMvc mvc;
   @Autowired JdbcClient jdbc;
   @Autowired PasswordEncoder passwordEncoder;
+  @Autowired AccessTokenService accessTokens;
   @MockitoBean OAuthProviderVerifier oauthVerifier;
   @MockitoBean EmailOtpSender emailOtpSender;
   private String csrfToken;
@@ -681,6 +685,105 @@ class AccountRegistrationTest {
                 .query(Boolean.class)
                 .single())
         .isTrue();
+  }
+
+  @Test
+  void lockingAccountRejectsExistingAccessAndRefreshThenUnlockAllowsLoginAgain() throws Exception {
+    String email = "uc02-session-lock@example.test";
+    UUID userId = insertAccount(email, "correct-password");
+    MvcResult login =
+        login(email, "correct-password")
+                .andExpect(status().isOk())
+                .andReturn();
+    Cookie access = new Cookie("HA_ACCESS", cookieValue(login, "HA_ACCESS"));
+    Cookie refresh = new Cookie("HA_REFRESH", cookieValue(login, "HA_REFRESH"));
+
+    UUID adminId = UUID.randomUUID();
+    jdbc.sql(
+                """
+                INSERT INTO accounts.users (id, email, display_name, password_hash, status, created_at)
+                VALUES (:id, 'uc02-session-admin@example.test', 'Session Admin', :passwordHash, 'ACTIVE', now())
+                """)
+        .param("id", adminId)
+        .param("passwordHash", passwordEncoder.encode("admin-password-123"))
+        .update();
+    jdbc.sql("INSERT INTO accounts.user_roles (user_id, role) VALUES (:id, 'ADMIN')")
+        .param("id", adminId)
+        .update();
+    Cookie adminAccess =
+        new Cookie(
+                "HA_ACCESS",
+                accessTokens.issue(adminId, Instant.now().plus(10, ChronoUnit.MINUTES)));
+
+    mvc.perform(
+                org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                    .patch("/api/v1/accounts/users/" + userId + "/status")
+                    .cookie(adminAccess, new Cookie("XSRF-TOKEN", csrfToken))
+                    .header("X-XSRF-TOKEN", csrfToken)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("{\"status\":\"LOCKED\"}"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.data.status").value("LOCKED"));
+
+    mvc.perform(
+                org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get(
+                        "/api/v1/accounts/me")
+                    .cookie(access))
+        .andExpect(status().isUnauthorized())
+        .andExpect(jsonPath("$.error.code").value("SESSION_INVALID"));
+    mvc.perform(
+                org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get(
+                        "/api/v1/lifestyle/plan")
+                    .cookie(access))
+        .andExpect(status().isUnauthorized())
+        .andExpect(jsonPath("$.error.code").value("SESSION_INVALID"));
+    mvc.perform(
+                post("/api/v1/accounts/refresh")
+                    .cookie(refresh))
+        .andExpect(status().isUnauthorized())
+        .andExpect(jsonPath("$.error.code").value("REFRESH_TOKEN_INVALID"));
+    mvc.perform(
+                post("/api/v1/accounts/refresh")
+                    .cookie(refresh))
+        .andExpect(status().isUnauthorized());
+    login(email, "correct-password")
+        .andExpect(status().isUnauthorized())
+        .andExpect(jsonPath("$.error.code").value("LOGIN_FAILED"));
+
+    mvc.perform(
+                org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get(
+                    "/api/v1/knowledge/articles"))
+        .andExpect(status().isOk());
+
+    assertThat(
+                jdbc.sql(
+                        "SELECT count(*) FROM accounts.refresh_tokens "
+                            + "WHERE user_id = :userId AND revoked_at IS NOT NULL")
+                    .param("userId", userId)
+                    .query(Integer.class)
+                    .single())
+        .isEqualTo(1);
+
+    mvc.perform(
+                org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                    .patch("/api/v1/accounts/users/" + userId + "/status")
+                    .cookie(adminAccess, new Cookie("XSRF-TOKEN", csrfToken))
+                    .header("X-XSRF-TOKEN", csrfToken)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("{\"status\":\"ACTIVE\"}"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.data.status").value("ACTIVE"));
+
+    MvcResult reopened =
+        login(email, "correct-password")
+                .andExpect(status().isOk())
+                .andReturn();
+    mvc.perform(
+                org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get(
+                        "/api/v1/accounts/me")
+                    .cookie(new Cookie("HA_ACCESS", cookieValue(reopened, "HA_ACCESS"))))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.data.email").value(email));
   }
 
   @Test
