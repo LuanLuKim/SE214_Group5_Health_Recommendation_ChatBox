@@ -16,7 +16,7 @@ Use case: **UC-10, UC-11, UC-15, UC-17**. Phụ trách: Trường Giang (`Ziang0
 
 ## Hiện trạng và ranh giới
 
-Tra cứu công khai chỉ trả nội dung `APPROVED` có `verified_at`. `SyntheticKnowledgeSearch` dùng khi `DATA_MODE=mock`, `JdbcKnowledgeSearch` khi `DATA_MODE=postgres`.
+Tra cứu công khai chỉ trả nội dung `APPROVED` có `verified_at`. UC-11: cơ sở y tế chỉ được trả khi có tên nguồn, URL nguồn và `verified_at`; lọc theo tên, tỉnh/thành, chuyên khoa (AND), tối đa 20; chi tiết `GET /facilities/{id}` (xem `docs/API.md`). M1 dùng `KnowledgeSearch.facilities(FacilityFilter)` và `facility(UUID)`. `SyntheticKnowledgeSearch` dùng khi `DATA_MODE=mock`, `JdbcKnowledgeSearch` khi `DATA_MODE=postgres`.
 
 UC-17 (phần M2 và code dùng chung): một hàng đợi, một bản ghi quyết định (`knowledge.review_events`), một API `/api/v1/knowledge/reviews`, một màn hình Quản trị nội dung. Sau khi lưu quyết định, gọi `ReviewSubjectHandler` của module sở hữu nội dung. Phần M2 còn có kiểm định kết quả của agent và xử lý phản hồi ẩn danh.
 
