@@ -10,18 +10,21 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import jakarta.servlet.http.Cookie;
 import java.sql.Connection;
 import java.sql.Statement;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.UUID;
-import jakarta.servlet.http.Cookie;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInstance;
 import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.ActiveProfiles;
@@ -31,18 +34,18 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
-import org.springframework.http.MediaType;
+import vn.edu.uit.se214.health.accounts.auth.AccessTokenService;
 import vn.edu.uit.se214.health.accounts.oauth.OAuthProvider;
 import vn.edu.uit.se214.health.accounts.oauth.OAuthProviderVerifier;
 import vn.edu.uit.se214.health.accounts.oauth.VerifiedOAuthIdentity;
 import vn.edu.uit.se214.health.accounts.registration.EmailOtpSender;
-import vn.edu.uit.se214.health.accounts.auth.AccessTokenService;
 import vn.edu.uit.se214.health.shared.web.ApiException;
 import vn.edu.uit.se214.health.support.TestDatabase;
 
 @SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles("postgres")
+@TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class AccountRegistrationTest {
   private static final String DATABASE = "accounts_registration_test";
 
@@ -53,6 +56,19 @@ class AccountRegistrationTest {
   @MockitoBean OAuthProviderVerifier oauthVerifier;
   @MockitoBean EmailOtpSender emailOtpSender;
   private String csrfToken;
+
+  @BeforeAll
+  void initializeCsrfToken() throws Exception {
+    MvcResult csrfResult =
+        mvc.perform(
+                org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get(
+                    "/api/v1/csrf"))
+            .andExpect(status().isOk())
+            .andReturn();
+    Cookie csrfCookie = csrfResult.getResponse().getCookie("XSRF-TOKEN");
+    assertThat(csrfCookie).isNotNull();
+    csrfToken = csrfCookie.getValue();
+  }
 
   @DynamicPropertySource
   static void database(DynamicPropertyRegistry registry) throws Exception {
@@ -72,6 +88,7 @@ class AccountRegistrationTest {
     registry.add("app.accounts.email-otp.hash-secret", () -> "test-only-hmac-secret-with-at-least-32-bytes");
     registry.add("app.accounts.email-otp.from-address", () -> "no-reply@example.test");
     registry.add("app.accounts.auth-token.secret", () -> "test-only-auth-token-secret-at-least-32-bytes");
+    registry.add("app.rate-limit-per-minute", () -> "10000");
   }
 
   @BeforeEach
@@ -82,13 +99,6 @@ class AccountRegistrationTest {
     jdbc.sql("DELETE FROM accounts.users WHERE email LIKE 'uc02-%@example.test'").update();
     jdbc.sql("DELETE FROM accounts.users WHERE email LIKE 'uc03-%@example.test'").update();
     jdbc.sql("DELETE FROM accounts.registration_challenges WHERE email LIKE 'uc01-%@example.test'").update();
-    csrfToken =
-        cookieValue(
-            mvc.perform(
-                    org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get(
-                        "/api/v1/csrf"))
-                .andReturn(),
-            "XSRF-TOKEN");
   }
 
   @Test
