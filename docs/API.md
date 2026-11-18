@@ -41,11 +41,26 @@ Hai trường hợp không qua khuôn lỗi trên vì bị chặn trước khi v
 | GET    | `/api/v1/{safety,knowledge,health,chat,accounts,lifestyle}` | Metadata module                                                               |
 | GET    | `/api/v1/knowledge/articles?q=&topic=&limit=&offset=`         | Công khai, tìm và phân trang bài đã duyệt và xác minh                         |
 | GET    | `/api/v1/knowledge/articles/:id`                             | Công khai, nội dung bài, nguồn, ngày cập nhật và ngày xác minh                 |
-| GET    | `/api/v1/knowledge/facilities?q=`                           | Public: fixture synthetic hoặc tối đa 20 cơ sở có ngày xác minh từ PostgreSQL |
+| GET    | `/api/v1/knowledge/facilities?q=&province=&specialty=`      | Công khai, tối đa 20 cơ sở khớp bộ lọc, có nguồn và ngày xác minh             |
+| GET    | `/api/v1/knowledge/facilities/:id`                          | Công khai, chi tiết một cơ sở có nguồn và ngày xác minh                       |
 
 `q` là một chuỗi tối đa 200 ký tự, không chứa ký tự điều khiển (tab, xuống dòng, NUL…); sai thì trả 400 `INVALID_QUERY`. Danh sách và search metadata không chứa private user data. Fixture `[TEST]` chỉ dành kiểm thử; không trộn fixture vào kho kiến thức y tế thật.
 
 Khi tìm bài viết, `topic` khớp toàn bộ tên chủ đề và không phân biệt hoa thường. `limit` từ 1 đến 20, mặc định 20. `offset` tính từ 0, mặc định 0. `meta.total` là số bài khớp bộ lọc trước khi phân trang. `meta.totalPages` bằng 0 nếu không có bài khớp. Danh sách chỉ trả tóm tắt và metadata. API chi tiết trả 404 cho ID không hợp lệ, bài không tồn tại hoặc bài chưa đủ điều kiện công bố.
+
+### Tra cứu cơ sở y tế (UC-11)
+
+`GET /api/v1/knowledge/facilities` nhận ba tham số tùy chọn:
+
+- `q`: chuỗi con trong tên cơ sở, không phân biệt hoa thường; `%` và `_` được hiểu đúng như ký tự.
+- `province`: khớp toàn bộ tên tỉnh/thành, không phân biệt hoa thường.
+- `specialty`: khớp toàn bộ một tên trong danh sách chuyên khoa của cơ sở, không phân biệt hoa thường.
+
+Mỗi tham số dài tối đa 200 ký tự và được bỏ khoảng trắng đầu/cuối. Khi đã truyền, `province` và `specialty` không được rỗng. Các bộ lọc kết hợp bằng AND; tham số sai trả 400 `INVALID_QUERY`. Danh sách sắp theo tên rồi ID, tối đa 20 cơ sở; `meta.total` là số cơ sở trả về, không phải tổng của cả danh mục.
+
+`GET /api/v1/knowledge/facilities/:id` nhận UUID. ID sai định dạng, cơ sở không tồn tại, thiếu tên hoặc URL nguồn, hoặc chưa có ngày xác minh đều trả cùng một 404 `NOT_FOUND` (`Không tìm thấy cơ sở y tế.`). Danh sách và chi tiết dùng chung kiểu `FacilitySummary`; chi tiết có `meta.status` nhưng không có `meta.total`. Cả hai bỏ qua cơ sở thiếu nguồn hoặc ngày xác minh; dữ liệu không do LLM tạo ra.
+
+Safety Gate (M1) dùng cùng giao diện Java `knowledge.api.KnowledgeSearch`: `facilities(FacilityFilter)` và `facility(UUID)`, với cùng điều kiện nguồn và ngày xác minh như API công khai. Lỗi cơ sở dữ liệu được ném lên bên gọi, không biến thành danh sách rỗng. `specialty` là tên chuyên khoa trong danh mục, không phải `SafetyDecision.specialtyIds`; M1 cần ánh xạ ID sang tên danh mục trước khi tra cứu. Việc nối vào luồng Safety Gate thuộc M1.
 
 ## Đăng ký và xác thực tài khoản
 

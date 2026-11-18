@@ -20,7 +20,7 @@ import vn.edu.uit.se214.health.knowledge.api.KnowledgeSearch;
 import vn.edu.uit.se214.health.shared.domain.Instants;
 import vn.edu.uit.se214.health.shared.domain.SourceReference;
 
-/** DATA_MODE=postgres. Only APPROVED, verified articles and verified facilities are returned. */
+/** DATA_MODE=postgres. Only APPROVED, verified articles and sourced, verified facilities are returned. */
 @Service
 @Profile("postgres")
 public class JdbcKnowledgeSearch implements KnowledgeSearch {
@@ -28,6 +28,11 @@ public class JdbcKnowledgeSearch implements KnowledgeSearch {
   private static final String ARTICLE_FILTER =
       " WHERE " + PUBLISHED + " AND (title ILIKE ? OR topic ILIKE ?)"
           + " AND (? = '' OR lower(topic) = lower(?))";
+  /** UC-11: a facility is shown only with a source name, a source URL and a verification date. */
+  private static final String VERIFIED_FACILITY =
+      "verified_at IS NOT NULL AND btrim(source_name) <> '' AND btrim(source_url) <> ''";
+  private static final String FACILITY_FIELDS =
+      "id, name, specialties, province, address, official_url, source_name, source_url, verified_at";
 
   private final JdbcClient jdbc;
 
@@ -83,32 +88,45 @@ public class JdbcKnowledgeSearch implements KnowledgeSearch {
   }
 
   @Override
-  public List<FacilitySummary> facilities(String query) {
+  public List<FacilitySummary> facilities(FacilityFilter filter) {
     return jdbc.sql(
-            """
-            SELECT id, name, specialties, province, address, official_url,
-                   source_name, source_url, verified_at
-            FROM knowledge.facilities
-            WHERE verified_at IS NOT NULL AND name ILIKE ?
-            ORDER BY name LIMIT 20""")
-        .param(like(query))
-        .query(
-            (rs, row) -> {
-              String id = rs.getString("id");
-              return new FacilitySummary(
-                  id,
-                  rs.getString("name"),
-                  strings(rs.getArray("specialties")),
-                  rs.getString("province"),
-                  rs.getString("address"),
-                  rs.getString("official_url"),
-                  new SourceReference(
-                      id,
-                      rs.getString("source_name"),
-                      rs.getString("source_url"),
-                      Instants.iso(rs.getObject("verified_at", OffsetDateTime.class))));
-            })
+            "SELECT " + FACILITY_FIELDS + " FROM knowledge.facilities WHERE " + VERIFIED_FACILITY
+                + """
+                 AND name ILIKE ?
+                  AND (? = '' OR lower(province) = lower(?))
+                  AND (? = '' OR EXISTS (
+                    SELECT 1 FROM unnest(specialties) AS s(value) WHERE lower(s.value) = lower(?)))
+                ORDER BY name, id LIMIT ?""")
+        .params(like(filter.query()), filter.province(), filter.province(), filter.specialty(),
+            filter.specialty(), MAX_FACILITIES)
+        .query((rs, row) -> facility(rs))
         .list();
+  }
+
+  @Override
+  public Optional<FacilitySummary> facility(UUID id) {
+    return jdbc.sql(
+            "SELECT " + FACILITY_FIELDS + " FROM knowledge.facilities WHERE id = ? AND "
+                + VERIFIED_FACILITY)
+        .param(id)
+        .query((rs, row) -> facility(rs))
+        .optional();
+  }
+
+  private static FacilitySummary facility(ResultSet rs) throws SQLException {
+    String id = rs.getString("id");
+    return new FacilitySummary(
+        id,
+        rs.getString("name"),
+        strings(rs.getArray("specialties")),
+        rs.getString("province"),
+        rs.getString("address"),
+        rs.getString("official_url"),
+        new SourceReference(
+            id,
+            rs.getString("source_name"),
+            rs.getString("source_url"),
+            Instants.iso(rs.getObject("verified_at", OffsetDateTime.class))));
   }
 
   @Override
