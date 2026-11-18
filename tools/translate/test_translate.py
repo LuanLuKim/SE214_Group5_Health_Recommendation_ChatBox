@@ -37,10 +37,11 @@ from translator.engines import KINDS, TranslationEngine, get_engine, resolve_dev
 from translator.glossary import (  # noqa: E402
     Rules, compile_names, find_names, load_medicine_names, name_kept, numbers_in)
 from translator.pipeline import (  # noqa: E402
-    Unit, build_units, consensus_lines, engine_statistics, finalise, machine_translate, refine)
-from translator.quality import HARD_CHECKS, check_line, check_quality, count_bullets  # noqa: E402
+    Unit, build_units, consensus_lines, engine_statistics, finalise, machine_translate, refine, verify)
+from translator.quality import HARD_CHECKS, Issue, check_line, check_quality, count_bullets  # noqa: E402
 from translator.refine import LLMClient, Stop, build_item, parse_answer, system_prompt  # noqa: E402
 from translator.segments import harmonise, split_marker, split_sentences  # noqa: E402
+from translator.verify import PROBLEM_TYPES, build_check_item, parse_findings, verify_prompt  # noqa: E402
 
 CONFIG = run.load_config()
 RULES = Rules.load()
@@ -142,8 +143,15 @@ class FakeLLM:
         """A correct line, whatever the drafts say."""
         return harmonise(line["en"], good(RULES.rewrite_source(line["en"])))
 
+    @staticmethod
+    def is_check(items: list[dict]) -> bool:
+        """Items of the meaning checker (numbered en/vi lines) rather than of the post-editor."""
+        return any("n" in line for item in items for line in item["lines"]) or all(not i["lines"] for i in items)
+
     @classmethod
     def copy_first_draft(cls, n: int, items: list[dict]) -> str:
+        if cls.is_check(items):
+            return json.dumps([{"id": item["id"], "problems": []} for item in items])
         return json.dumps([{"id": item["id"], "vi": [cls.line_for(line) for line in item["lines"]]}
                            for item in items], ensure_ascii=False)
 
@@ -520,7 +528,8 @@ class TestTargetTerms(unittest.TestCase):
 
     def test_discouraged_terms(self):
         self.assertEqual(RULES.discouraged_in("Trang web NHS (tại Anh)"), ["NHS"])
-        self.assertEqual(RULES.discouraged_in("trẻ nhũ nhi"), ["nhũ nhi"])
+        # 'nhũ nhi' became a meaning check (vn-6): see TestMeaningChecks
+        self.assertEqual(RULES.discouraged_in("trẻ nhũ nhi"), [])
         self.assertEqual(RULES.discouraged_in("Gọi 0300 123 4567"), ["UK phone number"])
         self.assertEqual(RULES.discouraged_in("Gọi 116 123"), ["UK phone number"])
         self.assertEqual(RULES.discouraged_in("Gọi cấp cứu 115"), [])
@@ -1008,7 +1017,7 @@ class TestCheckQuality(unittest.TestCase):
         self.assertEqual(set(data), {"chunk_id", "passed", "status", "needs_human_review", "checks", "warnings",
                                      "issues"})
         self.assertEqual(data["status"], "auto_verified_with_warnings")
-        self.assertEqual(data["issues"][0], {"check": "numbers_added", "hard": False, "line": 1,
+        self.assertEqual(data["issues"][0], {"check": "numbers_added", "hard": False, "review": False, "line": 1,
                                              "detail": "number(s) not in the source: 5"})
         self.assertTrue(data["warnings"][0].startswith("numbers_added: line 2: "))
         json.dumps(data)
@@ -1602,6 +1611,288 @@ class TestRefine(unittest.TestCase):
         self.assertEqual(len(results), 5)
         self.assertEqual(stats["requests"], 5)
 
+    def test_wording_problem_goes_to_the_repair_round(self):
+        units = [make_unit("u0", ["Symptoms", "• a high temperature"])]
+        machine_translate(units, [FakeEngine("good", good)], self.cache_dir, RULES, 60, log=quiet)
+        first, fixed = ["Triệu chứng", "sốt cao"], ["Triệu chứng", "sốt"]
+
+        def script(n, items):
+            return json.dumps([{"id": "u0", "vi": first if n == 1 else fixed}], ensure_ascii=False)
+
+        client = FakeLLM(script)
+        results, stats = self.refine(units, client)
+        self.assertEqual(client.calls, 2)
+        self.assertTrue(any("high temperature" in p for p in client.payloads[1][0]["problems"]))
+        self.assertEqual(results["u0"], fixed)
+        self.assertEqual(stats["repaired_units"], 1)
+
+
+# =============================================================================
+# meaning checks of the gate (SCRUM-155 / #145)
+# =============================================================================
+
+def review(issues) -> set[str]:
+    return {i.check for i in issues if i.review}
+
+
+class TestMeaningChecks(unittest.TestCase):
+    """Meaning changes the old gate let through (SCRUM-155): synthetic cases and lines reviewers returned."""
+
+    def line(self, source, target):
+        return check_line(source, target, RULES, QUALITY)
+
+    # -- the three synthetic cases of SCRUM-155 ------------------------------
+    def test_unit_change_is_hard(self):
+        self.assertIn("units_preserved", hard(self.line("Take 5 mg twice a day", "Uống 5 g, 2 lần mỗi ngày")))
+        self.assertEqual(hard(self.line("Take 5 mg twice a day", "Uống 5 mg, 2 lần mỗi ngày")), set())
+
+    def test_units_written_together_or_in_words(self):
+        for source, target in (("Taking 2mg or less a day", "Dùng 2mg trở xuống mỗi ngày"),
+                               ("per 100 grams or per 100 millilitres", "theo 100 gram hoặc 100 mililít"),
+                               ("10 micrograms of vitamin D", "10 microgam vitamin D"),
+                               ("gram for gram the carbohydrate", "với cùng một khối lượng, carbohydrate")):
+            with self.subTest(source=source):
+                self.assertNotIn("units_preserved", hard(self.line(source, target)))
+
+    def test_age_direction_reversed(self):
+        self.assertIn("direction_kept", review(self.line("for children over 5", "cho trẻ dưới 5 tuổi")))
+        self.assertIn("direction_kept", review(self.line("children under 5", "trẻ từ 5 tuổi trở lên")))
+        self.assertIn("direction_kept", review(self.line("people aged 65 or over", "người dưới 65 tuổi")))
+        self.assertEqual(review(self.line("for children over 5", "cho trẻ trên 5 tuổi")), set())
+
+    def test_both_directions_of_one_number_are_not_judged(self):
+        source = "Check symptoms online (for anyone aged 5 and over) or call (for children under 5)."
+        target = "Kiểm tra triệu chứng (cho người từ 5 tuổi trở lên) hoặc gọi điện (cho trẻ dưới 5 tuổi)."
+        self.assertNotIn("direction_kept", review(self.line(source, target)))
+
+    def test_no_more_than_is_not_over(self):
+        self.assertEqual(review(self.line("Take no more than 8 tablets", "Không uống quá 8 viên")), set())
+
+    def test_lost_negation(self):
+        self.assertIn("negation_kept", review(self.line("Do not take ibuprofen if you have asthma",
+                                                        "Uống ibuprofen nếu bạn bị hen suyễn")))
+        self.assertEqual(review(self.line("Do not take ibuprofen if you have asthma",
+                                          "Không dùng ibuprofen nếu bạn bị hen suyễn")), set())
+
+    def test_negation_said_without_a_negation_word(self):
+        self.assertEqual(review(self.line("is surgery that makes your stomach smaller so you do not eat as much food",
+                                          "là phẫu thuật làm dạ dày nhỏ hơn để bạn ăn ít thức ăn hơn")), set())
+
+    def test_meaning_issues_are_not_hard(self):
+        issues = self.line("Do not take ibuprofen if you have asthma", "Uống ibuprofen nếu bạn bị hen suyễn")
+        self.assertEqual(hard(issues), set())
+        self.assertTrue(all(not i.hard for i in issues if i.review))
+
+    # -- lines reviewers returned in SCRUM-148 (REGRESSION) ------------------
+    RETURNED = [
+        # (source, Vietnamese a reviewer returned, Vietnamese the reviewer accepted, rule)
+        ("• a high temperature", "• sốt cao", "• sốt", "high temperature"),
+        ("Eating too much salt increases the risk of heart attacks and strokes.",
+         "Ăn quá nhiều muối làm tăng nguy cơ đau tim và đột quỵ.",
+         "Ăn quá nhiều muối làm tăng nguy cơ nhồi máu cơ tim và đột quỵ.", "heart attack"),
+        ("Taking 40mg or less a day of riboflavin supplements is unlikely to cause any harm.",
+         "Dùng 40mg riboflavin trở xuống mỗi ngày không có khả năng gây hại.",
+         "Dùng không quá 40 mg riboflavin mỗi ngày ít có khả năng gây hại.", "unlikely"),
+        ("implementing oral cholera vaccine campaigns.", "triển khai các chiến dịch tiêm vắc-xin tả đường uống.",
+         "triển khai các chiến dịch sử dụng vắc-xin phòng bệnh tả đường uống.", "oral route"),
+        ("Sunscreen should be reapplied straight after you have been in water.",
+         "Nên bôi lại kem chống nắng ngay sau khi xuống nước.",
+         "Nên bôi lại kem chống nắng ngay sau khi lên khỏi nước.", "after being in water"),
+        ("• making wheezing noises when you breathe – babies may also make grunting noises",
+         "• thở khò khè – trẻ sơ sinh (dưới 28 ngày tuổi) cũng có thể phát ra tiếng rên",
+         "• thở khò khè – các em bé cũng có thể phát ra tiếng rên", "28-day limit"),
+        ("• your baby or young child has pneumonia", "• trẻ sơ sinh hoặc trẻ nhỏ của bạn bị viêm phổi",
+         "• em bé hoặc trẻ nhỏ của bạn bị viêm phổi", "newborn"),
+        ("do not use aqueous cream as it can irritate the skin", "không dùng kem dạng nước vì có thể kích ứng da",
+         "không dùng kem Aqueous Cream vì có thể kích ứng da", "aqueous cream"),
+        ("Malnutrition › Various forms of malnutrition", "Suy dinh dưỡng › Các dạng suy dinh dưỡng",
+         "Rối loạn dinh dưỡng › Các dạng rối loạn dinh dưỡng", "malnutrition"),
+        ("It's offered on the NHS every year in autumn.", "Vắc-xin này được cung cấp hằng năm vào mùa thu.",
+         "Vắc-xin này được NHS cung cấp hằng năm vào mùa thu.", "NHS kept"),
+    ]
+
+    def test_returned_lines_are_flagged_and_accepted_lines_are_not(self):
+        for source, returned, accepted, label in self.RETURNED:
+            with self.subTest(label=label):
+                details = [i.detail for i in self.line(source, returned) if i.check == "wording"]
+                self.assertTrue(any(d.startswith(label + ":") for d in details), details)
+                self.assertEqual(review(self.line(source, accepted)) | hard(self.line(source, accepted)), set())
+
+    def test_nhu_nhi_is_flagged(self):
+        self.assertIn("wording", review(self.line("Babies should not have much salt",
+                                                  "Trẻ nhũ nhi không nên ăn nhiều muối")))
+
+    def test_newborn_may_be_trẻ_sơ_sinh(self):
+        self.assertEqual(review(self.line("Newborn babies need warmth", "Trẻ sơ sinh (dưới 28 ngày tuổi) cần được giữ ấm")),
+                         set())
+
+    def test_very_high_temperature_may_be_sốt_cao(self):
+        self.assertEqual(review(self.line("a very high temperature", "sốt rất cao")), set())
+
+    def test_nhs_written_as_tại_anh_is_kept(self):
+        self.assertEqual(review(self.line("they're not available on the NHS", "chúng không có sẵn tại Anh")), set())
+
+    def test_rule_needs_forbid_or_require(self):
+        with self.assertRaises(ValueError):
+            Rules.from_dict({"version": "t", "meaning_checks": [{"label": "x", "source": "a"}]})
+
+    # -- report ---------------------------------------------------------------
+    def test_flagged_chunk_passes_but_is_not_auto_verified(self):
+        report = check_quality("c1", "Symptoms\n• a high temperature", "Triệu chứng\n• sốt cao", rules=RULES,
+                               settings=QUALITY)
+        self.assertTrue(report.passed)
+        self.assertEqual(report.status, "flagged_for_review")
+        self.assertTrue(report.needs_human_review)
+        self.assertTrue(any(w.startswith("wording: line 2: high temperature") for w in report.warnings))
+
+    def test_extra_issues_flag_the_chunk(self):
+        from translator.quality import Issue
+        report = check_quality("c1", "Symptoms\n• a cough", "Triệu chứng\n• ho", rules=RULES, settings=QUALITY,
+                               extra_issues=[Issue("meaning_check", False, "scope: ...", 1)])
+        self.assertEqual(report.status, "flagged_for_review")
+        self.assertEqual(report.to_dict()["issues"][0]["review"], True)
+
+
+# =============================================================================
+# LLM meaning checker
+# =============================================================================
+
+class TestVerifyHelpers(unittest.TestCase):
+
+    def test_prompt_shows_the_tables(self):
+        prompt = verify_prompt(RULES)
+        for table in ("service_table", "age_table", "terminology"):
+            for row in RULES.tables[table]:
+                self.assertIn(f"- {row['en']} -> {row['vi']}", prompt)
+        for kind in PROBLEM_TYPES:
+            self.assertIn(kind, prompt)
+
+    def test_check_item_numbers_the_lines(self):
+        unit = make_unit("u1", ["Heading", "• take 2 tablets", "", "42"])
+        item = build_check_item(unit, ["Tiêu đề", "uống 2 viên", "", "42"])
+        self.assertEqual(item["lines"], [{"n": 1, "en": "Heading", "vi": "Tiêu đề"},
+                                         {"n": 2, "en": "take 2 tablets", "vi": "uống 2 viên"}])
+
+    def test_parse_findings(self):
+        text = "ok: " + json.dumps([
+            {"id": "u1", "problems": [{"line": 2, "type": "scope", "detail": "thu hẹp nhóm"},
+                                      {"line": 9, "type": "scope", "detail": "dòng không có"},
+                                      {"line": 1, "type": "weird", "detail": "khác"},
+                                      {"line": 1, "type": "term", "detail": ""}]},
+            {"id": "u2", "problems": []},
+            {"id": "u3", "problems": [{"line": 1, "type": "term", "detail": "x"}]},
+            {"id": "u4"}], ensure_ascii=False)
+        found = parse_findings(text, {"u1": 3, "u2": 2, "u4": 1})
+        self.assertEqual(found["u1"], [{"line": 2, "type": "scope", "detail": "thu hẹp nhóm"},
+                                       {"line": 1, "type": "other", "detail": "khác"}])
+        self.assertEqual(found["u2"], [])
+        self.assertNotIn("u3", found)
+        self.assertNotIn("u4", found)
+        self.assertEqual(parse_findings("no json", {"u1": 1}), {})
+
+
+class TestVerify(unittest.TestCase):
+
+    SETTINGS = {"units_per_request": 2, "workers": 1, "repair_rounds": 1}
+    LINES = ["Pneumonia", "• babies may also make grunting noises"]
+    WRONG = ["Viêm phổi", "• trẻ dưới 6 tháng tuổi cũng có thể phát ra tiếng rên"]
+    RIGHT = ["Viêm phổi", "• em bé cũng có thể phát ra tiếng rên"]
+
+    def setUp(self):
+        self.cache_dir = tmpdir(self)
+        self.units = [make_unit("u0", self.LINES)]
+
+    def verify(self, client, results=None):
+        return verify(self.units, results or {"u0": self.WRONG}, client, RULES, self.cache_dir, self.SETTINGS,
+                      QUALITY, log=quiet)
+
+    @staticmethod
+    def checker(still_wrong: bool = False):
+        """Checker that reports line 2 while it says 'tháng tuổi'; the post-editor writes RIGHT (or WRONG)."""
+        def script(n, items):
+            if FakeLLM.is_check(items):
+                return json.dumps([{"id": item["id"], "problems": [
+                    {"line": 2, "type": "added", "detail": "nguồn không nói 6 tháng"}]
+                    if any("tháng" in line["vi"] for line in item["lines"]) else []} for item in items],
+                    ensure_ascii=False)
+            return json.dumps([{"id": item["id"], "vi": TestVerify.WRONG if still_wrong else TestVerify.RIGHT}
+                               for item in items], ensure_ascii=False)
+        return script
+
+    def test_clean_unit_is_unchanged(self):
+        client = FakeLLM()
+        out, flags, stats = self.verify(client, {"u0": self.RIGHT})
+        self.assertEqual((out, flags), ({"u0": self.RIGHT}, {}))
+        self.assertEqual((stats["checked_units"], stats["units_with_problems"], client.calls), (1, 0, 1))
+
+    def test_problem_is_repaired_and_checked_again(self):
+        client = FakeLLM(self.checker())
+        out, flags, stats = self.verify(client)
+        self.assertEqual(out["u0"], self.RIGHT)
+        self.assertEqual(flags, {})
+        self.assertEqual((stats["units_with_problems"], stats["repaired_units"], stats["flagged_units"]), (1, 1, 0))
+        self.assertEqual(client.calls, 3)  # check, repair, re-check
+        repair = client.payloads[1][0]
+        self.assertEqual(repair["previous"], self.WRONG)
+        self.assertIn("line 2: added: nguồn không nói 6 tháng", repair["problems"])
+
+    def test_problem_that_stays_becomes_a_flag(self):
+        out, flags, stats = self.verify(FakeLLM(self.checker(still_wrong=True)))
+        self.assertEqual(out["u0"], self.WRONG)
+        self.assertEqual([(i.check, i.line, i.review) for i in flags["u0"]], [("meaning_check", 1, True)])
+        report = finalise(self.units[0], out["u0"], RULES, QUALITY, flags=flags["u0"])
+        self.assertEqual(report.report.status, "flagged_for_review")
+
+    def test_answers_are_cached(self):
+        self.verify(FakeLLM(self.checker()))
+        again = FakeLLM()
+        out, flags, _ = self.verify(again)
+        self.assertEqual(again.calls, 0)
+        self.assertEqual((out["u0"], flags), (self.RIGHT, {}))
+
+    def test_unanswered_unit_is_not_flagged(self):
+        out, flags, stats = self.verify(FakeLLM(lambda n, items: "no json"))
+        self.assertEqual((out["u0"], flags, stats["checked_units"]), (self.WRONG, {}, 0))
+
+    def test_stop_keeps_the_lines(self):
+        def script(n, items):
+            raise Stop("HTTP 429")
+
+        out, flags, stats = self.verify(FakeLLM(script))
+        self.assertEqual((out["u0"], flags, stats["stopped"]), (self.WRONG, {}, "HTTP 429"))
+
+
+class TestHumanCorrections(unittest.TestCase):
+
+    def test_corrected_line_replaces_the_machine_line(self):
+        unit = make_unit("u0", ["Pneumonia", "• babies may also make grunting noises"],
+                         {"good": ["Viêm phổi", "trẻ sơ sinh cũng có thể rên"]})
+        flag = Issue("meaning_check", False, "scope: babies", 1)
+        result = finalise(unit, ["Viêm phổi", "trẻ sơ sinh cũng có thể rên"], RULES, QUALITY, flags=[flag],
+                          corrections={1: "• các em bé cũng có thể phát ra tiếng rên"})
+        self.assertEqual(result.lines, ["Viêm phổi", "• các em bé cũng có thể phát ra tiếng rên"])
+        self.assertEqual(result.methods, ["llm", "human"])
+        self.assertEqual(result.machine_bodies[1], "trẻ sơ sinh cũng có thể rên")
+        self.assertEqual(result.report.status, "auto_verified")
+
+    def test_load_corrections(self):
+        folder = tmpdir(self)
+        chunks = [chunk("c1", "a", "Heading\n• line two\n• line three")]
+        first = folder / "first.json"
+        first.write_text(json.dumps({"corrections": [
+            {"chunk_id": "c1", "line": 2, "en": "• line two", "new_vi": "• dòng hai"},
+            {"chunk_id": "c1", "line": 9, "en": "• line three", "new_vi": "• dòng ba (dòng đã dời)"},
+            {"chunk_id": "c1", "line": 1, "en": "Old heading", "new_vi": "Tiêu đề cũ"},
+            {"chunk_id": "zz", "line": 1, "en": "x", "new_vi": "y"}]}, ensure_ascii=False), encoding="utf-8")
+        later = folder / "later.json"
+        later.write_text(json.dumps({"corrections": [
+            {"chunk_id": "c1", "line": 2, "en": "• line two", "new_vi": "• dòng hai (bản sau)"}]},
+            ensure_ascii=False), encoding="utf-8")
+        out, stats = run.load_corrections([first, later, folder / "missing.json"], chunks)
+        self.assertEqual(out, {"c1": {1: "• dòng hai (bản sau)", 2: "• dòng ba (dòng đã dời)"}})
+        self.assertEqual(stats["applied"], 2)
+        self.assertEqual(len(stats["not_matched"]), 3)
+
 
 # =============================================================================
 # run.py helpers
@@ -1840,7 +2131,7 @@ class TestRunMain(unittest.TestCase):
                       .splitlines()]
         self.assertEqual(len(candidates), 3)
         line = candidates[0]["lines"][1]
-        self.assertEqual(set(line), {"en", "nllb", "vinai", "medcrab", "consensus", "final", "method"})
+        self.assertEqual(set(line), {"en", "nllb", "vinai", "medcrab", "consensus", "machine", "final", "method"})
         self.assertEqual(line["final"], line["consensus"])
 
     def test_db_rows_vi(self):
@@ -1923,6 +2214,49 @@ class TestRunMain(unittest.TestCase):
         self.assertEqual(self.main(refiner="llm"), 0)
         self.assertEqual(factory.translate_calls, 0)
         self.assertEqual(client.calls, first_calls)
+        summary = self.read_json("summary.json")
+        self.assertEqual(summary["meaning_check"]["checked_units"], summary["refiner"]["answered_units"])
+        self.assertEqual(summary["checker_version"], md["checker_version"])
+        self.assertTrue(md["checker_version"])
+
+    def test_no_verify_skips_the_meaning_check(self):
+        client = FakeLLM()
+        self.patch_llm(client)
+        self.assertEqual(self.main("--no-verify", refiner="llm"), 0)
+        self.assertEqual(self.read_json("summary.json")["meaning_check"], {})
+        self.assertFalse(any(FakeLLM.is_check(items) for items in client.payloads))
+
+    def test_meaning_flag_sends_the_chunk_to_review(self):
+        def script(n, items):
+            if FakeLLM.is_check(items):
+                return json.dumps([{"id": item["id"], "problems": [{"line": 1, "type": "term", "detail": "sai"}]
+                                    if item["id"] == "c-b1" else []} for item in items], ensure_ascii=False)
+            return FakeLLM.copy_first_draft(n, items)
+
+        self.patch_llm(FakeLLM(script))
+        self.assertEqual(self.main(refiner="llm"), 0)
+        record = self.records()["c-b1"]
+        self.assertEqual(record["translation_metadata"]["quality_status"], "flagged_for_review")
+        self.assertTrue(record["translation_metadata"]["needs_human_review"])
+        self.assertIn("c-b1", (self.out / "review_queue.md").read_text(encoding="utf-8"))
+
+    def test_human_corrections_from_the_config(self):
+        corrections = self.dir / "corrections.json"
+        corrections.write_text(json.dumps({"corrections": [
+            {"chunk_id": "c-b1", "line": 1, "en": B1_TEXT, "new_vi": "Uống thật nhiều nước."}]},
+            ensure_ascii=False), encoding="utf-8")
+        config = {**run.load_config(), "paths": {**run.load_config()["paths"], "human_corrections": [str(corrections)]}}
+        with mock.patch.object(run, "load_config", return_value=config):
+            self.assertEqual(self.main(), 0, self.stdout + self.stderr)
+        record = self.records()["c-b1"]
+        self.assertEqual(record["text_vi"], "Uống thật nhiều nước.")
+        self.assertEqual(record["translation_metadata"]["human_corrected_lines"], 1)
+        line = json.loads((self.out / "candidates.jsonl").read_text(encoding="utf-8").splitlines()[-1])
+        self.assertEqual(line["lines"][0]["method"], "human")
+        self.assertNotEqual(line["lines"][0]["machine"], "Uống thật nhiều nước.")
+        self.assertEqual(self.read_json("summary.json")["human_corrections"]["applied"], 1)
+        self.assertEqual(self.main("--no-corrections"), 0)
+        self.assertNotEqual(self.records()["c-b1"]["text_vi"], "Uống thật nhiều nước.")
 
     def test_auto_refiner_uses_the_llm_when_configured(self):
         self.patch_llm(FakeLLM())

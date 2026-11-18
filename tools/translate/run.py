@@ -14,6 +14,8 @@ Pipeline:
         -> UK services rewritten in English (localisation.json)
         -> machine drafts from every engine (cached per segment)
         -> LLM fusion of the drafts (optional: LLM_BASE_URL, LLM_MODEL, LLM_API_KEY)
+        -> LLM meaning check, one repair of what it finds (config llm.verify; --no-verify skips it)
+        -> lines a human reviewer corrected (config paths.human_corrections)
         -> quality gate per line, consensus fallback
         -> .data/translated/chunks_vi.jsonl, db_rows_vi.json, candidates.jsonl,
            quality_report.json, review_queue.md, summary.json
@@ -40,8 +42,9 @@ sys.path.insert(0, str(HERE))
 from translator.engines import get_engine  # noqa: E402
 from translator.glossary import Rules, compile_names, load_medicine_names  # noqa: E402
 from translator.pipeline import (  # noqa: E402
-    UnitResult, build_units, engine_statistics, finalise, machine_translate, refine)
+    UnitResult, build_units, engine_statistics, finalise, machine_translate, refine, verify)
 from translator.refine import PROMPT_VERSION, LLMClient  # noqa: E402
+from translator.verify import VERIFY_VERSION  # noqa: E402
 
 CONFIG_PATH = HERE / "config.json"
 
@@ -68,6 +71,36 @@ def write_json(path: Path, data: Any) -> None:
     tmp = path.with_suffix(path.suffix + ".tmp")
     tmp.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     tmp.replace(path)
+
+
+def load_corrections(paths: list[Path], chunks: list[dict[str, Any]]) -> tuple[dict[str, dict[int, str]], dict[str, Any]]:
+    """Lines a human reviewer corrected: chunk id -> {0-based line: Vietnamese line}.
+
+    Each file holds ``{"corrections": [{"chunk_id", "line" (1-based), "en", "new_vi"}, ...]}``. A
+    correction applies only while its English line is still in the chunk (at ``line``, or once
+    elsewhere when the chunk moved); otherwise it is reported as not matched. A later file wins.
+    """
+    lines = {c["id"]: c["text"].split("\n") for c in chunks}
+    out: dict[str, dict[int, str]] = {}
+    stats: dict[str, Any] = {"files": [], "applied": 0, "not_matched": []}
+    for path in paths:
+        if not path.exists():
+            stats["not_matched"].append({"file": path.name, "reason": "file not found"})
+            continue
+        rows = json.loads(path.read_text(encoding="utf-8")).get("corrections", [])
+        stats["files"].append({"file": path.name, "corrections": len(rows)})
+        for row in rows:
+            source = lines.get(row.get("chunk_id"), [])
+            index = int(row.get("line") or 0) - 1
+            if not (0 <= index < len(source) and source[index] == row.get("en")):
+                found = [i for i, line in enumerate(source) if line == row.get("en")]
+                index = found[0] if len(found) == 1 else -1
+            if index < 0 or not row.get("new_vi"):
+                stats["not_matched"].append({"file": path.name, "chunk_id": row.get("chunk_id"), "line": row.get("line")})
+                continue
+            out.setdefault(row["chunk_id"], {})[index] = row["new_vi"]
+    stats["applied"] = sum(len(v) for v in out.values())
+    return out, stats
 
 
 def localised_tags(tags: list[str], text_vi: str, rules: Rules) -> list[str]:
@@ -109,6 +142,8 @@ def chunk_record(chunk: dict[str, Any], result: UnitResult, strings: dict[str, s
             "tgt_lang": meta["tgt_lang"],
             "localisation_version": rules.version,
             "prompt_version": PROMPT_VERSION if method == "llm_fusion" else "",
+            "checker_version": meta.get("checker_version", ""),
+            "human_corrected_lines": methods.get("human", 0),
             "source_text_sha256": chunk.get("text_sha256", ""),
             "translated_at": meta["translated_at"],
             "quality_status": result.report.status,
@@ -237,6 +272,9 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--max-chunks", type=int, default=0, help="limit the number of chunks (0 = all)")
     parser.add_argument("--only-tag", default="", help="only chunks with this scope tag, e.g. emergency")
     parser.add_argument("--llm-max-requests", type=int, default=0, help="0 = until done or out of quota")
+    parser.add_argument("--no-verify", action="store_true", help="skip the LLM meaning check (config llm.verify)")
+    parser.add_argument("--no-corrections", action="store_true",
+                        help="ignore the human corrections of config paths.human_corrections")
     parser.add_argument("--input", type=Path, default=ROOT / paths["input_chunks"])
     parser.add_argument("--db-rows", type=Path, default=ROOT / paths["input_db_rows"])
     parser.add_argument("--output", type=Path, default=ROOT / paths["output_dir"])
@@ -321,17 +359,26 @@ def main(argv: list[str] | None = None) -> int:
     engine_stats = machine_translate(units, engines, cache_dir, rules, int(config["segments"]["max_words"]))
     llm_lines: dict[str, list[str]] = {}
     llm_stats: dict[str, Any] = {}
+    flags: dict[str, list[Any]] = {}
+    verify_stats: dict[str, Any] = {}
     if client:
         llm_lines, llm_stats = refine(units, client, rules, cache_dir, config["llm"], quality_settings,
                                       max_requests=args.llm_max_requests)
-    results = {u.id: finalise(u, llm_lines.get(u.id), rules, quality_settings) for u in units}
+        if config["llm"].get("verify") and not args.no_verify and not llm_stats.get("stopped"):
+            llm_lines, flags, verify_stats = verify(units, llm_lines, client, rules, cache_dir, config["llm"],
+                                                    quality_settings, max_requests=args.llm_max_requests)
+    correction_paths = [] if args.no_corrections else [ROOT / p for p in paths.get("human_corrections", [])]
+    corrections, correction_stats = load_corrections(correction_paths, to_translate)
+    results = {u.id: finalise(u, llm_lines.get(u.id), rules, quality_settings, flags=flags.get(u.id),
+                              corrections=corrections.get(u.id)) for u in units}
 
     strings: dict[str, str] = {}
     for result in results.values():
         if result.unit.kind == "extra":
             strings.update(zip(result.unit.lines, result.lines))
     meta = {"src_lang": src_lang, "tgt_lang": tgt_lang, "translated_at": now,
-            "refiner_model": client.model if client else "", "engine_models": [e.model_id for e in engines]}
+            "refiner_model": client.model if client else "", "engine_models": [e.model_id for e in engines],
+            "checker_version": VERIFY_VERSION if verify_stats else ""}
     records = [chunk_record(c, results[c["id"]], strings, meta, rules) for c in to_translate]
     records += [passthrough_record(c, meta) for c in passthrough]
     reports = {r.unit.id: r.report.to_dict() for r in results.values()}
@@ -344,8 +391,8 @@ def main(argv: list[str] | None = None) -> int:
     (args.output / "candidates.jsonl").write_text("".join(json.dumps({
         "chunk_id": c["id"],
         "lines": [{"en": en, **{key: drafts[i] for key, drafts in results[c["id"]].unit.drafts.items()},
-                   "consensus": results[c["id"]].consensus[i], "final": results[c["id"]].bodies[i],
-                   "method": results[c["id"]].methods[i]}
+                   "consensus": results[c["id"]].consensus[i], "machine": results[c["id"]].machine_bodies[i],
+                   "final": results[c["id"]].bodies[i], "method": results[c["id"]].methods[i]}
                   for i, en in enumerate(results[c["id"]].unit.bodies)],
     }, ensure_ascii=False) + "\n" for c in to_translate), encoding="utf-8")
     write_json(args.output / "db_rows_vi.json", rows)
@@ -363,8 +410,11 @@ def main(argv: list[str] | None = None) -> int:
         "engines": engine_stats,
         "engine_vs_final": engine_statistics([results[c["id"]] for c in to_translate], rules, quality_settings),
         "refiner": llm_stats or {"model": "consensus"},
+        "meaning_check": verify_stats,
+        "human_corrections": correction_stats,
         "localisation_version": rules.version,
         "prompt_version": PROMPT_VERSION if client else "",
+        "checker_version": meta["checker_version"],
         "medicine_names_from_index": len(names),
         "total_chunks_input": len(chunks),
         "chunks_translated": len(to_translate),
@@ -399,9 +449,15 @@ def main(argv: list[str] | None = None) -> int:
     print(f"  Passthrough ({tgt_lang}):  {len(passthrough)} chunks")
     print(f"  Quality passed:    {summary['quality_passed']}/{len(chunk_reports)}   hard issues: {dict(hard)}")
     print(f"  Needs review:      {summary['needs_human_review']}   soft issues: {dict(soft)}")
+    if verify_stats:
+        print(f"  Meaning check:     {verify_stats['checked_units']} units checked, "
+              f"{verify_stats['units_with_problems']} with problems, {verify_stats['repaired_units']} repaired, "
+              f"{verify_stats['flagged_units']} still flagged")
+    print(f"  Human corrections: {correction_stats['applied']} lines applied, "
+          f"{len(correction_stats['not_matched'])} not matched")
     print(f"  Article rows:      {len(rows)} ({untranslated} lines without translation)")
     print(f"  Output:            {args.output}")
-    if llm_stats.get("stopped"):
+    if llm_stats.get("stopped") or verify_stats.get("stopped"):
         return 3
     return 1 if failed else 0
 
