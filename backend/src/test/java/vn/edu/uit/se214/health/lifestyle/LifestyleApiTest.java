@@ -14,7 +14,12 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
+import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.Callable;
+import java.util.concurrent.CyclicBarrier;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -149,6 +154,45 @@ class LifestyleApiTest {
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.data.completed").value(false));
     assertThat(stored()).isZero();
+  }
+
+  @Test
+  @Transactional
+  void yesterdayCanBeMarkedButNotUnmarked() throws Exception {
+    String yesterday = LocalDate.parse(today).minusDays(1).toString();
+    String path = "/api/v1/lifestyle/completions/" + SEEDED_ACTIVITY + "/" + yesterday;
+    mvc.perform(signed(put(path))).andExpect(status().isOk())
+        .andExpect(jsonPath("$.data.date").value(yesterday))
+        .andExpect(jsonPath("$.data.completed").value(true))
+        .andExpect(jsonPath("$.data.progress.completedActivities").value(1));
+    mvc.perform(signed(get("/api/v1/lifestyle/plan"))).andExpect(status().isOk())
+        .andExpect(jsonPath("$.data.date").value(today))
+        .andExpect(jsonPath("$.data.activities[0].completed").value(false))
+        .andExpect(jsonPath("$.data.planStreak").value(1));
+
+    mvc.perform(signed(delete(path))).andExpect(status().isConflict())
+        .andExpect(jsonPath("$.error.code").value("COMPLETION_LOCKED"));
+    assertThat(jdbc.sql("SELECT completed_on FROM lifestyle.completions WHERE activity_id = ?")
+        .param(SEEDED_ACTIVITY).query(LocalDate.class).single()).isEqualTo(LocalDate.parse(yesterday));
+  }
+
+  @Test
+  void twoMarksAtOnceStoreOneRow() throws Exception {
+    var ready = new CyclicBarrier(2);
+    try (var clients = Executors.newFixedThreadPool(2)) {
+      Callable<MvcResult> complete = () -> {
+        ready.await(10, TimeUnit.SECONDS);
+        return mvc.perform(signed(put(completion()))).andReturn();
+      };
+      var first = clients.submit(complete);
+      var second = clients.submit(complete);
+      for (MvcResult response : List.of(first.get(15, TimeUnit.SECONDS), second.get(15, TimeUnit.SECONDS))) {
+        status().isOk().match(response);
+        jsonPath("$.data.completed").value(true).match(response);
+        jsonPath("$.data.progress.completedActivities").value(1).match(response);
+      }
+    }
+    assertThat(stored()).isEqualTo(1);
   }
 
   @Test
