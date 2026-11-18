@@ -140,17 +140,23 @@ public class SpringSecurityConfiguration {
                 .requestMatchers(
                     HttpMethod.POST,
                     "/api/v1/knowledge/articles",
+                    "/api/v1/knowledge/articles/*/submit",
+                    "/api/v1/knowledge/templates",
+                    "/api/v1/knowledge/templates/*/submit",
                     "/api/v1/knowledge/reviews/*/decision")
                 .hasAuthority("PERM_CONTENT_MANAGE")
                 .requestMatchers(
                     HttpMethod.PATCH,
                     "/api/v1/knowledge/articles/*",
+                    "/api/v1/knowledge/templates/*",
                     "/api/v1/knowledge/feedback/*")
                 .hasAuthority("PERM_CONTENT_MANAGE")
-                .requestMatchers(HttpMethod.DELETE, "/api/v1/knowledge/articles/*")
+                .requestMatchers(
+                    HttpMethod.DELETE, "/api/v1/knowledge/articles/*", "/api/v1/knowledge/templates/*")
                 .hasAuthority("PERM_CONTENT_MANAGE")
                 .requestMatchers(
                     HttpMethod.GET,
+                    "/api/v1/knowledge/authoring/**",
                     "/api/v1/knowledge/reviews",
                     "/api/v1/knowledge/feedback")
                 .hasAuthority("PERM_CONTENT_MANAGE")

@@ -123,6 +123,49 @@ export interface ArticleSummary {
   updatedAt: string;
 }
 
+// UC-15 authoring (backend: knowledge.authoring). Server-managed fields are read-only.
+export interface DraftMetadata {
+  id: string;
+  sourceName: string;
+  sourceUrl: string;
+  sourceUpdatedAt: string | null;
+  copyrightNotes: string;
+  verifiedAt: string | null;
+  reviewStatus: ReviewStatus;
+  createdBy: string | null;
+  updatedBy: string | null;
+  createdAt: string;
+  updatedAt: string;
+  revision: number;
+  submittedAt: string | null;
+  submittedBy: string | null;
+}
+
+export interface ArticleDraft extends DraftMetadata {
+  title: string;
+  topic: string;
+  content: string;
+}
+
+export interface TemplateActivity {
+  id: string;
+  title: string;
+  description?: string;
+}
+
+export interface TemplateDraft extends DraftMetadata {
+  title: string;
+  goal: 'SLEEP' | 'MAINTAIN' | 'GAIN' | 'LOSE';
+  summary: string;
+  activities: TemplateActivity[];
+  durationDays: number | null;
+  notSuitableFor: string[];
+  excludedAllergens: string[];
+  requiresProfile: boolean;
+  applicability: string;
+  advisory: string;
+}
+
 export interface ArticleDetail extends ArticleSummary {
   content: string;
 }

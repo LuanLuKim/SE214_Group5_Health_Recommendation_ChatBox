@@ -5,7 +5,6 @@ import jakarta.servlet.http.HttpServletRequest;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
-import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -23,8 +22,8 @@ import vn.edu.uit.se214.health.system.ModuleDescriptor;
 import vn.edu.uit.se214.health.system.ModuleRegistry;
 
 /**
- * M2 – UC-10, UC-11, UC-15, UC-17. Public search is open; authoring, the shared review queue
- * (UC-17, both the M1 and M2 parts) and feedback require CONTENT_MANAGE.
+ * M2 – UC-10, UC-11, UC-17. Public search is open; the shared review queue (UC-17, both the M1 and M2
+ * parts) and feedback require CONTENT_MANAGE. UC-15 authoring is in {@code authoring.ContentAuthoringController}.
  */
 @RestController
 @RequestMapping("/api/v1/knowledge")
@@ -124,21 +123,6 @@ public class KnowledgeController {
       if (number >= min && number <= max) return number;
     }
     throw ApiException.invalid("INVALID_QUERY", "Tham số " + name + " không hợp lệ.");
-  }
-
-  @PostMapping("/articles")
-  public Object createArticle(@RequestBody(required = false) JsonNode body) {
-    throw ApiException.notImplemented();
-  }
-
-  @PatchMapping("/articles/{id}")
-  public Object updateArticle(@PathVariable String id, @RequestBody(required = false) JsonNode body) {
-    throw ApiException.notImplemented();
-  }
-
-  @DeleteMapping("/articles/{id}")
-  public Object deleteArticle(@PathVariable String id) {
-    throw ApiException.notImplemented();
   }
 
   @GetMapping("/reviews")

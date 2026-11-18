@@ -368,6 +368,13 @@ class PostgresModeTest {
             new Object[] {HttpMethod.POST, "/api/v1/knowledge/articles"},
             new Object[] {HttpMethod.PATCH, "/api/v1/knowledge/articles/00000000-0000-0000-0000-000000000000"},
             new Object[] {HttpMethod.DELETE, "/api/v1/knowledge/articles/00000000-0000-0000-0000-000000000000"},
+            new Object[] {HttpMethod.POST, "/api/v1/knowledge/articles/00000000-0000-0000-0000-000000000000/submit"},
+            new Object[] {HttpMethod.GET, "/api/v1/knowledge/authoring/articles"},
+            new Object[] {HttpMethod.GET, "/api/v1/knowledge/authoring/templates/00000000-0000-0000-0000-000000000000"},
+            new Object[] {HttpMethod.POST, "/api/v1/knowledge/templates"},
+            new Object[] {HttpMethod.PATCH, "/api/v1/knowledge/templates/00000000-0000-0000-0000-000000000000"},
+            new Object[] {HttpMethod.DELETE, "/api/v1/knowledge/templates/00000000-0000-0000-0000-000000000000"},
+            new Object[] {HttpMethod.POST, "/api/v1/knowledge/templates/00000000-0000-0000-0000-000000000000/submit"},
             new Object[] {HttpMethod.GET, "/api/v1/knowledge/reviews"},
             new Object[] {HttpMethod.POST, "/api/v1/knowledge/reviews/00000000-0000-0000-0000-000000000000/decision"},
             new Object[] {HttpMethod.GET, "/api/v1/knowledge/feedback"},
@@ -386,12 +393,15 @@ class PostgresModeTest {
         userId);
     mvc.perform(signedAs(userId, get("/api/v1/safety/rules")))
         .andExpect(status().isOk());
+    // UC-15: the content expert reaches the authoring service, which refuses an empty draft
     mvc.perform(
             signedAs(userId, post("/api/v1/knowledge/articles"))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{}"))
-        .andExpect(status().isNotImplemented())
-        .andExpect(jsonPath("$.error.code").value("NOT_IMPLEMENTED"));
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.error.code").value("INVALID_INPUT"));
+    mvc.perform(signedAs(userId, get("/api/v1/knowledge/authoring/templates")))
+        .andExpect(status().isOk());
 
     mvc.perform(
             signed(post("/api/v1/accounts/confirm-deletion"))
