@@ -1,0 +1,499 @@
+{
+  "project": "SE214",
+  "title": "Test M6 đợt 2",
+  "module": "M6",
+  "use_cases": [
+    "UC-12",
+    "UC-13",
+    "UC-14"
+  ],
+  "jira": "SCRUM-136",
+  "github": "#166",
+  "tested_commit": "4bc08a85ca224db3864692051e7d9b4b91fa010f",
+  "environment": {
+    "backend": "Spring Boot",
+    "jdk": 21,
+    "database": "Embedded PostgreSQL",
+    "data": "Synthetic fixtures"
+  },
+  "runs": {
+    "regression_round1": {
+      "total": 26,
+      "passed": 26,
+      "failed": 0
+    },
+    "new_round2": {
+      "total": 7,
+      "passed": 6,
+      "failed": 1
+    },
+    "m6_suite": {
+      "total": 114,
+      "failed": 0,
+      "errors": 0,
+      "skipped": 0,
+      "passed": 114
+    },
+    "m6_by_class": {
+      "LifestyleApiTest": {
+        "total": 8,
+        "failed": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      "LifestylePlanApiTest": {
+        "total": 13,
+        "failed": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      "LifestylePlanServiceTest": {
+        "total": 14,
+        "failed": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      "LifestyleReminderApiTest": {
+        "total": 18,
+        "failed": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      "LifestyleRetentionTest": {
+        "total": 1,
+        "failed": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      "LifestyleServiceTest": {
+        "total": 11,
+        "failed": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      "ProgressCalculatorTest": {
+        "total": 18,
+        "failed": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      "ReminderDispatcherTest": {
+        "total": 25,
+        "failed": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      "ReminderScheduleTest": {
+        "total": 6,
+        "failed": 0,
+        "errors": 0,
+        "skipped": 0
+      }
+    },
+    "maven_verify": {
+      "total": 220,
+      "passed": 220,
+      "failed": 0,
+      "errors": 0,
+      "skipped": 0
+    }
+  },
+  "cases": [
+    {
+      "id": "12-01",
+      "use_case": "UC12",
+      "round": 1,
+      "junit_test": "LifestylePlanApiTest#consentIsCheckedAgainAtConfirmation",
+      "steps": "Xem trước mẫu B khi đang dùng A, rút đồng ý xử lý dữ liệu sức khỏe rồi xác nhận B.",
+      "expected": "403 `HEALTH_CONSENT_REQUIRED`, giữ A đang hoạt động.",
+      "result": "PASS",
+      "round1_result": "PASS",
+      "fixed_by": null,
+      "tracking": null
+    },
+    {
+      "id": "12-02",
+      "use_case": "UC12",
+      "round": 1,
+      "junit_test": "LifestylePlanApiTest#aTemplateRetiredAfterPreviewCannotBeApplied",
+      "steps": "Xem trước B, chuyển B sang `RETIRED` rồi xác nhận.",
+      "expected": "404 `LIFESTYLE_TEMPLATE_NOT_FOUND`, vẫn là A.",
+      "result": "PASS",
+      "round1_result": "PASS",
+      "fixed_by": null,
+      "tracking": null
+    },
+    {
+      "id": "12-03",
+      "use_case": "UC12",
+      "round": 1,
+      "junit_test": "LifestylePlanApiTest#anAllergyAddedAfterPreviewBlocksConfirmation",
+      "steps": "Xem trước mẫu có đậu phộng, thêm dị ứng đậu phộng vào hồ sơ rồi xác nhận.",
+      "expected": "409 `TEMPLATE_HAS_ALLERGEN`, không tạo lộ trình từ mẫu bị chặn.",
+      "result": "PASS",
+      "round1_result": "PASS",
+      "fixed_by": null,
+      "tracking": null
+    },
+    {
+      "id": "12-04",
+      "use_case": "UC12",
+      "round": 1,
+      "junit_test": "LifestylePlanApiTest#twoConfirmationsAtOnceLeaveOneActivePlan",
+      "steps": "Hai `PUT /lifestyle/plan` cùng đổi A sang B, chờ cùng một khóa.",
+      "expected": "Một 200 `changed=true`, một 409 `LIFESTYLE_PLAN_CONFLICT`; một lộ trình đang dùng, A trong lịch sử.",
+      "result": "PASS",
+      "round1_result": "PASS",
+      "fixed_by": null,
+      "tracking": null
+    },
+    {
+      "id": "12-05",
+      "use_case": "UC12",
+      "round": 1,
+      "junit_test": "LifestylePlanApiTest#removingARequiredProfileAfterPreviewBlocksConfirmation",
+      "steps": "Xem trước mẫu cần hồ sơ, xóa hồ sơ rồi xác nhận.",
+      "expected": "409 `HEALTH_PROFILE_REQUIRED`, giữ lộ trình đang dùng.",
+      "result": "PASS",
+      "round1_result": "PASS",
+      "fixed_by": null,
+      "tracking": null
+    },
+    {
+      "id": "12-06",
+      "use_case": "UC12–13",
+      "round": 1,
+      "junit_test": "LifestylePlanApiTest#confirmingTheActivePlanAgainKeepsItAndItsProgress",
+      "steps": "Đánh dấu một hoạt động rồi xác nhận lại mẫu đang dùng.",
+      "expected": "200 `changed=false`, giữ ID lộ trình và tiến độ.",
+      "result": "PASS",
+      "round1_result": "PASS",
+      "fixed_by": null,
+      "tracking": null
+    },
+    {
+      "id": "13-01",
+      "use_case": "UC12–13",
+      "round": 1,
+      "junit_test": "LifestylePlanApiTest#afterASwitchAnOldActivityCannotBeMarked",
+      "steps": "Hoàn thành hoạt động của A, đổi sang B, đánh dấu lại hoạt động chỉ có trong A.",
+      "expected": "404 `ACTIVITY_NOT_IN_PLAN`, dòng hoàn thành cũ còn nguyên.",
+      "result": "PASS",
+      "round1_result": "PASS",
+      "fixed_by": null,
+      "tracking": null
+    },
+    {
+      "id": "13-02",
+      "use_case": "UC12–13",
+      "round": 1,
+      "junit_test": "LifestylePlanApiTest#completionsDoNotCarryOverToAPlanWithTheSameActivityId",
+      "steps": "A và B cùng có mã `sleep-time`. Hoàn thành trên A, đổi sang B.",
+      "expected": "B báo chưa hoàn thành; mỗi lộ trình một dòng.",
+      "result": "PASS",
+      "round1_result": "PASS",
+      "fixed_by": null,
+      "tracking": null
+    },
+    {
+      "id": "13-03",
+      "use_case": "UC13",
+      "round": 1,
+      "junit_test": "LifestyleApiTest#yesterdayCanBeMarkedButNotUnmarked",
+      "steps": "Đánh dấu hôm qua rồi bỏ đánh dấu hôm qua.",
+      "expected": "PUT 200, chuỗi ngày 1; DELETE 409 `COMPLETION_LOCKED`.",
+      "result": "PASS",
+      "round1_result": "PASS",
+      "fixed_by": null,
+      "tracking": null
+    },
+    {
+      "id": "13-04",
+      "use_case": "UC13",
+      "round": 1,
+      "junit_test": "LifestyleApiTest#twoMarksAtOnceStoreOneRow",
+      "steps": "Hai PUT đánh dấu cùng hoạt động, cùng ngày, chạy song song.",
+      "expected": "Cả hai 200; PostgreSQL có một dòng.",
+      "result": "PASS",
+      "round1_result": "PASS",
+      "fixed_by": null,
+      "tracking": null
+    },
+    {
+      "id": "14-01",
+      "use_case": "UC14",
+      "round": 1,
+      "junit_test": "ReminderDispatcherTest#aFailedSendIsNotRetriedAfterTheTimeIsChanged",
+      "steps": "Lượt 07:00 lỗi, đổi giờ sang 08:00, worker chạy 07:01.",
+      "expected": "Không gửi lại lượt theo giờ cũ.",
+      "result": "PASS",
+      "round1_result": "FAIL",
+      "fixed_by": "#162",
+      "tracking": null
+    },
+    {
+      "id": "14-02",
+      "use_case": "UC14",
+      "round": 1,
+      "junit_test": "ReminderDispatcherTest#aRetryWriteFailureDoesNotStopOtherReminders",
+      "steps": "Trigger làm lỗi lúc ghi `SENT` cho lượt thử lại; một nhắc khác đến hạn cùng chu kỳ.",
+      "expected": "Chu kỳ không dừng, nhắc kia vẫn được gửi.",
+      "result": "PASS",
+      "round1_result": "FAIL",
+      "fixed_by": "#151",
+      "tracking": null
+    },
+    {
+      "id": "14-03",
+      "use_case": "UC12–14",
+      "round": 1,
+      "junit_test": "LifestyleReminderApiTest#aReminderOfAnActivityTheNewPlanLacksIsNotSent",
+      "steps": "Nhắc gắn hoạt động của A, đổi sang B, chạy worker ở giờ nhắc.",
+      "expected": "Đổi lộ trình báo `remindersTurnedOff=1`, nhắc có `disabledReason=PLAN_SWITCH`, worker gửi 0.",
+      "result": "PASS",
+      "round1_result": "FAIL (chờ chốt)",
+      "fixed_by": "#157",
+      "tracking": null
+    },
+    {
+      "id": "14-04",
+      "use_case": "UC14",
+      "round": 1,
+      "junit_test": "LifestyleReminderApiTest#turningOffAfterAFailedSendStopsTheRetry",
+      "steps": "Lượt đầu lỗi, PATCH `enabled=false`, chạy worker sau một phút.",
+      "expected": "Không gửi lại, dòng `FAILED` giữ 1 lần thử.",
+      "result": "PASS",
+      "round1_result": "PASS",
+      "fixed_by": null,
+      "tracking": null
+    },
+    {
+      "id": "14-05",
+      "use_case": "UC14",
+      "round": 1,
+      "junit_test": "ReminderDispatcherTest#twoWorkersClaimTheSameRetryOnce",
+      "steps": "Hai worker cùng đọc một dòng `FAILED` rồi cùng giữ chỗ.",
+      "expected": "Chỉ một lần gửi; dòng thành `SENT`, 2 lần thử.",
+      "result": "PASS",
+      "round1_result": "PASS",
+      "fixed_by": null,
+      "tracking": null
+    },
+    {
+      "id": "14-06",
+      "use_case": "UC14",
+      "round": 1,
+      "junit_test": "LifestyleReminderApiTest#deletingAfterAFailedSendRemovesTheRetry",
+      "steps": "Lượt đầu lỗi, xóa nhắc qua API, chạy worker trong cửa sổ thử lại.",
+      "expected": "Không gửi, không còn dòng giao nhận.",
+      "result": "PASS",
+      "round1_result": "PASS",
+      "fixed_by": null,
+      "tracking": null
+    },
+    {
+      "id": "14-07",
+      "use_case": "UC14",
+      "round": 1,
+      "junit_test": "ReminderDispatcherTest#aFailedSendIsNotRetriedAfterTheWindow",
+      "steps": "Lượt đầu lỗi, chạy worker sau 10 phút 1 giây.",
+      "expected": "Không thử lại ngoài cửa sổ.",
+      "result": "PASS",
+      "round1_result": "PASS",
+      "fixed_by": null,
+      "tracking": null
+    },
+    {
+      "id": "14-08",
+      "use_case": "UC14",
+      "round": 1,
+      "junit_test": "ReminderDispatcherTest#turningOffBetweenReadingAndClaimingStopsTheRetry",
+      "steps": "Tắt nhắc sau khi worker đọc danh sách thử lại, trước khi giữ chỗ.",
+      "expected": "Không gửi, dòng vẫn `FAILED`.",
+      "result": "PASS",
+      "round1_result": "FAIL",
+      "fixed_by": "#162",
+      "tracking": null
+    },
+    {
+      "id": "14-09",
+      "use_case": "UC14",
+      "round": 1,
+      "junit_test": "ReminderDispatcherTest#aRepeatedLocalTimeAtDstFallbackIsSentOnce",
+      "steps": "01:30 `America/New_York` ngày lùi giờ, chạy ở cả hai thời điểm UTC.",
+      "expected": "Gửi đúng một lần, ở lần sớm hơn.",
+      "result": "PASS",
+      "round1_result": "PASS",
+      "fixed_by": null,
+      "tracking": null
+    },
+    {
+      "id": "14-10",
+      "use_case": "UC12–14",
+      "round": 1,
+      "junit_test": "LifestyleReminderApiTest#aReminderWithoutActivityIsStillSentAfterASwitch",
+      "steps": "Nhắc độc lập, đổi lộ trình, chạy worker ở giờ nhắc.",
+      "expected": "Vẫn gửi đúng một lần.",
+      "result": "PASS",
+      "round1_result": "PASS",
+      "fixed_by": null,
+      "tracking": null
+    },
+    {
+      "id": "14-11",
+      "use_case": "UC14",
+      "round": 1,
+      "junit_test": "LifestyleReminderApiTest#unlinkingTheActivityKeepsContentAndState",
+      "steps": "Nhắc gắn hoạt động, PATCH `activityId=null`.",
+      "expected": "200, bỏ liên kết, giữ nội dung và trạng thái bật.",
+      "result": "PASS",
+      "round1_result": "PASS",
+      "fixed_by": null,
+      "tracking": null
+    },
+    {
+      "id": "14-12",
+      "use_case": "UC14",
+      "round": 1,
+      "junit_test": "LifestyleReminderApiTest#theLimitIsPerUserAndCountsRemindersTheUserTurnedOff",
+      "steps": "Đưa A lên 20 nhắc (kể cả nhắc tự tắt), tạo thêm cho A và cho B.",
+      "expected": "A 409 `REMINDER_LIMIT_REACHED`, B 201.",
+      "result": "PASS",
+      "round1_result": "PASS",
+      "fixed_by": null,
+      "tracking": null
+    },
+    {
+      "id": "14-13",
+      "use_case": "UC14",
+      "round": 1,
+      "junit_test": "ReminderDispatcherTest#aFailedSendIsNotRetriedAfterTurningOffAndOnAgain",
+      "steps": "Lượt 07:00 lỗi, tắt rồi bật lại trước 07:01.",
+      "expected": "Không gửi lại lượt trước lần lưu mới.",
+      "result": "PASS",
+      "round1_result": "FAIL",
+      "fixed_by": "#162",
+      "tracking": null
+    },
+    {
+      "id": "14-14",
+      "use_case": "UC14",
+      "round": 1,
+      "junit_test": "ReminderDispatcherTest#yesterdaysFailureDoesNotBlockTodaysSend",
+      "steps": "Lượt hôm trước lỗi, chạy worker 07:00 hôm sau.",
+      "expected": "Gửi lượt mới một lần; lượt cũ giữ `FAILED`.",
+      "result": "PASS",
+      "round1_result": "PASS",
+      "fixed_by": null,
+      "tracking": null
+    },
+    {
+      "id": "14-15",
+      "use_case": "UC14",
+      "round": 1,
+      "junit_test": "ReminderDispatcherTest#aFailedSentWriteIsNotSentTwice",
+      "steps": "Lỗi ghi `SENT` sau khi kênh đã nhận; chạy thêm một chu kỳ.",
+      "expected": "Không gửi trùng; nhắc khác vẫn được gửi.",
+      "result": "PASS",
+      "round1_result": "PASS",
+      "fixed_by": null,
+      "tracking": null
+    },
+    {
+      "id": "14-16",
+      "use_case": "UC14",
+      "round": 1,
+      "junit_test": "ReminderDispatcherTest#aSkippedLocalTimeAtDstSpringForwardIsSentOnceLater",
+      "steps": "02:30 `America/New_York` ngày nhảy giờ.",
+      "expected": "Dời sang 03:30 địa phương, gửi một lần.",
+      "result": "PASS",
+      "round1_result": "PASS",
+      "fixed_by": null,
+      "tracking": null
+    },
+    {
+      "id": "R2-01",
+      "use_case": "UC12–14",
+      "round": 2,
+      "junit_test": "LifestyleReminderApiTest#aPausedReminderIsOfferedBackAndSentOnlyOnceTheUserTurnsItOn",
+      "steps": "Nhắc của A bị tạm tắt khi đổi sang B; đổi lại A; chạy worker; bật lại; chạy worker ngày sau.",
+      "expected": "Đổi lại trả nhắc trong `restorableReminderIds` nhưng không tự bật, worker gửi 0; sau khi bật gửi đúng một lần.",
+      "result": "PASS",
+      "round1_result": null,
+      "fixed_by": null,
+      "tracking": null
+    },
+    {
+      "id": "R2-02",
+      "use_case": "UC14",
+      "round": 2,
+      "junit_test": "LifestyleReminderApiTest#turningOnAPausedReminderAtTheLimitIsRefusedAndNothingChanges",
+      "steps": "Có nhắc tạm tắt và 20 nhắc được tính; bật nhắc tạm tắt (giữ và bỏ hoạt động).",
+      "expected": "Giữ hoạt động không còn trong lộ trình: 404 `ACTIVITY_NOT_IN_PLAN`. Bỏ hoạt động: 409 `REMINDER_LIMIT_REACHED`. Nhắc giữ nguyên.",
+      "result": "PASS",
+      "round1_result": null,
+      "fixed_by": null,
+      "tracking": null
+    },
+    {
+      "id": "R2-03",
+      "use_case": "UC14",
+      "round": 2,
+      "junit_test": "LifestyleReminderApiTest#editingAPausedReminderKeepsItPaused",
+      "steps": "Sửa nội dung và giờ của nhắc tạm tắt, chạy worker ở giờ mới.",
+      "expected": "200, vẫn tắt, `disabledReason=PLAN_SWITCH`, không có `nextSendAt`, worker gửi 0.",
+      "result": "PASS",
+      "round1_result": null,
+      "fixed_by": null,
+      "tracking": null
+    },
+    {
+      "id": "R2-04",
+      "use_case": "UC14",
+      "round": 2,
+      "junit_test": "LifestyleReminderApiTest#theCleanupJobRemovesOnlyRemindersPausedByASwitch",
+      "steps": "Hai nhắc tạm tắt (một bị tắt lại bằng tay) và một nhắc người dùng tự tắt; chạy job trước và sau 90 ngày.",
+      "expected": "Trước hạn không xóa. Sau hạn xóa hai nhắc tạm tắt, giữ nhắc tự tắt; đổi lại lộ trình không còn gì để gợi ý.",
+      "result": "PASS",
+      "round1_result": null,
+      "fixed_by": null,
+      "tracking": null
+    },
+    {
+      "id": "R2-05",
+      "use_case": "UC12",
+      "round": 2,
+      "junit_test": "LifestylePlanApiTest#historyShowsTheUsersEndedPlansUpToTheLimitAndNeedsConsent",
+      "steps": "Đổi lộ trình nhiều hơn `LIFESTYLE_HISTORY_LIMIT`, đọc lịch sử, rồi rút đồng ý.",
+      "expected": "Trả đúng số theo giới hạn, chỉ lộ trình đã kết thúc; sau khi rút đồng ý: 403 `HEALTH_CONSENT_REQUIRED`.",
+      "result": "PASS",
+      "round1_result": null,
+      "fixed_by": null,
+      "tracking": null
+    },
+    {
+      "id": "R2-06",
+      "use_case": "UC12–13",
+      "round": 2,
+      "junit_test": "LifestylePlanApiTest#choosingATemplateAgainStartsANewPlanWithoutTheOldProgress",
+      "steps": "Hoàn thành mọi hoạt động hôm nay (chuỗi 1), đổi sang mẫu khác rồi chọn lại mẫu cũ.",
+      "expected": "Lộ trình mới có ID mới, chuỗi 0, chưa hoàn thành; lộ trình cũ giữ 2 dòng hoàn thành.",
+      "result": "PASS",
+      "round1_result": null,
+      "fixed_by": null,
+      "tracking": null
+    },
+    {
+      "id": "R2-07",
+      "use_case": "UC12",
+      "round": 2,
+      "junit_test": "SameDayHistoryOrderProbeTest#plansEndedTheSameDayComeLatestFirst",
+      "steps": "Hai lộ trình bắt đầu và kết thúc cùng ngày; lộ trình đổi sau có UUID lớn hơn.",
+      "expected": "Lịch sử trả lộ trình kết thúc sau ở đầu.",
+      "result": "FAIL",
+      "round1_result": null,
+      "fixed_by": null,
+      "tracking": "#167 / SCRUM-165"
+    }
+  ]
+}
