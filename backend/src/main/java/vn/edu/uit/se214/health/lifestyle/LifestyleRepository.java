@@ -131,8 +131,9 @@ public class LifestyleRepository {
             return new PlanWrite(current.get().id(), false, null, 0, List.of());
           current.ifPresent(
               plan ->
-                  jdbc.sql("UPDATE lifestyle.plans SET ended_on = GREATEST(?, started_on) WHERE id = ?")
-                      .params(today, plan.id())
+                  jdbc.sql(
+                          "UPDATE lifestyle.plans SET ended_on = GREATEST(?, started_on), ended_at = ? WHERE id = ?")
+                      .params(today, OffsetDateTime.ofInstant(now, ZoneOffset.UTC), plan.id())
                       .update());
           UUID planId = UUID.randomUUID();
           jdbc.sql("INSERT INTO lifestyle.plans (id, user_id, template_id, started_on) VALUES (?, ?, ?, ?)")
@@ -187,7 +188,10 @@ public class LifestyleRepository {
       int completionCount,
       int completedDays) {}
 
-  /** SCRUM-163: the user's ended plans, latest first, at most {@code limit}. */
+  /**
+   * SCRUM-163: the user's ended plans, latest first, at most {@code limit}. Plans ended on the same day
+   * are ordered by {@code ended_at} (V022, SCRUM-165); older rows without it keep the date order.
+   */
   public List<PastPlanRow> endedPlans(UUID userId, int limit) {
     return jdbc.sql(
             """
@@ -205,7 +209,7 @@ public class LifestyleRepository {
             FROM lifestyle.plans p
             JOIN lifestyle.templates t ON t.id = p.template_id
             WHERE p.user_id = ? AND p.ended_on IS NOT NULL
-            ORDER BY p.ended_on DESC, p.started_on DESC, p.id
+            ORDER BY p.ended_on DESC, p.ended_at DESC NULLS LAST, p.started_on DESC, p.id
             LIMIT ?
             """)
         .params(userId, limit)
