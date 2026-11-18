@@ -1,6 +1,6 @@
 # Test đợt 1 · Kết quả kiểm thử backend SE214 ngày 16/11/2026
 
-Kiểm thử Spring Boot tại commit `f6751fe7a99166349cf4f1d24fa4aba6b4b0c188`. Các ca bổ sung sử dụng dữ liệu giả lập, MockMvc, PostgreSQL nhúng với migration Flyway và kênh gửi nhắc giả lập. Các ca chạy được lưu trong worktree kiểm thử cục bộ. [Kết quả JSON](backend-testing-results-2026-11-16.json)
+Kiểm thử Spring Boot tại commit `f6751fe7a99166349cf4f1d24fa4aba6b4b0c188`. Các ca bổ sung sử dụng dữ liệu giả lập, MockMvc, PostgreSQL nhúng với migration Flyway và kênh gửi nhắc giả lập. Mã test của 14 ca ngoài M6 nằm ở [`backend/src/test/java/vn/edu/uit/se214/health/audit/`](../../backend/src/test/java/vn/edu/uit/se214/health/audit/README.md), viết lại theo `main` để tái hiện lỗi. 26 ca M6 dẫn tới test tương ứng trên `main` ([Test M6 đợt 2](m6-test-round-2.md)). [Kết quả JSON](backend-testing-results-2026-11-16.json)
 
 ## Kết quả chạy
 
