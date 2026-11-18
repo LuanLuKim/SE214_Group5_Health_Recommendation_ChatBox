@@ -5,8 +5,10 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.util.UUID;
 import org.assertj.core.api.ThrowableAssert.ThrowingCallable;
@@ -215,5 +217,53 @@ class LifestyleServiceTest {
         .params("[{\"id\":\"walk\",\"title\":\"A\"},{\"id\":\"walk\",\"title\":\"B\"},{\"title\":\"no id\"}]", TEMPLATE)
         .update();
     assertThat(service().today(USER).activities()).containsExactly(new ActivityToday("walk", "A", false, 0));
+  }
+
+  // SCRUM-165 (#167): plans switched several times on one day come latest first, whatever their ids.
+  @Test
+  void plansEndedOnTheSameDayAreListedLatestFirst() {
+    UUID otherTemplate = UUID.fromString("00000000-0000-4000-8000-000000000611");
+    template(otherTemplate, ACTIVITIES);
+    Instant oneHourLater = NOW.plus(Duration.ofHours(1));
+    Instant twoHoursLater = NOW.plus(Duration.ofHours(2));
+    UUID first = repository.applyPlan(USER, otherTemplate, TODAY, NOW).planId();
+    UUID second = repository.applyPlan(USER, TEMPLATE, TODAY, oneHourLater).planId();
+    repository.applyPlan(USER, otherTemplate, TODAY, twoHoursLater);
+    // Both plans started and ended today. Give the one that ended last the larger id, so that only
+    // the end time can put it first.
+    UUID smaller = UUID.fromString("00000000-0000-4000-8000-000000000630");
+    UUID larger = UUID.fromString("ffffffff-0000-4000-8000-000000000631");
+    jdbc.sql("UPDATE lifestyle.plans SET id = ? WHERE id = ?").params(smaller, first).update();
+    jdbc.sql("UPDATE lifestyle.plans SET id = ? WHERE id = ?").params(larger, second).update();
+
+    assertThat(repository.endedPlans(USER, 10))
+        .extracting(LifestyleRepository.PastPlanRow::planId)
+        .containsExactly(larger, smaller, PLAN);
+    assertThat(jdbc.sql("SELECT ended_at FROM lifestyle.plans WHERE id = ?")
+            .param(larger)
+            .query(OffsetDateTime.class)
+            .single()
+            .toInstant())
+        .isEqualTo(twoHoursLater);
+    assertThat(repository.endedPlans(USER, 1))
+        .extracting(LifestyleRepository.PastPlanRow::planId)
+        .containsExactly(larger);
+  }
+
+  @Test
+  void plansEndedBeforeTheEndTimeWasKeptStillComeByDate() {
+    jdbc.sql("UPDATE lifestyle.plans SET ended_on = ? WHERE id = ?").params(LocalDate.parse("2026-11-12"), PLAN).update();
+    UUID newer = UUID.fromString("00000000-0000-4000-8000-000000000632");
+    jdbc.sql(
+            """
+            INSERT INTO lifestyle.plans (id, user_id, template_id, started_on, ended_on)
+            VALUES (?, ?, ?, ?, ?)
+            """)
+        .params(newer, USER, TEMPLATE, LocalDate.parse("2026-11-12"), LocalDate.parse("2026-11-13"))
+        .update();
+
+    assertThat(repository.endedPlans(USER, 10))
+        .extracting(LifestyleRepository.PastPlanRow::planId)
+        .containsExactly(newer, PLAN);
   }
 }

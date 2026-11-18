@@ -6,6 +6,7 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalTime;
+import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
@@ -14,6 +15,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.BrokenBarrierException;
+import java.util.concurrent.CyclicBarrier;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import javax.sql.DataSource;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -98,6 +104,32 @@ class ReminderDispatcherTest {
             "SELECT reminder_id, status, attempt_count, last_error_code FROM lifestyle.reminder_deliveries ORDER BY created_at")
         .query()
         .listOfRows();
+  }
+
+  @Test
+  void aRetryWriteFailureDoesNotStopOtherReminders() {
+    reminder(USER, "07:00");
+    channel.failing.add(USER);
+    assertThat(run(SEVEN).failed()).isEqualTo(1);
+    reminder(OTHER_USER, "07:01");
+    channel.failing.clear();
+    jdbc.sql("""
+        CREATE FUNCTION fail_retry_mark_sent() RETURNS trigger LANGUAGE plpgsql AS $$
+        BEGIN
+          IF OLD.attempt_count > 0 AND NEW.status = 'SENT' THEN
+            RAISE EXCEPTION 'synthetic retry status write failure';
+          END IF;
+          RETURN NEW;
+        END;
+        $$""").update();
+    jdbc.sql("""
+        CREATE TRIGGER fail_retry_mark_sent BEFORE UPDATE ON lifestyle.reminder_deliveries
+        FOR EACH ROW EXECUTE FUNCTION fail_retry_mark_sent()
+        """).update();
+    org.assertj.core.api.Assertions.assertThatCode(() -> run(SEVEN.plusSeconds(60)))
+        .as("retry write errors must not abort the entire worker cycle")
+        .doesNotThrowAnyException();
+    assertThat(channel.sent).contains(OTHER_USER);
   }
 
   @Test
@@ -310,6 +342,149 @@ class ReminderDispatcherTest {
 
     assertThat(run(SEVEN.plusSeconds(20))).isEqualTo(new ReminderDispatcher.Result(0, 0));
     assertThat(deliveries()).isEmpty();
+  }
+
+  @Test
+  void twoWorkersClaimTheSameRetryOnce() throws Exception {
+    UUID id = reminder(USER, "07:00");
+    channel.failing.add(USER);
+    assertThat(run(SEVEN)).isEqualTo(new ReminderDispatcher.Result(0, 1));
+    UUID deliveryId = jdbc.sql("SELECT id FROM lifestyle.reminder_deliveries WHERE reminder_id = ?")
+        .param(id).query(UUID.class).single();
+
+    var atClaim = new CyclicBarrier(2);
+    var sharedRepository = new ReminderRepository(jdbc) {
+      @Override
+      boolean claimRetry(UUID candidate, int maxAttempts, Instant now) {
+        assertThat(candidate).isEqualTo(deliveryId);
+        // Both workers have read the same FAILED row before either runs the real SQL UPDATE.
+        try {
+          atClaim.await(10, TimeUnit.SECONDS);
+        } catch (InterruptedException e) {
+          Thread.currentThread().interrupt();
+          throw new AssertionError("Interrupted waiting for both retry claims", e);
+        } catch (BrokenBarrierException | TimeoutException e) {
+          throw new AssertionError("Both workers must reach the retry claim", e);
+        }
+        return super.claimRetry(candidate, maxAttempts, now);
+      }
+    };
+    var firstChannel = new FakeChannel();
+    var secondChannel = new FakeChannel();
+    var retryTime = Clock.fixed(SEVEN.plusSeconds(60), ZoneOffset.UTC);
+    var first = new ReminderDispatcher(sharedRepository, consents, List.of(firstChannel), retryTime, PROPERTIES);
+    var second = new ReminderDispatcher(sharedRepository, consents, List.of(secondChannel), retryTime, PROPERTIES);
+    try (var workers = Executors.newFixedThreadPool(2)) {
+      var firstRun = workers.submit(first::runOnce);
+      var secondRun = workers.submit(second::runOnce);
+      assertThat(List.of(firstRun.get(15, TimeUnit.SECONDS), secondRun.get(15, TimeUnit.SECONDS)))
+          .containsExactlyInAnyOrder(new ReminderDispatcher.Result(1, 0), new ReminderDispatcher.Result(0, 0));
+    }
+    var recipients = new ArrayList<>(firstChannel.sent);
+    recipients.addAll(secondChannel.sent);
+    assertThat(recipients).containsExactly(USER);
+    assertThat(jdbc.sql("""
+        SELECT id, status, attempt_count, last_error_code, sent_at
+        FROM lifestyle.reminder_deliveries WHERE reminder_id = ?
+        """).param(id).query().listOfRows()).singleElement().satisfies(row -> {
+          assertThat(row).containsEntry("id", deliveryId).containsEntry("status", "SENT")
+              .containsEntry("attempt_count", 2).containsEntry("last_error_code", null);
+          assertThat(row.get("sent_at")).isNotNull();
+        });
+  }
+
+  @Test
+  void aFailedSendIsNotRetriedAfterTheWindow() {
+    UUID id = reminder(USER, "07:00");
+    channel.failing.add(USER);
+    assertThat(run(SEVEN)).isEqualTo(new ReminderDispatcher.Result(0, 1));
+    channel.failing.clear();
+
+    assertThat(run(SEVEN.plus(PROPERTIES.window()).plusSeconds(1)))
+        .isEqualTo(new ReminderDispatcher.Result(0, 0));
+    assertThat(channel.sent).isEmpty();
+    assertThat(deliveries()).singleElement().satisfies(row -> assertThat(row)
+        .containsEntry("reminder_id", id).containsEntry("status", "FAILED")
+        .containsEntry("attempt_count", 1).containsEntry("last_error_code", "TEST_FAILURE"));
+  }
+
+  @Test
+  void aRepeatedLocalTimeAtDstFallbackIsSentOnce() {
+    ZoneId newYork = ZoneId.of("America/New_York");
+    Instant firstLocalTime = Instant.parse("2026-11-01T05:30:00Z");
+    Instant secondLocalTime = Instant.parse("2026-11-01T06:30:00Z");
+    UUID id = UUID.randomUUID();
+    repository.insert(id, USER,
+        new Fields("[TEST] DST overlap", null, LocalTime.of(1, 30), List.of(7), newYork,
+            ReminderChannel.Type.EMAIL, true),
+        firstLocalTime.minusSeconds(3600));
+
+    assertThat(run(firstLocalTime)).isEqualTo(new ReminderDispatcher.Result(1, 0));
+    assertThat(run(secondLocalTime)).isEqualTo(new ReminderDispatcher.Result(0, 0));
+    assertThat(channel.sent).containsExactly(USER);
+    assertThat(jdbc.sql("""
+        SELECT scheduled_for FROM lifestyle.reminder_deliveries WHERE reminder_id = ?
+        """).param(id).query(OffsetDateTime.class).single().toInstant()).isEqualTo(firstLocalTime);
+  }
+
+  @Test
+  void yesterdaysFailureDoesNotBlockTodaysSend() {
+    UUID id = reminder(USER, "07:00");
+    channel.failing.add(USER);
+    assertThat(run(SEVEN)).isEqualTo(new ReminderDispatcher.Result(0, 1));
+    channel.failing.clear();
+    Instant tomorrow = SEVEN.plus(Duration.ofDays(1));
+
+    assertThat(run(tomorrow)).isEqualTo(new ReminderDispatcher.Result(1, 0));
+    assertThat(channel.sent).containsExactly(USER);
+    assertThat(jdbc.sql("""
+        SELECT scheduled_for, status, attempt_count FROM lifestyle.reminder_deliveries
+        WHERE reminder_id = ? ORDER BY scheduled_for
+        """).param(id).query((row, index) -> List.of(row.getObject("scheduled_for", OffsetDateTime.class).toInstant(),
+            row.getString("status"), row.getInt("attempt_count"))).list())
+        .containsExactly(List.of(SEVEN, "FAILED", 1), List.of(tomorrow, "SENT", 1));
+  }
+
+  @Test
+  void aFailedSentWriteIsNotSentTwice() {
+    UUID affected = reminder(USER, "07:00");
+    UUID unaffected = reminder(OTHER_USER, "07:00");
+    jdbc.sql("""
+        CREATE FUNCTION fail_first_mark_sent() RETURNS trigger LANGUAGE plpgsql AS $$
+        BEGIN
+          RAISE EXCEPTION 'synthetic first-attempt status write failure';
+          RETURN NEW;
+        END;
+        $$""").update();
+    jdbc.sql("""
+        CREATE TRIGGER fail_first_mark_sent BEFORE UPDATE ON lifestyle.reminder_deliveries
+        FOR EACH ROW WHEN (NEW.status = 'SENT' AND OLD.reminder_id = '%s'::uuid)
+        EXECUTE FUNCTION fail_first_mark_sent()
+        """.formatted(affected)).update();
+    assertThat(run(SEVEN)).isEqualTo(new ReminderDispatcher.Result(1, 1));
+    assertThat(run(SEVEN.plusSeconds(60))).isEqualTo(new ReminderDispatcher.Result(0, 0));
+    assertThat(channel.sent).containsExactlyInAnyOrder(USER, OTHER_USER);
+    assertThat(deliveries()).hasSize(2).anySatisfy(row -> assertThat(row)
+        .containsEntry("reminder_id", affected).containsEntry("status", "PENDING").containsEntry("attempt_count", 0))
+        .anySatisfy(row -> assertThat(row).containsEntry("reminder_id", unaffected)
+            .containsEntry("status", "SENT").containsEntry("attempt_count", 1));
+  }
+
+  @Test
+  void aSkippedLocalTimeAtDstSpringForwardIsSentOnceLater() {
+    ZoneId newYork = ZoneId.of("America/New_York");
+    Instant shiftedTime = Instant.parse("2026-03-08T07:30:00Z");
+    UUID id = UUID.randomUUID();
+    repository.insert(id, USER,
+        new Fields("[TEST] DST gap", null, LocalTime.of(2, 30), List.of(7), newYork,
+            ReminderChannel.Type.EMAIL, true), shiftedTime.minus(Duration.ofHours(2)));
+
+    assertThat(run(shiftedTime.minusSeconds(1))).isEqualTo(new ReminderDispatcher.Result(0, 0));
+    assertThat(run(shiftedTime)).isEqualTo(new ReminderDispatcher.Result(1, 0));
+    assertThat(run(shiftedTime.plusSeconds(60))).isEqualTo(new ReminderDispatcher.Result(0, 0));
+    assertThat(channel.sent).containsExactly(USER);
+    assertThat(jdbc.sql("SELECT scheduled_for FROM lifestyle.reminder_deliveries WHERE reminder_id = ?")
+        .param(id).query(OffsetDateTime.class).single().toInstant()).isEqualTo(shiftedTime);
   }
 
   @Test

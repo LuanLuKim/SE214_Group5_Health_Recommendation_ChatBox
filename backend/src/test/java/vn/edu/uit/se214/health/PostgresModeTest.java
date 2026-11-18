@@ -111,6 +111,15 @@ class PostgresModeTest {
     // LIKE wildcards in user input are matched literally.
     mvc.perform(get("/api/v1/knowledge/facilities").param("q", "%"))
         .andExpect(jsonPath("$.data.length()").value(0));
+    // UC-11: filters and the detail are public, like the search
+    mvc.perform(get("/api/v1/knowledge/facilities").param("province", "tỉnh kiểm thử"))
+        .andExpect(jsonPath("$.data.length()").value(1));
+    mvc.perform(get("/api/v1/knowledge/facilities/00000000-0000-4000-8000-000000000020"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.data.name").value("[TEST] Cơ sở giả lập A"))
+        .andExpect(jsonPath("$.meta.status").value("DATABASE_RESULTS"));
+    mvc.perform(get("/api/v1/knowledge/facilities/00000000-0000-4000-8000-000000000999"))
+        .andExpect(status().isNotFound());
     // PostgreSQL rejects NUL in text; the query must be refused before it reaches the database.
     mvc.perform(get("/api/v1/knowledge/articles").param("q", "a\u0000b"))
         .andExpect(status().isBadRequest())
@@ -359,6 +368,13 @@ class PostgresModeTest {
             new Object[] {HttpMethod.POST, "/api/v1/knowledge/articles"},
             new Object[] {HttpMethod.PATCH, "/api/v1/knowledge/articles/00000000-0000-0000-0000-000000000000"},
             new Object[] {HttpMethod.DELETE, "/api/v1/knowledge/articles/00000000-0000-0000-0000-000000000000"},
+            new Object[] {HttpMethod.POST, "/api/v1/knowledge/articles/00000000-0000-0000-0000-000000000000/submit"},
+            new Object[] {HttpMethod.GET, "/api/v1/knowledge/authoring/articles"},
+            new Object[] {HttpMethod.GET, "/api/v1/knowledge/authoring/templates/00000000-0000-0000-0000-000000000000"},
+            new Object[] {HttpMethod.POST, "/api/v1/knowledge/templates"},
+            new Object[] {HttpMethod.PATCH, "/api/v1/knowledge/templates/00000000-0000-0000-0000-000000000000"},
+            new Object[] {HttpMethod.DELETE, "/api/v1/knowledge/templates/00000000-0000-0000-0000-000000000000"},
+            new Object[] {HttpMethod.POST, "/api/v1/knowledge/templates/00000000-0000-0000-0000-000000000000/submit"},
             new Object[] {HttpMethod.GET, "/api/v1/knowledge/reviews"},
             new Object[] {HttpMethod.POST, "/api/v1/knowledge/reviews/00000000-0000-0000-0000-000000000000/decision"},
             new Object[] {HttpMethod.GET, "/api/v1/knowledge/feedback"},
@@ -377,12 +393,15 @@ class PostgresModeTest {
         userId);
     mvc.perform(signedAs(userId, get("/api/v1/safety/rules")))
         .andExpect(status().isOk());
+    // UC-15: the content expert reaches the authoring service, which refuses an empty draft
     mvc.perform(
             signedAs(userId, post("/api/v1/knowledge/articles"))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{}"))
-        .andExpect(status().isNotImplemented())
-        .andExpect(jsonPath("$.error.code").value("NOT_IMPLEMENTED"));
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.error.code").value("INVALID_INPUT"));
+    mvc.perform(signedAs(userId, get("/api/v1/knowledge/authoring/templates")))
+        .andExpect(status().isOk());
 
     mvc.perform(
             signed(post("/api/v1/accounts/confirm-deletion"))

@@ -139,13 +139,18 @@ public class SpringSecurityConfiguration {
                 .hasAuthority("PERM_SAFETY_RULE_MANAGE")
                 .requestMatchers(
                     HttpMethod.POST,
-                    "/api/v1/knowledge/articles")
+                    "/api/v1/knowledge/articles",
+                    "/api/v1/knowledge/articles/*/submit",
+                    "/api/v1/knowledge/templates",
+                    "/api/v1/knowledge/templates/*/submit")
                 .hasAuthority("PERM_CONTENT_MANAGE")
                 .requestMatchers(
                     HttpMethod.PATCH,
-                    "/api/v1/knowledge/articles/*")
+                    "/api/v1/knowledge/articles/*",
+                    "/api/v1/knowledge/templates/*")
                 .hasAuthority("PERM_CONTENT_MANAGE")
-                .requestMatchers(HttpMethod.DELETE, "/api/v1/knowledge/articles/*")
+                .requestMatchers(
+                    HttpMethod.DELETE, "/api/v1/knowledge/articles/*", "/api/v1/knowledge/templates/*")
                 .hasAuthority("PERM_CONTENT_MANAGE")
                 .requestMatchers(
                     HttpMethod.POST,
@@ -160,6 +165,8 @@ public class SpringSecurityConfiguration {
                     "/api/v1/knowledge/reviews",
                     "/api/v1/knowledge/feedback")
                 .hasAuthority("PERM_CONTENT_REVIEW")
+                .requestMatchers(HttpMethod.GET, "/api/v1/knowledge/authoring/**")
+                .hasAuthority("PERM_CONTENT_MANAGE")
                 .requestMatchers(HttpMethod.GET, "/api/v1/health/statistics")
                 .hasAuthority("PERM_SYSTEM_STATS_VIEW")
                 .requestMatchers(
@@ -274,7 +281,7 @@ public class SpringSecurityConfiguration {
     String path = requestPath(request);
     String method = request.getMethod();
     return (HttpMethod.GET.matches(method)
-            && (PUBLIC_GET_ROUTES.contains(path) || path.matches("/api/v1/knowledge/articles/[^/]+")))
+            && (PUBLIC_GET_ROUTES.contains(path) || path.matches("/api/v1/knowledge/(?:articles|facilities)/[^/]+")))
         || (HttpMethod.POST.matches(method) && PUBLIC_POST_ROUTES.contains(path))
         || "/swagger-ui.html".equals(path)
         || path.startsWith("/swagger-ui/")

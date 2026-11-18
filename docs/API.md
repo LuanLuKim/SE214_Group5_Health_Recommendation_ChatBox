@@ -41,11 +41,26 @@ Hai trường hợp không qua khuôn lỗi trên vì bị chặn trước khi v
 | GET    | `/api/v1/{safety,knowledge,health,chat,accounts,lifestyle}` | Metadata module                                                               |
 | GET    | `/api/v1/knowledge/articles?q=&topic=&limit=&offset=`         | Công khai, tìm và phân trang bài đã duyệt và xác minh                         |
 | GET    | `/api/v1/knowledge/articles/:id`                             | Công khai, nội dung bài, nguồn, ngày cập nhật và ngày xác minh                 |
-| GET    | `/api/v1/knowledge/facilities?q=`                           | Public: fixture synthetic hoặc tối đa 20 cơ sở có ngày xác minh từ PostgreSQL |
+| GET    | `/api/v1/knowledge/facilities?q=&province=&specialty=`      | Công khai, tối đa 20 cơ sở khớp bộ lọc, có nguồn và ngày xác minh             |
+| GET    | `/api/v1/knowledge/facilities/:id`                          | Công khai, chi tiết một cơ sở có nguồn và ngày xác minh                       |
 
 `q` là một chuỗi tối đa 200 ký tự, không chứa ký tự điều khiển (tab, xuống dòng, NUL…); sai thì trả 400 `INVALID_QUERY`. Danh sách và search metadata không chứa private user data. Fixture `[TEST]` chỉ dành kiểm thử; không trộn fixture vào kho kiến thức y tế thật.
 
 Khi tìm bài viết, `topic` khớp toàn bộ tên chủ đề và không phân biệt hoa thường. `limit` từ 1 đến 20, mặc định 20. `offset` tính từ 0, mặc định 0. `meta.total` là số bài khớp bộ lọc trước khi phân trang. `meta.totalPages` bằng 0 nếu không có bài khớp. Danh sách chỉ trả tóm tắt và metadata. API chi tiết trả 404 cho ID không hợp lệ, bài không tồn tại hoặc bài chưa đủ điều kiện công bố.
+
+### Tra cứu cơ sở y tế (UC-11)
+
+`GET /api/v1/knowledge/facilities` nhận ba tham số tùy chọn:
+
+- `q`: chuỗi con trong tên cơ sở, không phân biệt hoa thường; `%` và `_` được hiểu đúng như ký tự.
+- `province`: khớp toàn bộ tên tỉnh/thành, không phân biệt hoa thường.
+- `specialty`: khớp toàn bộ một tên trong danh sách chuyên khoa của cơ sở, không phân biệt hoa thường.
+
+Mỗi tham số dài tối đa 200 ký tự và được bỏ khoảng trắng đầu/cuối. Khi đã truyền, `province` và `specialty` không được rỗng. Các bộ lọc kết hợp bằng AND; tham số sai trả 400 `INVALID_QUERY`. Danh sách sắp theo tên rồi ID, tối đa 20 cơ sở; `meta.total` là số cơ sở trả về, không phải tổng của cả danh mục.
+
+`GET /api/v1/knowledge/facilities/:id` nhận UUID. ID sai định dạng, cơ sở không tồn tại, thiếu tên hoặc URL nguồn, hoặc chưa có ngày xác minh đều trả cùng một 404 `NOT_FOUND` (`Không tìm thấy cơ sở y tế.`). Danh sách và chi tiết dùng chung kiểu `FacilitySummary`; chi tiết có `meta.status` nhưng không có `meta.total`. Cả hai bỏ qua cơ sở thiếu nguồn hoặc ngày xác minh; dữ liệu không do LLM tạo ra.
+
+Safety Gate (M1) dùng cùng giao diện Java `knowledge.api.KnowledgeSearch`: `facilities(FacilityFilter)` và `facility(UUID)`, với cùng điều kiện nguồn và ngày xác minh như API công khai. Lỗi cơ sở dữ liệu được ném lên bên gọi, không biến thành danh sách rỗng. `specialty` là tên chuyên khoa trong danh mục, không phải `SafetyDecision.specialtyIds`; M1 cần ánh xạ ID sang tên danh mục trước khi tra cứu. Việc nối vào luồng Safety Gate thuộc M1.
 
 ## Đăng ký và xác thực tài khoản
 
@@ -104,7 +119,7 @@ Tất cả route UC-18 yêu cầu authority tương ứng (mặc định chỉ A
 | Module | Routes sau `/api/v1`                                                                                                                                                                             | Quyền cần thực hiện                                                   |
 | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------- |
 | M1     | POST `/safety/evaluate`; GET/POST `/safety/rules`; GET/PATCH `/safety/rules/:id`; POST `/safety/rules/:id/submit`                                                                                | Authentication; quản lý quy tắc cần `PERM_SAFETY_RULE_MANAGE` (CONTENT_EXPERT) |
-| M2     | POST `/knowledge/articles`; PATCH/DELETE `/knowledge/articles/:id` | `PERM_CONTENT_MANAGE` (CONTENT_EXPERT và ADMIN) |
+| M2     | UC-15: GET `/knowledge/authoring/{articles,templates}[/:id]`; POST `/knowledge/{articles,templates}`; PATCH/DELETE `/knowledge/{articles,templates}/:id`; POST `/knowledge/{articles,templates}/:id/submit` | `PERM_CONTENT_MANAGE` (CONTENT_EXPERT và ADMIN) |
 | M2     | GET `/knowledge/reviews`; POST `/knowledge/reviews/:id/decision`; GET `/knowledge/feedback`; PATCH `/knowledge/feedback/:id` | `PERM_CONTENT_REVIEW` (CONTENT_EXPERT; ADMIN không mặc nhiên có) |
 | M3     | GET/PUT/DELETE `/health/profile`; GET `/health/metrics`; PUT/DELETE `/health/metrics/:date`                                                                                                      | Dữ liệu của chính người dùng, consent                                 |
 | M3     | GET `/health/statistics`                                                                                                                                                                         | `PERM_SYSTEM_STATS_VIEW` (ADMIN)                                      |
@@ -112,6 +127,27 @@ Tất cả route UC-18 yêu cầu authority tương ứng (mặc định chỉ A
 | M5     | POST `/accounts/logout`; GET/PUT `/accounts/me`; POST `/accounts/me/change-password`; POST `/accounts/me/deletion-request`; POST `/accounts/me/consent`; POST `/accounts/confirm-deletion`     | `PERM_ACCOUNT_SELF_MANAGE`; consent do chính chủ xác nhận; xóa cần email |
 | M5     | GET/POST/PATCH `/accounts/users`; PUT `/accounts/users/:id/roles`; CRUD `/accounts/roles`, `/accounts/permissions`; GET `/accounts/audit-logs`                                                    | `PERM_USER_MANAGE` hoặc `PERM_RBAC_MANAGE`; không lộ hồ sơ/hội thoại  |
 | M6     | GET `/lifestyle/templates`; GET/PUT `/lifestyle/plan`; PUT/DELETE `/lifestyle/completions/:activityId/:date`; GET/POST `/lifestyle/reminders`; PATCH/DELETE `/lifestyle/reminders/:id`           | `PERM_ACCOUNT_SELF_MANAGE`; dữ liệu theo chủ tài khoản, bắt buộc consent (trừ xem, tắt và xóa nhắc); template đã duyệt |
+
+### M2 – UC-15 Quản lý bài viết và mẫu kế hoạch
+
+Mọi route cần đăng nhập, CSRF và `PERM_CONTENT_MANAGE` (CONTENT_EXPERT, ADMIN); người tạo, sửa và gửi duyệt lấy từ access token, không lấy từ body hay header. `DATA_MODE=mock` trả `503 AUTH_NOT_CONFIGURED`. Không route nào duyệt hay công bố nội dung: bản mới hoặc vừa sửa luôn `DRAFT` và không có ngày xác minh; tra cứu công khai (UC-10) chỉ thấy bài `APPROVED` có `verifiedAt`.
+
+| Method | Route sau `/api/v1/knowledge` | Kết quả |
+| --- | --- | --- |
+| GET | `/authoring/articles`, `/authoring/templates` | Mọi trạng thái, mới tạo trước; `meta.total` |
+| GET | `/authoring/articles/:id`, `/authoring/templates/:id` | Nội dung và metadata biên tập |
+| POST | `/articles`, `/templates` | Tạo bản `DRAFT`, trả `201` |
+| PATCH | `/articles/:id`, `/templates/:id` | Sửa các trường gửi lên của bản `DRAFT`/`RETURNED`, đưa về `DRAFT`, tăng `revision` |
+| DELETE | `/articles/:id`, `/templates/:id` | Xóa bản `DRAFT`/`RETURNED`, trả `204` |
+| POST | `/articles/:id/submit`, `/templates/:id/submit` | Kiểm tra lại toàn bộ nội dung đang lưu rồi chuyển `DRAFT`/`RETURNED` → `PENDING_REVIEW` cho UC-17; body rỗng hoặc `{}` |
+
+Bài viết: `title` (1–300 ký tự), `topic` (1–200), `content` (1–30 000), `sourceName` (1–200), `sourceUrl` (HTTP/HTTPS, tối đa 2000, không chứa tài khoản/mật khẩu); tùy chọn `sourceUpdatedAt` (`YYYY-MM-DD`, timestamp ISO có múi giờ, hoặc `null`) và `copyrightNotes` (tối đa 3000).
+
+Mẫu kế hoạch dùng đúng các trường M6 đọc cho UC-12, cộng phần biên tập: `title` (1–300), `goal` (một mục tiêu M6 nhận: `SLEEP`, `MAINTAIN`, `GAIN`, `LOSE`), `summary` (tùy chọn, tối đa 3000), `activities` (1–100, mỗi hoạt động `{id, title, description?}`, `id` không trùng), `durationDays` (số nguyên 1–365), `notSuitableFor` và `excludedAllergens` (tối đa 50 mục, mỗi mục 1–200), `requiresProfile` (mặc định `false`), `applicability` (điều kiện áp dụng, 1–3000), `advisory` (lời nhắc hỏi ý kiến nhân viên y tế, 1–3000) và nguồn như bài viết.
+
+Response trả cả trường nội dung lẫn `id`, `reviewStatus`, `verifiedAt`, `createdBy`, `updatedBy`, `createdAt`, `updatedAt`, `revision`, `submittedAt`, `submittedBy`. Trường ngoài danh sách trên (kể cả `reviewStatus`, `verifiedAt`, `revision`, tên cột snake_case của `db_row`) và giá trị sai đều trả `400 INVALID_INPUT`; PATCH rỗng cũng vậy. PATCH ghép các trường gửi lên vào bản đang lưu rồi kiểm tra toàn bộ, nên mẫu tạo trước UC-15 (thiếu nguồn, thời lượng, điều kiện áp dụng) phải được bổ sung đủ mới sửa hay gửi duyệt được. ID sai hoặc không có trả `404 NOT_FOUND`. Sửa/xóa bản `PENDING_REVIEW`, `APPROVED`, `RETIRED` trả `409 CONTENT_NOT_EDITABLE`; gửi duyệt lại trả `409 CONTENT_NOT_SUBMITTABLE`. Mỗi lần ghi kiểm tra `revision` trong cùng câu lệnh: nếu nội dung vừa bị người khác sửa thì trả `409 CONTENT_CHANGED` thay vì gửi duyệt bản chưa được kiểm tra. Mẫu đang được một lộ trình (`lifestyle.plans`) dùng trả `409 TEMPLATE_IN_USE` khi xóa.
+
+Dữ liệu crawler của M7 (`db_row`, snake_case) không phải body API: các cột mới có giá trị mặc định nên lệnh nạp hiện có vẫn chạy, bài nạp vào là `DRAFT`, `createdBy = null`, không có ngày xác minh (`fetched_at` không phải ngày xác minh). M6 đọc mẫu `APPROVED` trực tiếp từ `lifestyle.templates` như trước.
 
 ### M6 – UC-13 Theo dõi thói quen
 
@@ -133,7 +169,7 @@ Cùng điều kiện như UC-13, thêm tiên điều kiện: consent mới nhấ
 | ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | GET `/lifestyle/templates?goal=`     | Mẫu đã duyệt mà người dùng được áp dụng; `goal` là `SLEEP`, `MAINTAIN`, `GAIN`, `LOSE` hoặc bỏ trống (mọi mục tiêu). Loại mẫu chứa dị ứng đã khai (A2). Chưa có hồ sơ: `profileMissing = true`, ẩn mẫu cần hồ sơ (A1). Danh sách rỗng kèm `message`, không tự tạo kế hoạch (A3) |
 | GET `/lifestyle/templates/:id`       | Xem trước: mô tả, thời lượng, lịch hoạt động, đối tượng không phù hợp, nguồn, khuyến nghị hỏi nhân viên y tế, `current` (đang là lộ trình hiện tại). Không thay đổi gì (A4)                                                                                                     |
-| GET `/lifestyle/plans/history` | Các lộ trình đã kết thúc của người dùng, mới nhất trước, tối đa `LIFESTYLE_HISTORY_LIMIT` (mặc định 100). Mỗi lộ trình: `templateTitle`, `startedOn`, `endedOn`, `days` (tính cả hai đầu), `activityCount`, `completedDays`, `completionCount`, `completionRate` (= completionCount / (days × activityCount), làm tròn 2 chữ số, null khi mẫu không có hoạt động). Chỉ đọc, cần consent. Số liệu vẫn đúng sau khi job dọn dữ liệu đã tóm tắt completion cũ |
+| GET `/lifestyle/plans/history` | Các lộ trình đã kết thúc của người dùng, mới nhất trước theo thời điểm kết thúc (kể cả khi đổi nhiều lần trong một ngày), tối đa `LIFESTYLE_HISTORY_LIMIT` (mặc định 100). Mỗi lộ trình: `templateTitle`, `startedOn`, `endedOn`, `days` (tính cả hai đầu), `activityCount`, `completedDays`, `completionCount`, `completionRate` (= completionCount / (days × activityCount), làm tròn 2 chữ số, null khi mẫu không có hoạt động). Chỉ đọc, cần consent. Số liệu vẫn đúng sau khi job dọn dữ liệu đã tóm tắt completion cũ |
 | PUT `/lifestyle/plan` `{templateId}` | Áp dụng hoặc đổi lộ trình. Server kiểm tra lại mọi điều kiện. Đổi lộ trình đặt `ended_on` cho lộ trình cũ (giữ lịch sử và completion), mỗi người chỉ một lộ trình đang dùng. Gửi lại mẫu đang dùng thì `changed = false`. Trong cùng transaction, nhắc UC-14 đang bật gắn với hoạt động mà lộ trình mới không có sẽ bị tạm tắt (`disabledReason = PLAN_SWITCH`); `remindersTurnedOff` cho biết số nhắc đã tắt. `restorableReminderIds` liệt kê các nhắc bị tạm tắt ở lần đổi trước mà hoạt động có lại trong lộ trình này; server không tự bật lại, giao diện hỏi người dùng rồi gửi PATCH `{"enabled": true}`                                                        |
 
 Lỗi: 403 `HEALTH_CONSENT_REQUIRED`, 400 `INVALID_GOAL`, 400 `INVALID_TEMPLATE_ID`, 404 `LIFESTYLE_TEMPLATE_NOT_FOUND` (không tồn tại, chưa duyệt hoặc không được hiển thị: cùng một câu trả lời để không lộ bản nháp), 409 `TEMPLATE_HAS_ALLERGEN` (A2), 409 `HEALTH_PROFILE_REQUIRED` (A1), 409 `LIFESTYLE_PLAN_CONFLICT` (hai yêu cầu đổi lộ trình cùng lúc).

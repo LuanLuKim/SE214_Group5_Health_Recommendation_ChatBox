@@ -3,8 +3,8 @@ package vn.edu.uit.se214.health.knowledge;
 import com.fasterxml.jackson.databind.JsonNode;
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
-import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -22,8 +22,9 @@ import vn.edu.uit.se214.health.system.ModuleDescriptor;
 import vn.edu.uit.se214.health.system.ModuleRegistry;
 
 /**
- * M2 – UC-10, UC-11, UC-15, UC-17. Public search is open; authoring requires CONTENT_MANAGE,
- * while review decisions and feedback require CONTENT_REVIEW.
+ * M2 – UC-10, UC-11, UC-17. Public search is open; UC-15 authoring is in
+ * {@code authoring.ContentAuthoringController}. The shared review queue (UC-17, both M1 and M2)
+ * and feedback require CONTENT_REVIEW.
  */
 @RestController
 @RequestMapping("/api/v1/knowledge")
@@ -68,10 +69,36 @@ public class KnowledgeController {
     return ApiResponse.of(detail, new ApiResponse.Meta(search.dataStatus(), null));
   }
 
+  /**
+   * UC-11: {@code q} (part of the name), {@code province}, {@code specialty} (whole names, not empty
+   * when given); filters combine with AND. {@code meta.total} is the number returned (at most 20).
+   */
   @GetMapping("/facilities")
   public ApiResponse.Success<List<FacilitySummary>> facilities(HttpServletRequest request) {
-    List<FacilitySummary> data = search.facilities(textParam(request, "q", false));
+    List<FacilitySummary> data = search.facilities(new KnowledgeSearch.FacilityFilter(
+        textParam(request, "q", false),
+        textParam(request, "province", true),
+        textParam(request, "specialty", true)));
     return ApiResponse.of(data, new ApiResponse.Meta(search.dataStatus(), data.size()));
+  }
+
+  /** UC-11 detail. A bad id, an unknown facility and one without source or verification date are all 404. */
+  @GetMapping("/facilities/{id}")
+  public ApiResponse.Success<FacilitySummary> facility(@PathVariable String id) {
+    FacilitySummary facility = uuid(id)
+        .flatMap(search::facility)
+        .orElseThrow(() -> ApiException.notFound("Không tìm thấy cơ sở y tế."));
+    return ApiResponse.of(facility, new ApiResponse.Meta(search.dataStatus(), null));
+  }
+
+  /** A canonical UUID (lower or upper case), or empty. */
+  private static Optional<UUID> uuid(String id) {
+    try {
+      UUID value = UUID.fromString(id);
+      return value.toString().equalsIgnoreCase(id) ? Optional.of(value) : Optional.empty();
+    } catch (IllegalArgumentException invalidId) {
+      return Optional.empty();
+    }
   }
 
   /**
@@ -97,21 +124,6 @@ public class KnowledgeController {
       if (number >= min && number <= max) return number;
     }
     throw ApiException.invalid("INVALID_QUERY", "Tham số " + name + " không hợp lệ.");
-  }
-
-  @PostMapping("/articles")
-  public Object createArticle(@RequestBody(required = false) JsonNode body) {
-    throw ApiException.notImplemented();
-  }
-
-  @PatchMapping("/articles/{id}")
-  public Object updateArticle(@PathVariable String id, @RequestBody(required = false) JsonNode body) {
-    throw ApiException.notImplemented();
-  }
-
-  @DeleteMapping("/articles/{id}")
-  public Object deleteArticle(@PathVariable String id) {
-    throw ApiException.notImplemented();
   }
 
   @GetMapping("/reviews")

@@ -54,6 +54,42 @@ class ApiTest {
   }
 
   @Test
+  void publicFacilityFiltersAndDetailUseTheSyntheticFixture() throws Exception {
+    String path = "/api/v1/knowledge/facilities";
+    String fixture = "00000000-0000-4000-8000-000000000020";
+    mvc.perform(get(path).param("province", " tỉnh KIỂM THỬ ").param("specialty", "chuyên khoa thử nghiệm"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.data.length()").value(1))
+        .andExpect(jsonPath("$.meta.total").value(1))
+        .andExpect(jsonPath("$.meta.status").value("SYNTHETIC_DATA"));
+    mvc.perform(get(path).param("specialty", "Chuyên khoa"))
+        .andExpect(jsonPath("$.data.length()").value(0));
+    mvc.perform(get(path + "/" + fixture))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.data.id").value(fixture))
+        .andExpect(jsonPath("$.data.source.name").value("Synthetic fixture"))
+        .andExpect(jsonPath("$.data.source.verifiedAt").value("2026-10-29T00:00:00.000Z"))
+        .andExpect(jsonPath("$.meta.status").value("SYNTHETIC_DATA"));
+    for (String id : List.of("not-a-uuid", "1-1-1-1-1", "00000000-0000-4000-8000-000000000999")) {
+      mvc.perform(get(path + "/" + id))
+          .andExpect(status().isNotFound())
+          .andExpect(jsonPath("$.error.code").value("NOT_FOUND"))
+          .andExpect(jsonPath("$.error.message").value("Không tìm thấy cơ sở y tế."));
+    }
+    for (String field : List.of("q", "province", "specialty")) {
+      mvc.perform(get(path).param(field, "x".repeat(201))).andExpect(status().isBadRequest())
+          .andExpect(jsonPath("$.error.code").value("INVALID_QUERY"));
+      mvc.perform(get(path).param(field, "a", "b")).andExpect(status().isBadRequest());
+      mvc.perform(get(path).param(field, "x".repeat(200))).andExpect(status().isOk())
+          .andExpect(jsonPath("$.data.length()").value(0));
+    }
+    for (String blank : List.of("", "   ")) {
+      mvc.perform(get(path).param("province", blank)).andExpect(status().isBadRequest());
+      mvc.perform(get(path).param("specialty", blank)).andExpect(status().isBadRequest());
+    }
+  }
+
+  @Test
   void publicSyntheticSearchWorksAndDoesNotExposeTheDraftFixture() throws Exception {
     mvc.perform(get("/api/v1/knowledge/articles").param("q", "giấc"))
         .andExpect(status().isOk())
@@ -127,6 +163,11 @@ class ApiTest {
             new Object[] {HttpMethod.PATCH, "/safety/rules/00000000-0000-0000-0000-000000000000"},
             new Object[] {HttpMethod.POST, "/safety/rules/00000000-0000-0000-0000-000000000000/submit"},
             new Object[] {HttpMethod.POST, "/knowledge/articles"},
+            new Object[] {HttpMethod.GET, "/knowledge/authoring/articles"},
+            new Object[] {HttpMethod.POST, "/knowledge/articles/00000000-0000-0000-0000-000000000000/submit"},
+            new Object[] {HttpMethod.POST, "/knowledge/templates"},
+            new Object[] {HttpMethod.GET, "/knowledge/authoring/templates/00000000-0000-0000-0000-000000000000"},
+            new Object[] {HttpMethod.DELETE, "/knowledge/templates/00000000-0000-0000-0000-000000000000"},
             new Object[] {HttpMethod.GET, "/knowledge/reviews"},
             new Object[] {HttpMethod.GET, "/knowledge/feedback"},
             new Object[] {HttpMethod.GET, "/health/profile"},
