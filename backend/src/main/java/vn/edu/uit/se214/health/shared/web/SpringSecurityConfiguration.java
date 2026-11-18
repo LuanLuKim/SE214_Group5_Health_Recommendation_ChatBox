@@ -139,21 +139,27 @@ public class SpringSecurityConfiguration {
                 .hasAuthority("PERM_SAFETY_RULE_MANAGE")
                 .requestMatchers(
                     HttpMethod.POST,
-                    "/api/v1/knowledge/articles",
-                    "/api/v1/knowledge/reviews/*/decision")
+                    "/api/v1/knowledge/articles")
                 .hasAuthority("PERM_CONTENT_MANAGE")
                 .requestMatchers(
                     HttpMethod.PATCH,
-                    "/api/v1/knowledge/articles/*",
-                    "/api/v1/knowledge/feedback/*")
+                    "/api/v1/knowledge/articles/*")
                 .hasAuthority("PERM_CONTENT_MANAGE")
                 .requestMatchers(HttpMethod.DELETE, "/api/v1/knowledge/articles/*")
                 .hasAuthority("PERM_CONTENT_MANAGE")
                 .requestMatchers(
+                    HttpMethod.POST,
+                    "/api/v1/knowledge/reviews/*/decision")
+                .hasAuthority("PERM_CONTENT_REVIEW")
+                .requestMatchers(
+                    HttpMethod.PATCH,
+                    "/api/v1/knowledge/feedback/*")
+                .hasAuthority("PERM_CONTENT_REVIEW")
+                .requestMatchers(
                     HttpMethod.GET,
                     "/api/v1/knowledge/reviews",
                     "/api/v1/knowledge/feedback")
-                .hasAuthority("PERM_CONTENT_MANAGE")
+                .hasAuthority("PERM_CONTENT_REVIEW")
                 .requestMatchers(HttpMethod.GET, "/api/v1/health/statistics")
                 .hasAuthority("PERM_SYSTEM_STATS_VIEW")
                 .requestMatchers(
