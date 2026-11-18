@@ -98,7 +98,13 @@ export const modules: ModuleDescriptor[] = [
 
 export interface ApiSuccess<T> {
   data: T;
-  meta?: { status: string; total?: number };
+  meta?: {
+    status: string;
+    total?: number;
+    limit?: number;
+    offset?: number;
+    totalPages?: number;
+  };
 }
 export interface ApiFailure {
   error: { code: string; message: string; requestId: string };
@@ -117,120 +123,8 @@ export interface ArticleSummary {
   updatedAt: string;
 }
 
-const articleSourceUrlSchema = z
-  .string()
-  .trim()
-  .pipe(z.url().max(2000))
-  .refine((value) => {
-    try {
-      const url = new URL(value);
-      return (
-        (url.protocol === 'https:' || url.protocol === 'http:') && !url.username && !url.password
-      );
-    } catch {
-      return false;
-    }
-  });
-export const articleDraftInputSchema = z.strictObject({
-  title: z.string().trim().min(1).max(300),
-  topic: z.string().trim().min(1).max(200),
-  content: z.string().trim().min(1).max(30000),
-  sourceName: z.string().trim().min(1).max(200),
-  sourceUrl: articleSourceUrlSchema,
-  sourceUpdatedAt: z
-    .union([z.iso.date(), z.iso.datetime({ offset: true })])
-    .transform((value) => (value.length === 10 ? `${value}T00:00:00.000Z` : value))
-    .nullable()
-    .optional(),
-  copyrightNotes: z.string().trim().max(3000).optional(),
-});
-export const articleDraftPatchSchema = articleDraftInputSchema
-  .partial()
-  .refine((value) => Object.values(value).some((field) => field !== undefined), {
-    message: 'Cần ít nhất một trường để cập nhật.',
-  });
-export type ArticleDraftInput = z.infer<typeof articleDraftInputSchema>;
-export type ArticleDraftPatch = z.infer<typeof articleDraftPatchSchema>;
-export interface ArticleDraft extends ArticleDraftInput {
-  id: string;
-  sourceUpdatedAt: string | null;
-  copyrightNotes: string;
-  verifiedAt: string | null;
-  reviewStatus: ReviewStatus;
-  createdBy: string | null;
-  updatedBy: string | null;
-  createdAt: string;
-  updatedAt: string;
-  revision: number;
-  submittedAt: string | null;
-  submittedBy: string | null;
-}
-
-export const planTemplateGoalSchema = z.enum([
-  'WEIGHT_GAIN',
-  'WEIGHT_LOSS',
-  'MAINTENANCE',
-  'SLEEP',
-]);
-const templateText = z.string().trim().min(1).max(200);
-export const planTemplateDraftInputSchema = z.strictObject({
-  title: z.string().trim().min(1).max(300),
-  goal: planTemplateGoalSchema,
-  activities: z
-    .array(
-      z.strictObject({
-        id: z.string().trim().min(1).max(100),
-        title: z.string().trim().min(1).max(300),
-        description: z.string().trim().max(2000).optional(),
-      }),
-    )
-    .min(1)
-    .max(100)
-    .refine((items) => new Set(items.map((item) => item.id)).size === items.length, {
-      message: 'ID hoạt động phải duy nhất trong một mẫu.',
-    }),
-  durationDays: z.number().int().min(1).max(365),
-  applicability: z.string().trim().min(1).max(3000),
-  contraindications: z.array(templateText).max(50),
-  excludedAllergens: z.array(templateText).max(50),
-  advisory: z.string().trim().min(1).max(3000),
-  sourceName: articleDraftInputSchema.shape.sourceName,
-  sourceUrl: articleDraftInputSchema.shape.sourceUrl,
-  sourceUpdatedAt: articleDraftInputSchema.shape.sourceUpdatedAt,
-  copyrightNotes: articleDraftInputSchema.shape.copyrightNotes,
-});
-export const planTemplateDraftPatchSchema = planTemplateDraftInputSchema
-  .partial()
-  .refine((value) => Object.values(value).some((field) => field !== undefined), {
-    message: 'Cần ít nhất một trường để cập nhật.',
-  });
-export type PlanTemplateDraftInput = z.infer<typeof planTemplateDraftInputSchema>;
-export type PlanTemplateDraftPatch = z.infer<typeof planTemplateDraftPatchSchema>;
-export interface PlanTemplateDraft extends Omit<PlanTemplateDraftInput, 'durationDays'> {
-  id: string;
-  durationDays: number | null;
-  sourceUpdatedAt: string | null;
-  copyrightNotes: string;
-  verifiedAt: string | null;
-  reviewStatus: ReviewStatus;
-  createdBy: string | null;
-  updatedBy: string | null;
-  createdAt: string;
-  updatedAt: string;
-  revision: number;
-  submittedAt: string | null;
-  submittedBy: string | null;
-}
-// M2 -> M6: selection/allergy filtering belongs to M6; editorial identities are omitted.
-export interface ApprovedPlanTemplate extends PlanTemplateDraftInput {
-  id: string;
-  verifiedAt: string;
-  reviewStatus: 'APPROVED';
-  updatedAt: string;
-}
-export interface ApprovedTemplateProvider {
-  listApprovedTemplates(): Promise<ApprovedPlanTemplate[]>;
-  getApprovedTemplate(id: string): Promise<ApprovedPlanTemplate | null>;
+export interface ArticleDetail extends ArticleSummary {
+  content: string;
 }
 export interface FacilitySummary {
   id: string;
@@ -273,7 +167,9 @@ export const ruleDraftInputSchema = z.strictObject({
     .refine((value) => {
       const url = new URL(value);
       return (
-        (url.protocol === 'https:' || url.protocol === 'http:') && !url.username && !url.password
+        (url.protocol === 'https:' || url.protocol === 'http:') &&
+        !url.username &&
+        !url.password
       );
     }),
 });
@@ -296,4 +192,141 @@ export interface AnonymousFeedback {
   note: string;
   attachment: { question: string; answer: string } | null;
   createdAt: string;
+}
+// M6 UC-13: dates are local calendar days (yyyy-mm-dd) in the backend's app.lifestyle.zone.
+export interface DailyProgress {
+  totalActivities: number;
+  completedActivities: number;
+  completionRate: number;
+}
+export interface ActivityToday {
+  id: string;
+  title: string;
+  completed: boolean;
+  streak: number;
+}
+export interface TodayPlan {
+  planId: string;
+  templateId: string;
+  templateTitle: string;
+  startedOn: string;
+  date: string;
+  progress: DailyProgress;
+  planStreak: number;
+  activities: ActivityToday[];
+}
+// Read back from the database after PUT/DELETE /lifestyle/completions/:activityId/:date.
+export interface CompletionResult {
+  activityId: string;
+  date: string;
+  completed: boolean;
+  streak: number;
+  progress: DailyProgress;
+}
+// M6 UC-12: only approved templates; the server checks consent, allergies and profile again on apply.
+export type LifestyleGoal = 'SLEEP' | 'MAINTAIN' | 'GAIN' | 'LOSE';
+export interface TemplateSummary {
+  id: string;
+  title: string;
+  goal: LifestyleGoal;
+  summary: string;
+  durationDays: number | null;
+  activityCount: number;
+  notSuitableFor: string[];
+  sourceUrl: string;
+}
+// GET /lifestyle/templates?goal=. profileMissing: no health profile (suggest updating it);
+// message: set when the list is empty (no plan is generated instead).
+export interface TemplateCatalog {
+  goal: LifestyleGoal | null;
+  profileMissing: boolean;
+  templates: TemplateSummary[];
+  message: string | null;
+}
+export interface PlanActivity {
+  id: string;
+  title: string;
+  description?: string;
+}
+// GET /lifestyle/templates/:id. Previewing changes nothing; current: it is the active plan.
+export interface TemplatePreview {
+  id: string;
+  title: string;
+  goal: LifestyleGoal;
+  summary: string;
+  durationDays: number | null;
+  activities: PlanActivity[];
+  notSuitableFor: string[];
+  sourceUrl: string;
+  current: boolean;
+  advice: string;
+}
+// PUT /lifestyle/plan {templateId}. changed: false when the template was already active.
+// remindersTurnedOff: UC-14 reminders paused because they follow an activity the new plan lacks.
+// restorableReminderIds: reminders paused by an earlier switch whose activity this plan has again;
+// they stay off until the user turns them on (ask before PATCH {enabled: true}).
+export interface AppliedPlan {
+  planId: string;
+  templateId: string;
+  templateTitle: string;
+  startedOn: string;
+  changed: boolean;
+  previousPlanId: string | null;
+  remindersTurnedOff: number;
+  restorableReminderIds: string[];
+}
+// GET /lifestyle/plans/history: ended plans, latest first. days counts start and end day;
+// completionRate = completionCount / (days * activityCount), 2 decimals, null without activities.
+export interface PastPlan {
+  planId: string;
+  templateId: string;
+  templateTitle: string;
+  startedOn: string;
+  endedOn: string;
+  days: number;
+  activityCount: number;
+  completedDays: number;
+  completionCount: number;
+  completionRate: number | null;
+}
+export interface PlanHistory {
+  plans: PastPlan[];
+}
+// M6 UC-14: localTime is HH:mm (24 h) in timezone; daysOfWeek uses ISO 1 = Monday … 7 = Sunday.
+// Instants (nextSendAt, scheduledFor, sentAt) are ISO-8601 UTC.
+export type ReminderChannel = 'EMAIL' | 'WEB_PUSH';
+export interface ReminderDelivery {
+  scheduledFor: string;
+  status: 'PENDING' | 'SENT' | 'FAILED';
+  sentAt: string | null;
+}
+export interface Reminder {
+  id: string;
+  content: string;
+  activityId: string | null;
+  localTime: string;
+  daysOfWeek: number[];
+  timezone: string;
+  channel: ReminderChannel;
+  enabled: boolean;
+  // PLAN_SWITCH: paused by a plan switch, not counted towards the reminder limit.
+  disabledReason: 'PLAN_SWITCH' | null;
+  nextSendAt: string | null;
+  lastDelivery: ReminderDelivery | null;
+}
+// GET /lifestyle/reminders. availableChannels: channels the user can turn on now (offer only these).
+export interface ReminderList {
+  reminders: Reminder[];
+  availableChannels: ReminderChannel[];
+}
+// POST /lifestyle/reminders (localTime and content or activityId required) and
+// PATCH /lifestyle/reminders/:id (only the fields sent change; activityId null unlinks).
+export interface ReminderInput {
+  content?: string;
+  activityId?: string | null;
+  localTime?: string;
+  daysOfWeek?: number[];
+  timezone?: string;
+  channel?: ReminderChannel;
+  enabled?: boolean;
 }

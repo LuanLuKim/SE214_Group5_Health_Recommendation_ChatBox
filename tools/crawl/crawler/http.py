@@ -13,8 +13,11 @@ HERE = Path(__file__).resolve().parents[1]
 OUTPUT = HERE.parents[1] / ".data" / "crawl"
 MIB = 1024 * 1024
 BODY_LIMIT = 2 * MIB
+# Per crawl group (one docs/urls*.txt list): request and byte budgets. Disk, run and pacing limits stay shared.
 MAX_REQUESTS = 200
 MAX_BYTES = 150 * MIB
+MAX_DISK = 250 * MIB
+GROUP_NAME = re.compile(r"[A-Za-z0-9_-]{1,64}")
 AGENT = "SE214Pilot"
 INTERVAL = 3
 
@@ -67,13 +70,21 @@ def robots_denials(text):
 
 
 class Batch:
-    def __init__(self, folder, opener):
+    """Persistent budgets. ``requests``/``charged_bytes`` at the top level are the
+    all-time totals; ``groups[group]`` holds the per-group usage that is capped."""
+    def __init__(self, folder, opener, group="default"):
+        if not GROUP_NAME.fullmatch(group or ""):
+            raise ValueError("INVALID_GROUP")
         self.folder = folder
         self.opener = opener
+        self.group = group
         self.checkpoint = folder / "state.json"
         self.state = json.loads(self.checkpoint.read_text(encoding="utf-8")) if self.checkpoint.exists() else {
-            "requests": 0, "charged_bytes": 0, "attempts": {}, "last_request": 0, "blocked": {}
+            "requests": 0, "charged_bytes": 0, "attempts": {}, "last_request": 0, "blocked": {}, "groups": {}
         }
+
+    def usage(self, group=None):
+        return self.state.setdefault("groups", {}).setdefault(group or self.group, {"requests": 0, "charged_bytes": 0})
 
     def persist(self):
         save(self.checkpoint, self.state)
@@ -87,17 +98,22 @@ class Batch:
     def fetch_response(self, url, mime):
         """Return bounded response bytes and metadata without losing the raw body."""
         state = self.state
-        if state["requests"] >= MAX_REQUESTS or state["charged_bytes"] + BODY_LIMIT > MAX_BYTES:
-            raise Limit("batch request/byte budget exhausted")
-        if sum(f.stat().st_size for name in ("crawl", "collection", "review") for f in (self.folder.parent / name).rglob("*") if f.is_file()) + 3 * BODY_LIMIT > 250 * MIB:
+        if state["requests"] and "groups" not in state:
+            # Old checkpoint: history must be allocated to groups first (run.py --allocate-history).
+            raise Limit("budget history not allocated to groups")
+        group = self.usage()
+        if group["requests"] >= MAX_REQUESTS or group["charged_bytes"] + BODY_LIMIT > MAX_BYTES:
+            raise Limit("group request/byte budget exhausted")
+        if sum(f.stat().st_size for name in ("crawl", "collection", "review") for f in (self.folder.parent / name).rglob("*") if f.is_file()) + 3 * BODY_LIMIT > MAX_DISK:
             raise Limit("disk budget exhausted")
         time.sleep(max(0, state["last_request"] + INTERVAL - time.time()))
         # Reserve the full body before network I/O. An interrupted download stays charged.
-        state["requests"] += 1
-        state["charged_bytes"] += BODY_LIMIT
+        for usage in (state, group):
+            usage["requests"] += 1
+            usage["charged_bytes"] += BODY_LIMIT
         state["last_request"] = time.time()
         self.persist()
-        self.log("request", url=url, number=state["requests"])
+        self.log("request", url=url, number=state["requests"], group=self.group, group_number=group["requests"])
         request = Request(url, headers={"User-Agent": AGENT + "/1.0", "Accept-Encoding": "identity"})
         with self.opener.open(request, timeout=20) as response:
             if response.headers.get_content_type() != mime or response.headers.get("Content-Encoding", "identity") != "identity":
@@ -123,7 +139,8 @@ class Batch:
                 "content_type": response.headers.get_content_type(), "charset": charset,
                 "content_encoding": response.headers.get("Content-Encoding", "identity"),
             }
-        state["charged_bytes"] -= BODY_LIMIT - len(body)
+        for usage in (state, group):
+            usage["charged_bytes"] -= BODY_LIMIT - len(body)
         self.persist()
         return {**metadata, "body": bytes(body)}
 

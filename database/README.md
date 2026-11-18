@@ -2,37 +2,47 @@
 
 Một PostgreSQL instance, sáu schema cùng tên module. Không cần sáu database hoặc sáu server.
 
-| Migration                           | Schema               | Bảng nền tảng                                                             |
-| ----------------------------------- | -------------------- | ------------------------------------------------------------------------- |
-| `001_safety.sql`                    | safety               | rules                                                                     |
-| `002_knowledge.sql`                 | knowledge            | articles, facilities, review_events                                       |
-| `003_health.sql`                    | health               | profiles, daily_metrics, usage_events                                     |
-| `004_chat.sql`                      | chat                 | sessions, messages, feedback                                              |
-| `005_accounts.sql`                  | accounts             | users, user_roles, consents; thêm ownership FK cho các schema trước       |
-| `006_lifestyle.sql`                 | lifestyle            | templates, plans, completions, reminders                                  |
-| `007_safety_drafts.sql`             | safety               | thêm nguồn, trường bắt buộc, chuyên khoa cho rules                        |
-| `008_lifestyle_reminders.sql`       | lifestyle            | reminders: ngày áp dụng, activity_id; reminder_deliveries chống gửi trùng |
-| `009_knowledge_article_drafts.sql`  | knowledge            | bài viết: ngày nguồn, ghi chú bản quyền, người tạo/sửa và thời gian tạo   |
-| `010_knowledge_template_drafts.sql` | knowledge, lifestyle | metadata mẫu, revision và người/thời gian gửi duyệt cho bài/mẫu           |
+| Migration                               | Schema    | Bảng nền tảng                                                                   |
+| --------------------------------------- | --------- | ------------------------------------------------------------------------------- |
+| `V001__safety.sql`                      | safety    | rules                                                                           |
+| `V002__knowledge.sql`                   | knowledge | articles, facilities, review_events                                             |
+| `V003__health.sql`                      | health    | profiles, daily_metrics, usage_events                                           |
+| `V004__chat.sql`                        | chat      | sessions, messages, feedback                                                    |
+| `V005__accounts.sql`                    | accounts  | users, user_roles, consents; thêm ownership FK cho các schema trước             |
+| `V006__lifestyle.sql`                   | lifestyle | templates, plans, completions, reminders                                        |
+| `V007__safety_drafts.sql`               | safety    | thêm nguồn, trường bắt buộc, chuyên khoa cho rules                              |
+| `V008__lifestyle_reminders.sql`         | lifestyle | reminders: ngày áp dụng, activity_id; reminder_deliveries chống gửi trùng       |
+| `V009__safety_rule_activation.sql`      | safety    | bật trạng thái kích hoạt cho quy tắc đã duyệt                                   |
+| `V010__accounts_registration.sql`       | accounts  | chuẩn hóa unique email; consent xử lý dữ liệu/không chẩn đoán; OAuth identities |
+| `V011__accounts_email_verification.sql` | accounts  | đăng ký email chờ OTP; lưu challenge đã băm, hạn dùng và số lần thử             |
+| `V012__accounts_authentication.sql`    | accounts  | refresh token, giới hạn thử mật khẩu và challenge khôi phục                      |
+| `V013__lifestyle_plan_choice.sql`       | lifestyle | templates: mô tả, thời lượng, mục tiêu FR-2.6; plans giữ lịch sử, một lộ trình đang dùng |
+| `V014__accounts_deletion_confirmation.sql` | accounts | challenge xác nhận xóa tài khoản qua email (mã đã băm, hạn dùng, số lần thử)  |
+| `V015__chat_feedback_handling.sql`      | chat      | feedback: trạng thái xử lý OPEN/RESOLVED và thời điểm xử lý cho UC-17           |
+| `V016__accounts_rbac.sql`               | accounts  | roles, permissions, role_permissions, audit log UC-18; mở rộng user_roles       |
+| `V017__accounts_self_management.sql`    | accounts/knowledge | thông tin liên hệ/ảnh đại diện; ẩn danh reviewer và actor khi xóa tài khoản |
+| `V018__lifestyle_reminder_pause.sql`    | lifestyle | reminders: `disabled_reason` (`PLAN_SWITCH` khi đổi lộ trình tạm tắt nhắc) |
+| `V019__lifestyle_plan_summary.sql`      | lifestyle | plans: tóm tắt completion (`completion_count`, `completed_days`) cho lịch sử sau khi dọn dữ liệu chi tiết |
+| `V020__lifestyle_retention_indexes.sql` | lifestyle | index cho job dọn dữ liệu M6 (lần gửi theo trạng thái/giờ, nhắc tạm tắt, lộ trình chưa tóm tắt) |
 
-Đây là schema khởi đầu, chưa đủ để tuyên bố hoàn thành SRS. Khi triển khai nghiệp vụ, cần versioning/audit và reviewer metadata đầy đủ; thông tin bản quyền và ngày nguồn; session/token/OAuth/email state; dữ liệu eligibility/allergy phù hợp; lịch retry/delivery idempotency; chính sách retention và deletion cho feedback/backup.
+Đây là schema khởi đầu, chưa đủ để tuyên bố hoàn thành SRS. Khi triển khai nghiệp vụ, cần versioning/audit và reviewer metadata đầy đủ; thông tin bản quyền và ngày nguồn; quản lý consent; dữ liệu eligibility/allergy phù hợp; lịch retry/delivery idempotency; chính sách retention và deletion cho feedback/backup.
 
 Không suy luận quy tắc/plan được duyệt chỉ từ sự có mặt trong bảng. `review_events.subject_id` là tham chiếu đa loại ở mức ứng dụng; service phải kiểm tra loại và đối tượng. Feedback review snapshot không chứa danh tính trực tiếp, nhưng linkage xóa riêng tư phải được thiết kế trước khi bật dữ liệu thật. Seed có một plan nháp chỉ để kiểm tra liên kết FK, không phải plan được phép áp dụng qua API.
 
 ## Migration
 
-Chạy `npm run db:migrate` ở root. Runner sử dụng transaction, advisory lock và `public.schema_migrations` để chỉ chạy file chưa áp dụng. Tên file tăng liên tục. Mỗi module giữ prefix module trong tên file mới, ví dụ `007_accounts_sessions.sql`.
+Migration chạy bằng Flyway khi backend Spring Boot khởi động với `DATA_MODE=postgres` (bảng lịch sử `public.flyway_schema_history`, mỗi file trong một transaction, chỉ chạy file chưa áp dụng). Tên file theo mẫu `VNNN__<module>_<mô-tả>.sql`, số tăng liên tục, ví dụ `V013__accounts_refresh_tokens.sql`. Database đã migrate bằng runner Node cũ (`public.schema_migrations`) cần tạo lại: `npm run db:down`, xóa volume cục bộ của chính bạn, rồi chạy lại.
 
 Không sửa migration đã được team áp dụng vào database chung. Thêm migration mới và mô tả ảnh hưởng cross-module trong PR. Tất cả ID ứng dụng là UUID; timestamp dùng timezone. Bảng daily metrics có khóa chính `(user_id, recorded_on)` và completions có khóa `(plan_id, activity_id, completed_on)` để chống dữ liệu trùng.
 
 ## Synthetic seed
 
-Chạy `npm run db:seed` sau migration. File seed dùng UUID cố định, `ON CONFLICT DO NOTHING`, không xóa hay cập nhật dữ liệu sẵn có. Chạy lại không nhân đôi bản ghi. Runner từ chối khi `NODE_ENV=production`.
+Đặt `SEED_SYNTHETIC=true` khi chạy backend để nạp seed ngay sau migration (`system/SyntheticSeedRunner`). File seed dùng UUID cố định, `ON CONFLICT DO NOTHING`, không xóa hay cập nhật dữ liệu sẵn có. Chạy lại không nhân đôi bản ghi. Runner từ chối khi `APP_ENV=production`.
 
-Tài khoản `@example.invalid` không có mật khẩu, không đăng nhập được. URL `example.invalid` và địa chỉ cơ sở là hư cấu. Quy tắc y tế nháp không được kích hoạt. Nhắc nhở seed đang tắt. Không có dữ liệu bệnh nhân thật hoặc yêu cầu gửi tới dịch vụ ngoài.
+Tài khoản synthetic `@example.invalid` không có mật khẩu, không đăng nhập được. Admin bootstrap lấy từ `ADMIN_EMAIL`/`ADMIN_PASSWORD`, không nằm trong synthetic seed. URL `example.invalid` và địa chỉ cơ sở là hư cấu. Quy tắc y tế seed (`002_safety_rules.sql`) chỉ ở trạng thái nháp, chờ duyệt hoặc bị trả lại, không bao giờ `APPROVED`. Bộ quy tắc mẫu có `APPROVED` để kiểm thử UC-16 chỉ nằm trong `backend/src/test/resources/safety/sample-rules.sql`. Nhắc nhở seed đang tắt. Không có dữ liệu bệnh nhân thật hoặc yêu cầu gửi tới dịch vụ ngoài.
 
-Mặc định mock mode dùng public fixture tại `apps/api/src/modules/knowledge/synthetic.ts`, cùng ID với SQL seed. Private fixtures trong database không có public API để xem. Chọn `DATA_MODE=postgres` để thử read-only API với database đã seed.
+Mặc định mock mode dùng public fixture tại `backend/src/main/java/vn/edu/uit/se214/health/knowledge/SyntheticKnowledgeSearch.java`, cùng ID với SQL seed. Private fixtures trong database không có public API để xem. Chọn `DATA_MODE=postgres` để thử read-only API với database đã seed.
 
 ## Verification
 
-`npm test` chạy toàn bộ SQL trên PGlite/PostgreSQL nhúng, seed hai lần và kiểm tra FK, dữ liệu không trùng, draft filtering và điều kiện dữ liệu. Docker connectivity, backup/restore và quyền DB triển khai thật vẫn phải kiểm tra ở môi trường tương ứng. Bản khung chưa có automated backup/restore.
+`mvn -f backend/pom.xml verify` chạy toàn bộ migration trên PostgreSQL nhúng (không cần Docker), seed hai lần và kiểm tra FK, dữ liệu không trùng, draft filtering và điều kiện dữ liệu; job CI `infra-smoke` chạy lại trên PostgreSQL 17 thật. Docker connectivity, backup/restore và quyền DB triển khai thật vẫn phải kiểm tra ở môi trường tương ứng. Bản khung chưa có automated backup/restore.

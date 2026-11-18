@@ -33,13 +33,7 @@ INSERT INTO chat.messages VALUES
  ('00000000-0000-4000-8000-000000000041','00000000-0000-4000-8000-000000000040','user','Tin nhắn giả lập kiểm tra lịch sử.','2026-10-29T00:00:00Z'),
  ('00000000-0000-4000-8000-000000000042','00000000-0000-4000-8000-000000000040','assistant','Phản hồi giả lập, không phải tư vấn sức khỏe.','2026-10-29T00:00:01Z') ON CONFLICT DO NOTHING;
 INSERT INTO chat.feedback VALUES ('00000000-0000-4000-8000-000000000043','UNCLEAR','Ghi chú giả lập.',NULL,NULL,'2026-10-29T00:00:02Z') ON CONFLICT DO NOTHING;
-INSERT INTO lifestyle.templates
- (id,title,goal,activities,excluded_allergens,review_status,source_url,is_synthetic,
-  source_name,duration_days,applicability,contraindications,advisory)
-VALUES ('00000000-0000-4000-8000-000000000050','[TEST] Mẫu lịch sinh hoạt','SLEEP',
- '[{"id":"demo","title":"Hoạt động giả lập"}]','{}','DRAFT','https://example.invalid/template',true,
- 'Synthetic fixture',7,'Đối tượng giả lập để kiểm thử','{}','Mẫu thử nghiệm, không có hướng dẫn y tế.')
-ON CONFLICT DO NOTHING;
+INSERT INTO lifestyle.templates VALUES ('00000000-0000-4000-8000-000000000050','[TEST] Mẫu lịch sinh hoạt','SLEEP','[{"id":"demo","title":"Hoạt động giả lập"}]','{}','DRAFT','https://example.invalid/template',true) ON CONFLICT DO NOTHING;
 INSERT INTO lifestyle.plans VALUES ('00000000-0000-4000-8000-000000000051','00000000-0000-4000-8000-000000000001','00000000-0000-4000-8000-000000000050','2026-10-29') ON CONFLICT DO NOTHING;
 INSERT INTO lifestyle.completions VALUES ('00000000-0000-4000-8000-000000000051','demo','2026-10-29') ON CONFLICT DO NOTHING;
 INSERT INTO lifestyle.reminders VALUES ('00000000-0000-4000-8000-000000000052','00000000-0000-4000-8000-000000000001','Nhắc nhở giả lập, chưa gửi.','20:00','Asia/Ho_Chi_Minh','EMAIL',false) ON CONFLICT DO NOTHING;

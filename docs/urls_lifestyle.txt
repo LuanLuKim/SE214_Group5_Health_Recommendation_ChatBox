@@ -1,0 +1,84 @@
+# urls_lifestyle.txt — Nội dung LỐI SỐNG cho RAG (nhóm crawl riêng "urls_lifestyle", #87)
+# Định dạng: <URL> [topic_mặc_định]. Corpus: rag (chuẩn hóa cùng docs/urls.txt).
+# Nhóm này có trần riêng: tối đa 200 URL và 200 request (xem tools/crawl/README.md).
+# Lệnh crawl: python -B tools/crawl/run.py --urls docs/urls_lifestyle.txt
+# Lệnh chuẩn hóa: python -B tools/normalize/run.py   (mặc định đọc urls.txt + urls_lifestyle.txt)
+#
+# URL lấy từ link của các hub đã crawl (docs/urls_discovery.txt, discover.py), không đoán slug.
+# Thông tin chung; KHÔNG kê thực đơn, lượng calo hay chương trình tập cá nhân hóa.
+# ==============================================================================
+# LÔ K: LỐI SỐNG — CÂN NẶNG, ĂN UỐNG, VẬN ĐỘNG, GIẤC NGỦ (NHS Live Well, #87)
+# Phục vụ BMI và lộ trình tăng cân / giảm cân / giữ cân / ngủ tốt hơn (UC-12/13/14).
+# URL lấy từ link của hub Live Well (docs/urls_discovery.txt) và của các trang đã crawl.
+# Thông tin chung; KHÔNG kê thực đơn, lượng calo hay chương trình tập cá nhân hóa.
+# ==============================================================================
+https://www.nhs.uk/live-well/healthy-weight/managing-your-weight/healthy-ways-to-gain-weight/   weight
+https://www.nhs.uk/live-well/healthy-weight/managing-your-weight/tips-to-help-you-lose-weight/  weight
+https://www.nhs.uk/live-well/healthy-weight/managing-your-weight/understanding-calories/        weight
+https://www.nhs.uk/conditions/overweight-and-obesity/                                          weight
+https://www.nhs.uk/live-well/eat-well/how-to-eat-a-balanced-diet/eating-a-balanced-diet/       nutrition
+https://www.nhs.uk/live-well/eat-well/salt-nutrition/                                          nutrition
+https://www.nhs.uk/live-well/exercise/physical-activity-guidelines-for-adults-aged-19-to-64/   exercise
+https://www.nhs.uk/live-well/exercise/physical-activity-guidelines-older-adults/               exercise
+https://www.nhs.uk/live-well/exercise/exercise-health-benefits/                                exercise
+https://www.nhs.uk/live-well/exercise/walking-for-health/                                      exercise
+https://www.nhs.uk/live-well/sleep-and-tiredness/self-help-tips-to-fight-fatigue/              sleep
+https://www.nhs.uk/conditions/sleep-apnoea/                                                    sleep
+https://www.nhs.uk/mental-health/self-help/guides-tools-and-activities/breathing-exercises-for-stress/  mental_health
+# ==============================================================================
+# LÔ L: VẬN ĐỘNG, THỂ DỤC (link từ hub /live-well/exercise/, #87)
+# Bỏ các trang chỉ có video (Fitness Studio): video bị bỏ khi trích xuất nên không còn nội dung.
+# ==============================================================================
+https://www.nhs.uk/live-well/exercise/strength-exercises/                                   exercise
+https://www.nhs.uk/live-well/exercise/flexibility-exercises/                                exercise
+https://www.nhs.uk/live-well/exercise/balance-exercises/                                    exercise
+https://www.nhs.uk/live-well/exercise/sitting-exercises/                                    exercise
+https://www.nhs.uk/live-well/exercise/how-to-improve-strength-flexibility/                  exercise
+https://www.nhs.uk/live-well/exercise/how-to-warm-up-before-exercising/                     exercise
+https://www.nhs.uk/live-well/exercise/how-to-stretch-after-exercising/                      exercise
+https://www.nhs.uk/live-well/exercise/knee-pain-and-other-running-injuries/                 exercise
+https://www.nhs.uk/live-well/exercise/wheelchair-users-fitness-advice/                      exercise
+https://www.nhs.uk/live-well/exercise/physical-activity-guidelines-children-and-young-people/   exercise
+https://www.nhs.uk/live-well/exercise/physical-activity-guidelines-children-under-five-years/   exercise
+# ==============================================================================
+# LÔ M: ĂN UỐNG ĐIỀU ĐỘ (link từ hub /live-well/eat-well/…, #87) — hướng dẫn chung, không thực đơn
+# ==============================================================================
+https://www.nhs.uk/live-well/eat-well/how-to-eat-a-balanced-diet/eight-tips-for-healthy-eating/      nutrition
+https://www.nhs.uk/live-well/eat-well/food-guidelines-and-food-labels/the-eatwell-guide/             nutrition
+https://www.nhs.uk/live-well/eat-well/food-guidelines-and-food-labels/how-to-read-food-labels/       nutrition
+https://www.nhs.uk/live-well/eat-well/food-guidelines-and-food-labels/water-drinks-nutrition/        nutrition
+https://www.nhs.uk/live-well/eat-well/5-a-day/why-5-a-day/                                           nutrition
+https://www.nhs.uk/live-well/eat-well/5-a-day/5-a-day-what-counts/                                   nutrition
+https://www.nhs.uk/live-well/eat-well/5-a-day/portion-sizes/                                         nutrition
+https://www.nhs.uk/live-well/eat-well/digestive-health/how-to-get-more-fibre-into-your-diet/         nutrition
+https://www.nhs.uk/live-well/eat-well/digestive-health/five-lifestyle-tips-for-a-healthy-tummy/      digestive
+https://www.nhs.uk/live-well/eat-well/how-to-eat-a-balanced-diet/how-to-cut-down-on-sugar-in-your-diet/   nutrition
+https://www.nhs.uk/live-well/eat-well/how-to-eat-a-balanced-diet/eat-less-saturated-fat/             nutrition
+https://www.nhs.uk/live-well/eat-well/food-types/starchy-foods-and-carbohydrates/                    nutrition
+https://www.nhs.uk/live-well/eat-well/food-types/different-fats-nutrition/                           nutrition
+https://www.nhs.uk/live-well/eat-well/how-to-eat-a-balanced-diet/the-vegetarian-diet/                nutrition
+https://www.nhs.uk/live-well/eat-well/how-to-eat-a-balanced-diet/the-vegan-diet/                     nutrition
+# ==============================================================================
+# LÔ N: THÓI QUEN SINH HOẠT — RƯỢU, THUỐC LÁ, XƯƠNG, RĂNG MIỆNG, ĐAU, VỆ SINH (link từ hub Live Well, #87)
+# ==============================================================================
+https://www.nhs.uk/live-well/alcohol-advice/tips-on-cutting-down-alcohol/          alcohol
+https://www.nhs.uk/live-well/alcohol-advice/the-risks-of-drinking-too-much/        alcohol
+https://www.nhs.uk/live-well/alcohol-advice/calculating-alcohol-units/             alcohol
+https://www.nhs.uk/live-well/quit-smoking/stopping-smoking-mental-health-benefits/ smoking
+https://www.nhs.uk/live-well/quit-smoking/passive-smoking-protect-your-family-and-friends/  smoking
+https://www.nhs.uk/live-well/bone-health/food-for-strong-bones/                    bone_health
+https://www.nhs.uk/live-well/bone-health/keep-your-bones-strong-over-65/           bone_health
+https://www.nhs.uk/live-well/healthy-teeth-and-gums/how-to-keep-your-teeth-clean/  oral_health
+https://www.nhs.uk/live-well/healthy-teeth-and-gums/take-care-of-your-teeth-and-gums/  oral_health
+https://www.nhs.uk/live-well/pain/10-ways-to-ease-pain/                            pain
+https://www.nhs.uk/live-well/best-way-to-wash-your-hands/                          hygiene
+# ==============================================================================
+# LÔ O: CHĂM SÓC DA NGOÀI TRỜI (link từ hub /live-well/seasonal-health/, #87)
+# ==============================================================================
+https://www.nhs.uk/live-well/seasonal-health/sunscreen-and-sun-safety/             skin
+https://www.nhs.uk/live-well/seasonal-health/heatwave-how-to-cope-in-hot-weather/  first_aid
+# ==============================================================================
+# LÔ P: THƯ GIÃN, GIẢM CĂNG THẲNG (link từ trang đã crawl, #87). Hub giấc ngủ NHS chỉ có 2 link.
+# ==============================================================================
+https://www.nhs.uk/mental-health/self-help/guides-tools-and-activities/tips-to-reduce-stress/   mental_health
+https://www.nhs.uk/mental-health/feelings-symptoms-behaviours/feelings-and-symptoms/stress/     mental_health

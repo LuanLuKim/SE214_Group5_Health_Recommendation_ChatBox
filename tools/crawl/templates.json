@@ -3,15 +3,23 @@
     "adapter": "nhs",
     "hosts": ["www.nhs.uk"],
     "templates": [
-      {"id": "nhs-main-v1", "root": "main", "title": "h1", "remove": ["nav", "footer", "[class*=nhsuk-gallery]", "figure", "button"]}
+      {"id": "nhs-main-v1", "root": "main", "title": "h1", "remove": ["nav", "footer", "[class*=nhsuk-gallery]", "figure > :not(figcaption)", "button", ".nhsuk-action-link", ".app-brightcove-video"]},
+      {"id": "nhs-livewell-v1", "paths": ["/live-well/"], "root": "main", "title": "h1",
+       "remove": ["nav", "footer", "[class*=nhsuk-gallery]", "figure > :not(figcaption)", "button", ".nhsuk-action-link", ".app-brightcove-video",
+                  ".beta-hub-sibling-nav", "section:has(a[href*='/healthy-choices-quiz/'])"],
+       "drop_signpost_sections": {"scope": "section", "keep": [".nhsuk-inset-text"]},
+       "drop_link_only_paragraphs": true}
     ]
   },
   "who": {
     "adapter": "who",
     "hosts": ["www.who.int"],
     "templates": [
-      {"id": "who-qa-v1", "root": ".qa-details__wrapper", "title": "h1", "remove": ["nav", "footer", ".sf-social-share"]},
-      {"id": "who-topic-v1", "root": "article.health-topic--detail", "title": "h1", "remove": ["nav", "footer", ".sf-social-share"]}
+      {"id": "who-qa-v1", "root": ".qa-details__wrapper", "title": "h1", "remove": ["nav", "footer", ".sf-social-share", ".qa-details__title + span"], "headings": {".sf-accordion__trigger-panel": "h2"}, "drop_from_marker": {"selector": "p, h2, h3, h4", "texts": ["References", "Reference", "Tài liệu tham khảo"]}},
+      {"id": "who-topic-v1", "root": "article.health-topic--detail", "title": "h1", "remove": ["nav", "footer", ".sf-social-share", ".sf-header-title", "div.sf_colsIn:has(> p.section-header)"], "drop_from_marker": {"selector": "p, h2, h3, h4", "texts": ["References", "Reference", "Tài liệu tham khảo"]}},
+      {"id": "who-hub-vn-topics-v1", "paths_exact": ["/vietnam/vi/health-topics"], "root": "div.sf-content-block.content-block:has(a[href*='/health-topics/'])", "title": "title"},
+      {"id": "who-factsheet-v1", "paths": ["/news-room/fact-sheets/detail/"], "root": "article.sf-detail-body-wrapper", "title": "h1", "remove": ["nav", "footer", ".sf-social-share"], "drop_from_marker": {"selector": "p, h2, h3, h4", "texts": ["References", "Reference", "Tài liệu tham khảo"]}},
+      {"id": "who-hub-factsheets-v1", "paths_exact": ["/news-room/fact-sheets"], "root": "ul.alphabetical-nav--list", "title": "h1"}
     ]
   },
   "cdc": {"adapter": "generic", "hosts": ["www.cdc.gov"], "templates": []}
