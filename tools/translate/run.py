@@ -5,6 +5,7 @@ Usage (from the repo root, inside the se214-translate environment):
     python -B tools/translate/run.py --max-chunks 10           # small trial, all engines
     python -B tools/translate/run.py --engines nllb,vinai      # choose the engines
     python -B tools/translate/run.py --refiner consensus       # no LLM: engines' consensus only
+    python -B tools/translate/run.py --mode direct             # LLM translates from English, no MT engines
     python -B tools/translate/run.py                           # everything; resumes from the cache
     python -B tools/translate/run.py --status                  # summary of the last run
 
@@ -12,8 +13,9 @@ Pipeline:
     .data/normalized/chunks.jsonl
         -> lines (bullet markers kept aside)
         -> UK services rewritten in English (localisation.json)
-        -> machine drafts from every engine (cached per segment)
-        -> LLM fusion of the drafts (optional: LLM_BASE_URL, LLM_MODEL, LLM_API_KEY)
+        -> machine drafts from every engine (cached per segment; none in --mode direct)
+        -> LLM fusion of the drafts, or in --mode direct the LLM translates each chunk from English
+           (optional: LLM_BASE_URL, LLM_MODEL, LLM_API_KEY; config llm.mode is the default)
         -> LLM meaning check, one repair of what it finds (config llm.verify; --no-verify skips it)
         -> lines a human reviewer corrected (config paths.human_corrections)
         -> quality gate per line, consensus fallback
@@ -43,7 +45,7 @@ from translator.engines import get_engine  # noqa: E402
 from translator.glossary import Rules, compile_names, load_medicine_names  # noqa: E402
 from translator.pipeline import (  # noqa: E402
     UnitResult, build_units, engine_statistics, finalise, machine_translate, refine, verify)
-from translator.refine import PROMPT_VERSION, LLMClient  # noqa: E402
+from translator.refine import MODES, LLMClient, prompt_version  # noqa: E402
 from translator.verify import VERIFY_VERSION  # noqa: E402
 
 CONFIG_PATH = HERE / "config.json"
@@ -116,7 +118,8 @@ def localised_tags(tags: list[str], text_vi: str, rules: Rules) -> list[str]:
 def chunk_record(chunk: dict[str, Any], result: UnitResult, strings: dict[str, str], meta: dict[str, Any],
                  rules: Rules) -> dict[str, Any]:
     methods = Counter(m for m in result.methods if m != "copy")
-    method = "llm_fusion" if methods.get("llm") else "consensus"
+    mode = meta.get("mode", "fusion")
+    method = f"llm_{mode}" if methods.get("llm") else "consensus"
     path = list(chunk.get("heading_path") or [])
     return {
         "chunk_id": chunk["id"],
@@ -135,13 +138,13 @@ def chunk_record(chunk: dict[str, Any], result: UnitResult, strings: dict[str, s
         "text_vi": result.text,
         "translation_metadata": {
             "method": method,
-            "model": meta["refiner_model"] if method == "llm_fusion" else "consensus",
+            "model": meta["refiner_model"] if methods.get("llm") else "consensus",
             "engines": meta["engine_models"],
             "line_methods": dict(methods),
             "src_lang": meta["src_lang"],
             "tgt_lang": meta["tgt_lang"],
             "localisation_version": rules.version,
-            "prompt_version": PROMPT_VERSION if method == "llm_fusion" else "",
+            "prompt_version": prompt_version(mode) if methods.get("llm") else "",
             "checker_version": meta.get("checker_version", ""),
             "human_corrected_lines": methods.get("human", 0),
             "source_text_sha256": chunk.get("text_sha256", ""),
@@ -264,8 +267,12 @@ def main(argv: list[str] | None = None) -> int:
     paths = config["paths"]
     parser = argparse.ArgumentParser(description="Translate normalized medical chunks EN->VI",
                                      epilog="Models and thresholds: tools/translate/config.json")
-    parser.add_argument("--engines", "--engine", default=",".join(config["default_engines"]),
-                        help="comma-separated engines (%(default)s); 'none' = LLM only")
+    parser.add_argument("--engines", "--engine", default=None,
+                        help=f"comma-separated engines (default {','.join(config['default_engines'])}; "
+                             "none in --mode direct); 'none' = LLM only")
+    parser.add_argument("--mode", choices=MODES, default=config["llm"].get("mode", "fusion"),
+                        help="fusion: LLM post-edits the MT drafts; direct: LLM translates from English "
+                             "(default from config llm.mode: %(default)s)")
     parser.add_argument("--refiner", choices=("auto", "llm", "consensus"), default="auto",
                         help="auto: LLM when LLM_BASE_URL/LLM_MODEL/LLM_API_KEY are set, else consensus")
     parser.add_argument("--device", default="auto", help="auto, cpu, cuda, cuda:0 ...")
@@ -302,6 +309,8 @@ def main(argv: list[str] | None = None) -> int:
         to_translate = to_translate[:args.max_chunks]
 
     try:
+        if args.engines is None:
+            args.engines = "none" if args.mode == "direct" else ",".join(config["default_engines"])
         engine_names = [] if args.engines.strip().lower() == "none" else [
             name.strip() for name in args.engines.split(",") if name.strip()]
         engines = [get_engine(name, config, device=args.device) for name in engine_names]
@@ -311,6 +320,9 @@ def main(argv: list[str] | None = None) -> int:
     client = None if args.refiner == "consensus" else LLMClient.from_env(config.get("llm"))
     if args.refiner == "llm" and client is None:
         print(f"--refiner llm needs: {', '.join(LLMClient.missing_env())}", file=sys.stderr)
+        return 2
+    if args.mode == "direct" and client is None and not args.dry_run:
+        print(f"--mode direct needs the LLM: {', '.join(LLMClient.missing_env())}", file=sys.stderr)
         return 2
     if client is None and not engines:
         print("Nothing can translate: no engine and no LLM endpoint.", file=sys.stderr)
@@ -340,7 +352,7 @@ def main(argv: list[str] | None = None) -> int:
     print("Medical Translation Pipeline — tools/translate/")
     print("=" * 70)
     print(f"  Engines:         {', '.join(e.key for e in engines) or 'none'}")
-    print(f"  Refiner:         {'LLM ' + client.model if client else 'consensus of the engines (no LLM endpoint)'}")
+    print(f"  Refiner:         {'LLM ' + client.model + ' (' + args.mode + ')' if client else 'consensus of the engines (no LLM endpoint)'}")
     print(f"  Chunks:          {len(chunks)} total, {len(to_translate)} to translate, {len(passthrough)} already "
           f"{tgt_lang}")
     print(f"  Units / lines:   {len(units)} / {line_total}")
@@ -363,10 +375,11 @@ def main(argv: list[str] | None = None) -> int:
     verify_stats: dict[str, Any] = {}
     if client:
         llm_lines, llm_stats = refine(units, client, rules, cache_dir, config["llm"], quality_settings,
-                                      max_requests=args.llm_max_requests)
+                                      max_requests=args.llm_max_requests, mode=args.mode)
         if config["llm"].get("verify") and not args.no_verify and not llm_stats.get("stopped"):
             llm_lines, flags, verify_stats = verify(units, llm_lines, client, rules, cache_dir, config["llm"],
-                                                    quality_settings, max_requests=args.llm_max_requests)
+                                                    quality_settings, max_requests=args.llm_max_requests,
+                                                    mode=args.mode)
     correction_paths = [] if args.no_corrections else [ROOT / p for p in paths.get("human_corrections", [])]
     corrections, correction_stats = load_corrections(correction_paths, to_translate)
     results = {u.id: finalise(u, llm_lines.get(u.id), rules, quality_settings, flags=flags.get(u.id),
@@ -376,7 +389,7 @@ def main(argv: list[str] | None = None) -> int:
     for result in results.values():
         if result.unit.kind == "extra":
             strings.update(zip(result.unit.lines, result.lines))
-    meta = {"src_lang": src_lang, "tgt_lang": tgt_lang, "translated_at": now,
+    meta = {"src_lang": src_lang, "tgt_lang": tgt_lang, "translated_at": now, "mode": args.mode,
             "refiner_model": client.model if client else "", "engine_models": [e.model_id for e in engines],
             "checker_version": VERIFY_VERSION if verify_stats else ""}
     records = [chunk_record(c, results[c["id"]], strings, meta, rules) for c in to_translate]
@@ -413,7 +426,8 @@ def main(argv: list[str] | None = None) -> int:
         "meaning_check": verify_stats,
         "human_corrections": correction_stats,
         "localisation_version": rules.version,
-        "prompt_version": PROMPT_VERSION if client else "",
+        "mode": args.mode if client else "consensus",
+        "prompt_version": prompt_version(args.mode) if client else "",
         "checker_version": meta["checker_version"],
         "medicine_names_from_index": len(names),
         "total_chunks_input": len(chunks),

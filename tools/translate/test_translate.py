@@ -1230,6 +1230,20 @@ class TestRefineHelpers(unittest.TestCase):
         self.assertEqual(repair["problems"], ["line 2: missing number(s): 2"])
         self.assertNotIn("medicine_names", build_item(make_unit("u2", ["x"], {"a": ["y"]})))
 
+    def test_direct_item_and_prompt_have_no_drafts(self):
+        unit = make_unit("u1", ["Heading", "• take 2 tablets"], {"a": ["Tiêu đề", "uống 2 viên"]})
+        item = build_item(unit, mode="direct")
+        self.assertEqual(item["lines"], [{"en": "Heading"}, {"en": "take 2 tablets"}])
+        repair = build_item(unit, previous=["a", "b"], problems=["line 2: x"], mode="direct")
+        self.assertEqual((repair["previous"], repair["lines"][1]), (["a", "b"], {"en": "take 2 tablets"}))
+        direct, fusion = system_prompt(RULES, "direct"), system_prompt(RULES)
+        self.assertNotIn('"mt"', direct)
+        self.assertIn('"mt"', fusion)
+        for table in ("service_table", "age_table", "terminology"):
+            for row in RULES.tables[table]:
+                self.assertIn(f"- {row['en']} -> {row['vi']}", direct)
+        self.assertEqual(direct.split("Rules\n", 1)[1], fusion.split("Rules\n", 1)[1])
+
     def test_parse_answer(self):
         expected = {"u1": 2, "u2": 1}
         answer = json.dumps([{"id": "u1", "vi": ["Một  dòng\nnày", "hai"]}, {"id": "u2", "vi": ["ba"]}])
@@ -2064,11 +2078,13 @@ class TestRunMain(unittest.TestCase):
             handle.write("".join(json.dumps(c, ensure_ascii=False) + newline for c in chunks))
         self.db.write_text(json.dumps(db_rows, ensure_ascii=False), encoding="utf-8")
 
-    def main(self, *extra, refiner="consensus"):
+    def main(self, *extra, refiner="consensus", mode="fusion"):
         argv = ["--input", str(self.input), "--db-rows", str(self.db), "--output", str(self.out),
                 "--cache-dir", str(self.cache)]
         if refiner:
             argv += ["--refiner", refiner]
+        if mode:
+            argv += ["--mode", mode]
         out, err = io.StringIO(), io.StringIO()
         with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
             code = run.main(argv + list(extra))
@@ -2274,6 +2290,51 @@ class TestRunMain(unittest.TestCase):
         self.assertEqual(self.main("--engines", "none", refiner="llm"), 0, self.stdout + self.stderr)
         self.assertEqual(self.factory.created, [])
         self.assertIn("115", self.records()["c-a2"]["text_vi"])
+
+    # -- direct mode: the LLM translates from English, no MT engine --------
+    def test_direct_mode_translates_without_engines(self):
+        client = FakeLLM()
+        self.patch_llm(client)
+        self.assertEqual(self.main(refiner="llm", mode="direct"), 0, self.stdout + self.stderr)
+        self.assertEqual(self.factory.created, [])
+        record = self.records()["c-a2"]
+        md = record["translation_metadata"]
+        self.assertEqual((md["method"], md["model"], md["prompt_version"], md["engines"]),
+                         ("llm_direct", "fake-llm", "direct-1", []))
+        self.assertIn("115", record["text_vi"])
+        summary = self.read_json("summary.json")
+        self.assertEqual((summary["mode"], summary["prompt_version"]), ("direct", "direct-1"))
+        self.assertEqual(summary["refiner"]["mode"], "direct")
+        self.assertEqual(summary["meaning_check"]["checked_units"], summary["refiner"]["answered_units"])
+        # the translator sees only the English lines, never machine drafts
+        fusion_items = [i for items in client.payloads if not FakeLLM.is_check(items) for i in items]
+        self.assertTrue(fusion_items)
+        self.assertTrue(all(set(line) == {"en"} for item in fusion_items for line in item["lines"]))
+        self.assertTrue((self.cache / "llm_direct.jsonl").exists())
+        self.assertFalse((self.cache / "llm.jsonl").exists())
+
+    def test_direct_mode_needs_the_llm(self):
+        self.patch_llm(None)
+        self.assertEqual(self.main(refiner=None, mode="direct"), 2)
+        self.assertIn("--mode direct needs the LLM", self.stderr)
+
+    def test_direct_mode_keeps_human_corrections(self):
+        corrections = self.dir / "corrections.json"
+        chunk = next(c for c in sample_chunks() if c["id"] == "c-a1")
+        first = chunk["text"].split("\n")[0]
+        corrections.write_text(json.dumps({"corrections": [
+            {"chunk_id": "c-a1", "line": 1, "en": first, "new_vi": "Câu người duyệt đã sửa"}]},
+            ensure_ascii=False), encoding="utf-8")
+        config = run.load_config()
+        config["paths"]["human_corrections"] = [str(corrections)]
+        patcher = mock.patch.object(run, "load_config", return_value=config)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+        self.patch_llm(FakeLLM())
+        self.main(refiner="llm", mode="direct")
+        record = self.records()["c-a1"]
+        self.assertTrue(record["text_vi"].split("\n")[0].endswith("Câu người duyệt đã sửa"))
+        self.assertEqual(record["translation_metadata"]["human_corrected_lines"], 1)
 
     def test_bad_llm_line_falls_back_per_line(self):
         def script(n, items):

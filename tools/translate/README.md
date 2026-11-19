@@ -17,6 +17,15 @@ chunk tiếng Anh
   → chunks_vi.jsonl, db_rows_vi.json, review_queue.md …
 ```
 
+Có hai chế độ, chọn bằng `--mode` (mặc định lấy `llm.mode` trong `config.json`, hiện là `direct`):
+
+| Chế độ | Ai dịch | Khi nào dùng |
+| --- | --- | --- |
+| `direct` | LLM dịch trọn từng chunk từ bản tiếng Anh, không dùng model dịch miễn phí, không nạp GPU | Mặc định từ lần chạy 4. Lần duyệt mẫu lần chạy 3 không đạt (19/40 chunk bị trả lại, ngưỡng 4/40), nên chuyển sang chế độ này theo chính sách ghi trong file duyệt SCRUM-148 |
+| `fusion` | 3 model dịch nháp, LLM biên tập bản nháp | Lần chạy 1–3; dùng khi không muốn gửi toàn bộ văn bản cho LLM |
+
+Ở cả hai chế độ, các lớp kiểm vẫn giữ nguyên: cổng luật cố định, LLM đọc lại nghĩa (sửa một lần rồi đọc lại), câu người duyệt đã sửa luôn thay cho câu máy. Chunk không qua được thì gắn cờ chờ người duyệt, không tự đạt. Ở `direct` không có bản đồng thuận để thay dòng lỗi, nên dòng lỗi giữ nguyên và chunk chuyển sang người duyệt. Mọi tên thuốc tìm thấy trong nguồn đều phải giữ (không có bản nháp để bỏ phiếu). Cache LLM của `direct` nằm riêng ở `cache/llm_direct.jsonl`. Chỉ văn bản công khai của WHO và NHS được gửi cho LLM.
+
 - **Dịch theo dòng.** Model dịch câu sẽ cắt cụt khi nhận cả chunk 240 từ. Bản tiếng Việt luôn có đúng số dòng của bản gốc, nhờ đó kiểm được từng dòng.
 - **Ba bản nháp.** `nllb` (NLLB-200), `vinai` (VinAI Translate v2), `medcrab` (MedCrab-1.5B). Model nào thêm hoặc bớt nội dung sẽ lệch khỏi hai model còn lại.
 - **LLM chỉ biên tập, không dịch một mình.** LLM nhận dòng gốc cùng các bản nháp và phải trả đúng một dòng cho mỗi dòng. Dòng không qua cổng được gửi lại một lần kèm lỗi; nếu vẫn lỗi thì dùng bản đồng thuận của ba model.
@@ -42,8 +51,9 @@ python -B tools/translate/run.py --dry-run                # đếm việc, khôn
 python -B tools/translate/run.py --max-chunks 10          # thử lô nhỏ
 python -B tools/translate/run.py --only-tag emergency     # chỉ các chunk cấp cứu
 python -B tools/translate/run.py --engines nllb,vinai     # chọn model
-python -B tools/translate/run.py --refiner consensus      # không dùng LLM
-python -B tools/translate/run.py                          # toàn bộ; tự chạy tiếp từ cache
+python -B tools/translate/run.py --mode fusion --refiner consensus   # không dùng LLM, chỉ 3 model
+python -B tools/translate/run.py --mode fusion            # 3 model dịch nháp + LLM biên tập
+python -B tools/translate/run.py                          # toàn bộ theo llm.mode (direct); tự chạy tiếp từ cache
 python -B tools/translate/run.py --status                 # tóm tắt lần chạy gần nhất
 python -B tools/translate/test_translate.py               # kiểm thử (không cần model, không cần mạng)
 ```

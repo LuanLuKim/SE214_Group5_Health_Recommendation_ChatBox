@@ -1,10 +1,12 @@
-"""LLM post-editor: fuses the machine drafts of each line into the final Vietnamese line.
+"""LLM translator, in one of two modes.
 
-The LLM never works alone. For every source line it receives the drafts of the
-MT engines and must return exactly one Vietnamese line per source line; the
-quality gate then checks numbers, localisation and how well a draft supports
-the result. A line that fails is sent back once with the list of problems and
-otherwise replaced by the engines' consensus.
+``fusion``: the LLM post-edits the drafts of the MT engines into the final Vietnamese line.
+``direct``: the LLM translates every line from the English source alone (no MT drafts).
+
+In both modes it returns exactly one Vietnamese line per source line; the quality gate then
+checks numbers, localisation and meaning. A line that fails is sent back once with the list of
+problems. In fusion mode a line that still fails is replaced by the engines' consensus; in direct
+mode there is no consensus, so the line stays and the chunk goes to a reviewer.
 
 Bring your own OpenAI-compatible endpoint, as for the review scripts of
 tools/normalize; nothing is preset and the key is never written to a file:
@@ -25,6 +27,8 @@ from urllib.request import Request, urlopen
 from .glossary import Rules
 
 PROMPT_VERSION = "fusion-2"
+DIRECT_PROMPT_VERSION = "direct-1"
+MODES = ("fusion", "direct")
 STOP_STATUS = {401, 402, 403, 429}  # auth, quota, rate limit: stop and keep what is done
 
 
@@ -90,8 +94,11 @@ def _table(rows: list[dict[str, str]]) -> str:
     return "\n".join(f"- {row['en']} -> {row['vi']}" for row in rows)
 
 
-def system_prompt(rules: Rules) -> str:
-    return f"""You are the final editor of an English -> Vietnamese translation of public health information (NHS and \
+def prompt_version(mode: str = "fusion") -> str:
+    return DIRECT_PROMPT_VERSION if mode == "direct" else PROMPT_VERSION
+
+
+_FUSION_INTRO = """You are the final editor of an English -> Vietnamese translation of public health information (NHS and \
 WHO pages) for ordinary readers in Viet Nam. A chatbot will quote these texts, so they must be exact.
 
 Input: a JSON array of items. Each item has "id", "title", "section", optional "medicine_names", and "lines".
@@ -100,7 +107,22 @@ and they were made from a source in which UK services were already replaced). So
 earlier answer) and "problems" (what an automatic check found in it): fix exactly those problems.
 
 For every line write ONE Vietnamese line. Use the drafts as raw material: keep what is right, fix what is wrong, \
-and follow the source when the drafts disagree with it.
+and follow the source when the drafts disagree with it."""
+
+_DIRECT_INTRO = """You are a medical translator. Translate public health information (NHS and WHO pages) from English \
+into Vietnamese for ordinary readers in Viet Nam. A chatbot will quote these texts, so they must be exact.
+
+Input: a JSON array of items. Each item has "id", "title", "section", optional "medicine_names", and "lines".
+Each line has "en" (the source line). Some items carry "previous" (your earlier answer) and "problems" (what an \
+automatic check found in it): fix exactly those problems and keep the rest.
+
+Translate every line yourself from the English source. Read the whole item first so terms, ages and references \
+stay the same from line to line, then write ONE Vietnamese line per source line."""
+
+
+def system_prompt(rules: Rules, mode: str = "fusion") -> str:
+    intro = _DIRECT_INTRO if mode == "direct" else _FUSION_INTRO
+    return intro + f"""
 
 Rules
 1. Faithful: add nothing, drop nothing, never weaken or strengthen a warning. Do not explain, do not summarise. \
@@ -132,10 +154,14 @@ Answer ONLY a JSON array, one object per item, same ids, "vi" with exactly as ma
 [{{"id": "...", "vi": ["...", "..."]}}]"""
 
 
-def build_item(unit: Any, previous: list[str] | None = None, problems: list[str] | None = None) -> dict[str, Any]:
-    """LLM view of one unit: source lines with their distinct machine drafts."""
-    lines = []
+def build_item(unit: Any, previous: list[str] | None = None, problems: list[str] | None = None,
+               mode: str = "fusion") -> dict[str, Any]:
+    """LLM view of one unit: source lines, with their distinct machine drafts in fusion mode."""
+    lines: list[dict[str, Any]] = []
     for i, body in enumerate(unit.bodies):
+        if mode == "direct":
+            lines.append({"en": body})
+            continue
         drafts: list[str] = []
         for engine_lines in unit.drafts.values():
             if engine_lines[i] and engine_lines[i] not in drafts:

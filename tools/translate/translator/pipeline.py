@@ -2,7 +2,8 @@
 
   1. ``build_units``       chunks (and loose strings: titles, headings) become units of aligned lines
   2. ``machine_translate`` every engine translates the unique segments once (cached, resumable)
-  3. ``refine``            the LLM writes the final line from the drafts (optional, cached)
+  3. ``refine``            the LLM writes the final line from the drafts (mode ``fusion``) or translates
+                           the English line itself (mode ``direct``, no engines needed); optional, cached
      ``verify``            the LLM, as a reviewer, lists meaning changes; one repair, one re-check
   4. ``finalise``          gate per line; a failing LLM line falls back to the engines' consensus;
                            lines a human reviewer corrected replace the machine line
@@ -27,7 +28,7 @@ from .cache import JsonlCache, digest
 from .consensus import pick, support
 from .glossary import Rules, find_names, name_kept
 from .quality import Issue, QualityReport, check_line, check_quality
-from .refine import PROMPT_VERSION, LLMClient, Stop, build_item, parse_answer, system_prompt
+from .refine import LLMClient, Stop, build_item, parse_answer, prompt_version, system_prompt
 from .segments import harmonise, split_marker, split_sentences
 from .verify import VERIFY_VERSION, build_check_item, parse_findings, verify_prompt
 
@@ -141,7 +142,9 @@ def machine_translate(units: list[Unit], engines: list[Any], cache_dir: Path, ru
         stats[engine.key] = {"model_id": engine.model_id, "segments": len(unique), "translated_now": len(todo),
                              "seconds": round(time.perf_counter() - started, 1)}
     for unit in units:
-        if unit.drafts:
+        if not engines:
+            unit.kept_names = list(unit.hint_names)  # no drafts to vote: keep every index name
+        elif unit.drafts:
             needed = len(unit.drafts) / 2
             unit.kept_names = [name for name in unit.hint_names
                                if sum(name_kept(name, "\n".join(d)) for d in unit.drafts.values()) > needed]
@@ -232,9 +235,10 @@ def _run_batches(jobs: list[tuple[Unit, dict[str, Any]]], cache: JsonlCache,
     return got
 
 
-def _fusion_cache(client: LLMClient, rules: Rules, cache_dir: Path) -> tuple[str, JsonlCache]:
-    system = system_prompt(rules)
-    return system, JsonlCache(Path(cache_dir) / "llm.jsonl", digest(client.model, client.effort, PROMPT_VERSION, system))
+def _fusion_cache(client: LLMClient, rules: Rules, cache_dir: Path, mode: str = "fusion") -> tuple[str, JsonlCache]:
+    system = system_prompt(rules, mode)
+    name = "llm_direct.jsonl" if mode == "direct" else "llm.jsonl"
+    return system, JsonlCache(Path(cache_dir) / name, digest(client.model, client.effort, prompt_version(mode), system))
 
 
 def _fusion_ask(client: LLMClient, system: str) -> Callable[[list[dict[str, Any]], list[Unit]], dict[str, list[str]]]:
@@ -250,21 +254,24 @@ def _lines_valid(unit: Unit, cached: Any) -> bool:
 
 def refine(units: list[Unit], client: LLMClient, rules: Rules, cache_dir: Path, llm_settings: dict[str, Any],
            quality_settings: dict[str, Any] | None = None, log: Log = print,
-           max_requests: int = 0) -> tuple[dict[str, list[str]], dict[str, Any]]:
+           max_requests: int = 0, mode: str = "fusion") -> tuple[dict[str, list[str]], dict[str, Any]]:
     """LLM lines per unit id (only units that were answered well) and statistics.
+
+    ``mode`` ``fusion`` post-edits the engines' drafts; ``direct`` translates from the source only.
 
     Stops quietly on rate limit / quota: what is done is cached, the rest is
     left to the consensus and picked up by the next run.
     """
-    system, cache = _fusion_cache(client, rules, cache_dir)
+    system, cache = _fusion_cache(client, rules, cache_dir, mode)
     ask = _fusion_ask(client, system)
-    stats: dict[str, Any] = {"model": client.model, "requests": 0, "cached_units": 0, "answered_units": 0,
-                             "repaired_units": 0, "stopped": ""}
+    stats: dict[str, Any] = {"model": client.model, "mode": mode, "prompt_version": prompt_version(mode),
+                             "requests": 0, "cached_units": 0, "answered_units": 0, "repaired_units": 0,
+                             "stopped": ""}
 
     def run_round(jobs: list[tuple[Unit, dict[str, Any]]], label: str) -> dict[str, list[str]]:
         return _run_batches(jobs, cache, ask, _lines_valid, llm_settings, stats, log, label, max_requests)
 
-    results: dict[str, list[str]] = dict(run_round([(u, build_item(u)) for u in units], "fusion"))
+    results: dict[str, list[str]] = dict(run_round([(u, build_item(u, mode=mode)) for u in units], mode))
     stats["answered_units"] = len(results)
 
     by_id = {u.id: u for u in units}
@@ -275,7 +282,8 @@ def refine(units: list[Unit], client: LLMClient, rules: Rules, cache_dir: Path, 
         for unit_id, bodies in results.items():
             problems = _problems(by_id[unit_id], bodies, rules, quality_settings)
             if problems:
-                jobs.append((by_id[unit_id], build_item(by_id[unit_id], previous=bodies, problems=problems)))
+                jobs.append((by_id[unit_id], build_item(by_id[unit_id], previous=bodies, problems=problems,
+                                                        mode=mode)))
         if not jobs:
             break
         repaired = run_round(jobs, "repair")
@@ -291,7 +299,8 @@ def refine(units: list[Unit], client: LLMClient, rules: Rules, cache_dir: Path, 
 
 def verify(units: list[Unit], results: dict[str, list[str]], client: LLMClient, rules: Rules, cache_dir: Path,
            llm_settings: dict[str, Any], quality_settings: dict[str, Any] | None = None, log: Log = print,
-           max_requests: int = 0) -> tuple[dict[str, list[str]], dict[str, list[Issue]], dict[str, Any]]:
+           max_requests: int = 0, mode: str = "fusion"
+           ) -> tuple[dict[str, list[str]], dict[str, list[Issue]], dict[str, Any]]:
     """LLM meaning check of the post-edited lines, one repair, a second check of what was repaired.
 
     Returns the lines (repaired where the repair kept the hard checks as good as before), the
@@ -301,7 +310,7 @@ def verify(units: list[Unit], results: dict[str, list[str]], client: LLMClient, 
     check_system = verify_prompt(rules)
     check_cache = JsonlCache(Path(cache_dir) / "llm_verify.jsonl",
                              digest(client.model, client.effort, VERIFY_VERSION, check_system))
-    fusion_system, fusion_cache = _fusion_cache(client, rules, cache_dir)
+    fusion_system, fusion_cache = _fusion_cache(client, rules, cache_dir, mode)
     stats: dict[str, Any] = {"model": client.model, "version": VERIFY_VERSION, "requests": 0, "cached_units": 0,
                              "checked_units": 0, "units_with_problems": 0, "problems": 0, "repaired_units": 0,
                              "flagged_units": 0, "stopped": ""}
@@ -327,7 +336,7 @@ def verify(units: list[Unit], results: dict[str, list[str]], client: LLMClient, 
 
     jobs = [(by_id[uid], build_item(by_id[uid], previous=out[uid],
                                     problems=described(problems) + _problems(by_id[uid], out[uid], rules,
-                                                                             quality_settings)))
+                                                                             quality_settings), mode=mode))
             for uid, problems in found.items()]
     repaired = _run_batches(jobs, fusion_cache, _fusion_ask(client, fusion_system), _lines_valid, llm_settings, stats,
                             log, "meaning repair", max_requests) if jobs else {}
