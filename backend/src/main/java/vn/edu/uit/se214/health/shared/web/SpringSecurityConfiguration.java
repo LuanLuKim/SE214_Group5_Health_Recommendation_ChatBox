@@ -142,23 +142,30 @@ public class SpringSecurityConfiguration {
                     "/api/v1/knowledge/articles",
                     "/api/v1/knowledge/articles/*/submit",
                     "/api/v1/knowledge/templates",
-                    "/api/v1/knowledge/templates/*/submit",
-                    "/api/v1/knowledge/reviews/*/decision")
+                    "/api/v1/knowledge/templates/*/submit")
                 .hasAuthority("PERM_CONTENT_MANAGE")
                 .requestMatchers(
                     HttpMethod.PATCH,
                     "/api/v1/knowledge/articles/*",
-                    "/api/v1/knowledge/templates/*",
-                    "/api/v1/knowledge/feedback/*")
+                    "/api/v1/knowledge/templates/*")
                 .hasAuthority("PERM_CONTENT_MANAGE")
                 .requestMatchers(
                     HttpMethod.DELETE, "/api/v1/knowledge/articles/*", "/api/v1/knowledge/templates/*")
                 .hasAuthority("PERM_CONTENT_MANAGE")
                 .requestMatchers(
+                    HttpMethod.POST,
+                    "/api/v1/knowledge/reviews/*/decision")
+                .hasAuthority("PERM_CONTENT_REVIEW")
+                .requestMatchers(
+                    HttpMethod.PATCH,
+                    "/api/v1/knowledge/feedback/*")
+                .hasAuthority("PERM_CONTENT_REVIEW")
+                .requestMatchers(
                     HttpMethod.GET,
-                    "/api/v1/knowledge/authoring/**",
                     "/api/v1/knowledge/reviews",
                     "/api/v1/knowledge/feedback")
+                .hasAuthority("PERM_CONTENT_REVIEW")
+                .requestMatchers(HttpMethod.GET, "/api/v1/knowledge/authoring/**")
                 .hasAuthority("PERM_CONTENT_MANAGE")
                 .requestMatchers(HttpMethod.GET, "/api/v1/health/statistics")
                 .hasAuthority("PERM_SYSTEM_STATS_VIEW")

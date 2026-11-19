@@ -22,8 +22,9 @@ import vn.edu.uit.se214.health.system.ModuleDescriptor;
 import vn.edu.uit.se214.health.system.ModuleRegistry;
 
 /**
- * M2 – UC-10, UC-11, UC-17. Public search is open; the shared review queue (UC-17, both the M1 and M2
- * parts) and feedback require CONTENT_MANAGE. UC-15 authoring is in {@code authoring.ContentAuthoringController}.
+ * M2 – UC-10, UC-11, UC-17. Public search is open; UC-15 authoring is in
+ * {@code authoring.ContentAuthoringController}. The shared review queue (UC-17, both M1 and M2)
+ * and feedback require CONTENT_REVIEW.
  */
 @RestController
 @RequestMapping("/api/v1/knowledge")

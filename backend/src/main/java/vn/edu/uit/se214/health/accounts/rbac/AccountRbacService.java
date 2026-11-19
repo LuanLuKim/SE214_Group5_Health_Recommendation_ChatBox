@@ -128,6 +128,8 @@ public class AccountRbacService {
         repository
             .findUserStatus(targetId, true)
             .orElseThrow(() -> notFound("USER_NOT_FOUND", "Không tìm thấy tài khoản."));
+    if (!previousStatus.equals(nextStatus) && hasRole(targetId, "ADMIN"))
+      requirePermission("PERM_ADMIN_ROLE_MANAGE");
     if (actor.equals(targetId) && "LOCKED".equals(nextStatus))
       throw conflict("SELF_LOCK_FORBIDDEN", "Không thể khóa tài khoản quản trị đang sử dụng.");
     if ("LOCKED".equals(nextStatus)
@@ -161,17 +163,28 @@ public class AccountRbacService {
     List<String> nextRoles = normalizeKeys(request.roles(), ROLE_KEY, 20, "vai trò");
 
     repository.lockAdminRole();
-    if (repository.findUserStatus(targetId, true).isEmpty())
-      throw notFound("USER_NOT_FOUND", "Không tìm thấy tài khoản.");
+    String previousStatus =
+        repository
+            .findUserStatus(targetId, true)
+            .orElseThrow(() -> notFound("USER_NOT_FOUND", "Không tìm thấy tài khoản."));
     if (!repository.allRolesExist(nextRoles))
       throw notFound("ROLE_NOT_FOUND", "Danh sách có vai trò không tồn tại.");
     List<String> previousRoles = repository.findUserRoles(targetId);
-    if (actor.equals(targetId) && !nextRoles.contains("ADMIN"))
+    boolean rolesChanged = !previousRoles.equals(nextRoles);
+    if (rolesChanged
+        && (previousRoles.contains("ADMIN") || nextRoles.contains("ADMIN")))
+      requirePermission("PERM_ADMIN_ROLE_MANAGE");
+    if (previousRoles.contains("CONTENT_EXPERT") != nextRoles.contains("CONTENT_EXPERT"))
+      requirePermission("PERM_CONTENT_EXPERT_ROLE_MANAGE");
+    if (actor.equals(targetId) && previousRoles.contains("ADMIN") && !nextRoles.contains("ADMIN"))
       throw conflict("SELF_ADMIN_REVOKE_FORBIDDEN", "Không thể tự thu hồi vai trò quản trị.");
-    if (previousRoles.contains("ADMIN")
-        && !nextRoles.contains("ADMIN")
-        && repository.countAdmins() <= 1) {
-      throw conflict("LAST_ADMIN", "Không thể thu hồi vai trò của quản trị viên cuối cùng.");
+    if (previousRoles.contains("ADMIN") && !nextRoles.contains("ADMIN")) {
+      if (repository.countAdmins() <= 1)
+        throw conflict("LAST_ADMIN", "Không thể thu hồi vai trò của quản trị viên cuối cùng.");
+      if ("ACTIVE".equals(previousStatus) && repository.countActiveAdmins() <= 1)
+        throw conflict(
+            "LAST_ACTIVE_ADMIN",
+            "Không thể thu hồi vai trò của quản trị viên đang hoạt động cuối cùng.");
     }
 
     if (!previousRoles.equals(nextRoles)) {
@@ -531,8 +544,11 @@ public class AccountRbacService {
             "ACCOUNT_LOGIN",
             "ACCOUNT_SELF_MANAGE",
             "CONTENT_MANAGE",
+            "CONTENT_REVIEW",
+            "CONTENT_EXPERT_ROLE_MANAGE",
             "SAFETY_RULE_MANAGE",
             "USER_MANAGE",
+            "ADMIN_ROLE_MANAGE",
             "SYSTEM_STATS_VIEW",
             "RBAC_MANAGE")
         .contains(key);

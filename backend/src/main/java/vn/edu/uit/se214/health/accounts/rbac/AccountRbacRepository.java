@@ -36,14 +36,6 @@ public class AccountRbacRepository {
         .single();
   }
 
-  public boolean userExists(UUID userId) {
-    return jdbc
-        .sql("SELECT EXISTS (SELECT 1 FROM accounts.users WHERE id = :userId)")
-        .param("userId", userId)
-        .query(Boolean.class)
-        .single();
-  }
-
   public List<String> findAuthorities(UUID userId) {
     return jdbc
         .sql(
