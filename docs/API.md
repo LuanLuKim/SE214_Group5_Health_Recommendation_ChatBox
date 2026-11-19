@@ -149,6 +149,18 @@ Response trả cả trường nội dung lẫn `id`, `reviewStatus`, `verifiedAt
 
 Dữ liệu crawler của M7 (`db_row`, snake_case) không phải body API: các cột mới có giá trị mặc định nên lệnh nạp hiện có vẫn chạy, bài nạp vào là `DRAFT`, `createdBy = null`, không có ngày xác minh (`fetched_at` không phải ngày xác minh). M6 đọc mẫu `APPROVED` trực tiếp từ `lifestyle.templates` như trước.
 
+### M3 – UC-04 Quản lý hồ sơ sức khỏe
+
+| Route                  | Hành vi                                                                                                                                                                                 |
+| ---------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| GET `/health/profile`  | Hồ sơ của chính người dùng: chiều cao, cân nặng mới nhất, tuổi, giới tính, dị ứng và BMI. Chưa có hồ sơ: các trường `null`, dị ứng rỗng, `bmi = null` (A2)                           |
+| PUT `/health/profile`  | Thay toàn bộ hồ sơ (idempotent: gửi lặp không tạo bản ghi trùng). Ghi cân nặng vào `health.daily_metrics` của hôm nay (giờ Việt Nam), giữ nguyên số giờ ngủ đã có. Trả hồ sơ đọc lại từ DB |
+| DELETE `/health/profile` | Xóa hồ sơ của chính người dùng; dữ liệu theo dõi hằng ngày (UC-05) được giữ. Không cần consent để người dùng đã rút đồng ý vẫn xóa được                                              |
+
+Body PUT: `heightCm` (số, 50–250), `weightKg` (số, 20–300), `age` (số nguyên, 18–120), `sex` (`FEMALE`, `MALE`, `OTHER`, `UNSPECIFIED`) đều bắt buộc; `foodAllergies` tùy chọn (tối đa 20 mục, mỗi mục 1–50 ký tự; được cắt khoảng trắng, đổi chữ thường và bỏ trùng). Đọc và lưu cần consent xử lý dữ liệu sức khỏe mới nhất (A1). Kiểu dữ liệu: `HealthProfile`, `HealthProfileInput` trong `packages/contracts`.
+
+Lỗi: 403 `HEALTH_CONSENT_REQUIRED` (A1), 400 `HEALTH_PROFILE_INVALID` (A3: thông báo nêu tên từng trường sai hoặc thiếu, không lặp lại giá trị), 500 `HEALTH_PROFILE_SAVE_FAILED` (A4: ghi trong một transaction nên hồ sơ cũ còn nguyên, thử lại được), 503 `HEALTH_UNAVAILABLE` (chế độ không có cơ sở dữ liệu).
+
 ### M6 – UC-13 Theo dõi thói quen
 
 Đã chạy ở `DATA_MODE=postgres` (mock trả 503 `AUTH_NOT_CONFIGURED`). User là chủ của access token; "hôm nay" là ngày theo múi giờ `LIFESTYLE_ZONE` (mặc định `Asia/Ho_Chi_Minh`), qua nửa đêm giờ đó là sang ngày mới. Kiểu dữ liệu: `TodayPlan`, `CompletionResult` trong `packages/contracts`.
