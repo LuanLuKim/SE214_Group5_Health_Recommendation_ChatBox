@@ -1,0 +1,13 @@
+# DATA_MODE=postgres: dùng PostgreSQL, Flyway chạy migration trong database/migrations khi khởi động.
+spring:
+  autoconfigure:
+    exclude: []
+  datasource:
+    url: ${DATABASE_URL:jdbc:postgresql://127.0.0.1:5432/health_assistant}
+    username: ${DATABASE_USER:health_dev}
+    password: ${DATABASE_PASSWORD:local_dev_only}
+    hikari:
+      maximum-pool-size: 5
+      connection-timeout: 5000
+  flyway:
+    locations: filesystem:${app.database-dir}/migrations

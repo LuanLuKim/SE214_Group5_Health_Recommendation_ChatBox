@@ -1,0 +1,511 @@
+{
+  "project": "SE214",
+  "title": "Test đợt 1",
+  "date": "2026-11-16",
+  "timezone": "Asia/Ho_Chi_Minh",
+  "tested_commit": "f6751fe7a99166349cf4f1d24fa4aba6b4b0c188",
+  "tests_in_repo": {
+    "package": "backend/src/test/java/vn/edu/uit/se214/health/audit/",
+    "readme": "backend/src/test/java/vn/edu/uit/se214/health/audit/README.md",
+    "note": "14 ca ngoài M6 nằm trong gói audit; 26 ca M6 dẫn tới test tương ứng trên main (docs/reviews/m6-test-round-2.md)."
+  },
+  "environment": {
+    "backend": "Spring Boot",
+    "jdk": 21,
+    "database": "Embedded PostgreSQL",
+    "data": "Synthetic fixtures"
+  },
+  "runs": {
+    "previous_audit": {
+      "total": 23,
+      "passed": 17,
+      "failed": 6,
+      "errors": 0,
+      "skipped": 0
+    },
+    "new_audit": {
+      "total": 17,
+      "passed": 15,
+      "failed": 2,
+      "errors": 0,
+      "skipped": 0,
+      "exit_code": 1
+    },
+    "all_audit": {
+      "total": 40,
+      "passed": 32,
+      "failed": 8,
+      "errors": 0,
+      "skipped": 0
+    },
+    "baseline": {
+      "total": 146,
+      "passed": 146,
+      "failed": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "maven_verify": {
+      "total": 186,
+      "passed": 178,
+      "failed": 8,
+      "errors": 0,
+      "skipped": 0,
+      "exit_code": 1,
+      "stopped_at": "Surefire"
+    }
+  },
+  "cases": [
+    {
+      "id": "06-01",
+      "use_case": "UC06",
+      "round": 2,
+      "junit_test": "audit.BackendAuditRound1Test#chatWithoutConfiguredAiStreamsFailureAndKeepsOnlyUserTurn",
+      "steps": "Để URL dịch vụ AI trống. Gửi tin nhắn mới vào phiên mẫu qua API SSE.",
+      "expected": "HTTP 200 mở SSE. Nhận `AI_SERVICE_UNAVAILABLE` rồi `FAILED`. PostgreSQL chỉ thêm tin nhắn của người dùng.",
+      "actual": "HTTP 200 SSE trả `AI_SERVICE_UNAVAILABLE` và `FAILED`. Phiên có thêm đúng một tin nhắn role `user`.",
+      "result": "PASS"
+    },
+    {
+      "id": "08-01",
+      "use_case": "UC08",
+      "round": 1,
+      "junit_test": "audit.ChatFeedbackServiceAuditTest#feedbackOnlyAcceptsAssistantAnswers",
+      "steps": "Gọi `ChatService.submitFeedback` bằng ID của tin nhắn role `user` trong phiên chính chủ.",
+      "expected": "Service từ chối và ném `ApiException`.",
+      "actual": "Service hoàn tất mà không ném ngoại lệ.",
+      "result": "FAIL",
+      "notes": "Cùng lỗi với 08-02. Service kiểm tra quyền sở hữu phiên nhưng chưa kiểm tra role tin nhắn.",
+      "tracking": {
+        "github": "#152",
+        "jira": "SCRUM-156",
+        "status": "Mở"
+      }
+    },
+    {
+      "id": "08-02",
+      "use_case": "UC08",
+      "round": 1,
+      "junit_test": "audit.BackendAuditRound1Test#feedbackApiRejectsUserMessageWithoutSaving",
+      "steps": "Gửi `POST /api/v1/chat/messages/{id}/feedback` cho tin nhắn role `user` trong phiên chính chủ.",
+      "expected": "HTTP 4xx và 0 bản ghi phản hồi cho yêu cầu.",
+      "actual": "API trả HTTP 200. PostgreSQL có 1 dòng phản hồi theo ghi chú kiểm thử.",
+      "result": "FAIL",
+      "notes": "Tái hiện lỗi UC08 qua cả API lẫn PostgreSQL. Hợp đồng hiện chưa quy định mã 4xx cụ thể cho role sai.",
+      "tracking": {
+        "github": "#152",
+        "jira": "SCRUM-156",
+        "status": "Mở"
+      }
+    },
+    {
+      "id": "08-03",
+      "use_case": "UC08",
+      "round": 1,
+      "junit_test": "audit.BackendAuditRound1Test#feedbackOnAnswerWithOptInSavesSnapshot",
+      "steps": "Đánh giá tin nhắn role `assistant` với `shareConversation=true`.",
+      "expected": "HTTP 200. Phản hồi API và đúng một bản ghi PostgreSQL chứa cặp hỏi–đáp đã đồng ý chia sẻ.",
+      "actual": "HTTP 200. API và đúng một bản ghi PostgreSQL chứa cùng câu hỏi và câu trả lời giả lập.",
+      "result": "PASS"
+    },
+    {
+      "id": "08-04",
+      "use_case": "UC08",
+      "round": 1,
+      "junit_test": "audit.BackendAuditRound1Test#feedbackWithoutOptInDoesNotStoreConversation",
+      "steps": "Đánh giá câu trả lời với `shareConversation=false`.",
+      "expected": "HTTP 200. Lưu ghi chú và để hai cột hội thoại là NULL.",
+      "actual": "HTTP 200, API không có nội dung hội thoại và cả hai cột PostgreSQL đều NULL.",
+      "result": "PASS"
+    },
+    {
+      "id": "08-05",
+      "use_case": "UC08",
+      "round": 1,
+      "junit_test": "audit.BackendAuditRound1Test#feedbackFromAnotherAccountDoesNotWrite",
+      "steps": "Dùng tài khoản khác gửi phản hồi cho câu trả lời trong phiên của người dùng mẫu.",
+      "expected": "HTTP 404 `NOT_FOUND` và 0 bản ghi phản hồi cho yêu cầu.",
+      "actual": "HTTP 404 `NOT_FOUND`. PostgreSQL có 0 bản ghi theo ghi chú kiểm thử.",
+      "result": "PASS"
+    },
+    {
+      "id": "08-06",
+      "use_case": "UC08",
+      "round": 2,
+      "junit_test": "audit.BackendAuditRound1Test#feedbackForEarlierAnswerExcludesLaterTurns",
+      "steps": "Thêm lượt hỏi–đáp mới vào phiên rồi đánh giá câu trả lời ở lượt trước với tùy chọn chia sẻ.",
+      "expected": "HTTP 200. API và PostgreSQL lưu đúng cặp hỏi–đáp của lượt được đánh giá.",
+      "actual": "HTTP 200. API và PostgreSQL chứa đúng câu hỏi và câu trả lời của lượt trước.",
+      "result": "PASS"
+    },
+    {
+      "id": "08-07",
+      "use_case": "UC08",
+      "round": 2,
+      "junit_test": "audit.BackendAuditRound1Test#optInForAnswerWithoutPrecedingQuestionReturnsClientError",
+      "steps": "Thêm một câu trả lời lịch sử trước tin nhắn đầu tiên của người dùng rồi gửi phản hồi với `shareConversation=true`.",
+      "expected": "API xử lý dữ liệu thiếu bằng 4xx có kiểm soát. PostgreSQL ghi 0 phản hồi.",
+      "actual": "HTTP 500 `INTERNAL_ERROR`. PostgreSQL có 0 phản hồi mới vì từ chối thao tác ghi.",
+      "result": "FAIL",
+      "notes": "Ứng dụng thử lưu câu trả lời với `shared_question=NULL`. Ràng buộc `feedback_check` yêu cầu cả hai trường cùng có giá trị hoặc cùng NULL. Mã 4xx là kỳ vọng kiểm thử cho trường hợp đính kèm không thực hiện được.",
+      "tracking": {
+        "github": "#153",
+        "jira": "SCRUM-157",
+        "status": "Mở"
+      }
+    },
+    {
+      "id": "09-01",
+      "use_case": "UC08–09",
+      "round": 1,
+      "junit_test": "audit.BackendAuditRound1Test#deletingSessionCascadesMessagesAndKeepsAnonymousFeedback",
+      "steps": "Đánh giá có đính kèm, xóa phiên rồi thử đọc lại và đánh giá lại câu trả lời.",
+      "expected": "Xóa trả 200. Đọc lại và đánh giá lại trả 404. Không còn phiên/tin nhắn, bản chụp phản hồi ẩn danh cũ vẫn còn.",
+      "actual": "Xóa trả 200, đọc và đánh giá lại trả 404. Hai bảng phiên/tin nhắn có 0 dòng tương ứng. Bản chụp cũ còn và không có phản hồi mới.",
+      "result": "PASS"
+    },
+    {
+      "id": "10-01",
+      "use_case": "UC10",
+      "round": 1,
+      "junit_test": "audit.BackendAuditRound1Test#retiringAnArticleRemovesItFromListAndDetail",
+      "steps": "Xem bài đang công khai, đổi trạng thái sang `RETIRED`, gọi lại danh sách và chi tiết.",
+      "expected": "Chi tiết trả 404 `NOT_FOUND`. Danh sách trả 200 và có tổng 0.",
+      "actual": "Chi tiết trả 404 `NOT_FOUND`. Danh sách trả 200 với tổng 0.",
+      "result": "PASS"
+    },
+    {
+      "id": "10-02",
+      "use_case": "UC10",
+      "round": 2,
+      "junit_test": "audit.BackendAuditRound1Test#approvingArticleAloneDoesNotPublishUntilSourceIsVerified",
+      "steps": "Tạo bài nháp chưa xác minh. Đổi trạng thái sang `APPROVED`, sau đó mới đặt `verified_at`.",
+      "expected": "Phê duyệt khi nguồn chưa xác minh vẫn cho danh sách rỗng và chi tiết 404. Sau xác minh, danh sách và chi tiết thấy bài, nguồn có ngày xác minh.",
+      "actual": "Sau phê duyệt, danh sách vẫn có tổng 0 và chi tiết trả 404. Sau xác minh, danh sách có 1 bài, chi tiết trả 200 và `verifiedAt=2026-11-16T10:00:00.000Z`.",
+      "result": "PASS"
+    },
+    {
+      "id": "11-01",
+      "use_case": "UC11",
+      "round": 1,
+      "junit_test": "audit.BackendAuditRound1Test#revokingFacilityVerificationImmediatelyHidesIt",
+      "steps": "Tìm cơ sở giả lập theo tên, bỏ `verified_at` rồi tìm lại cùng truy vấn.",
+      "expected": "Trước khi bỏ xác minh thấy đúng cơ sở. Sau khi bỏ, HTTP 200 với danh sách rỗng.",
+      "actual": "Tìm thấy cơ sở trước khi bỏ xác minh. Truy vấn sau trả HTTP 200 và danh sách rỗng.",
+      "result": "PASS"
+    },
+    {
+      "id": "11-02",
+      "use_case": "UC11",
+      "round": 2,
+      "junit_test": "audit.BackendAuditRound1Test#facilityLimitIsAppliedAfterVerificationFilter",
+      "steps": "Tạo 22 cơ sở cùng khớp từ khóa, trong đó bản ghi sắp xếp đầu tiên chưa xác minh.",
+      "expected": "HTTP 200. Trả 20 cơ sở đã xác minh theo thứ tự tên, từ `01` đến `20`.",
+      "actual": "HTTP 200 với 20 bản ghi đã xác minh. Bản ghi đầu là `01`, bản ghi cuối là `20`.",
+      "result": "PASS"
+    },
+    {
+      "id": "12-01",
+      "use_case": "UC12",
+      "round": 1,
+      "junit_test": "lifestyle.LifestylePlanApiTest#consentIsCheckedAgainAtConfirmation",
+      "steps": "Xem trước mẫu B khi đang dùng A, thu hồi đồng ý xử lý dữ liệu sức khỏe trước khi xác nhận B.",
+      "expected": "HTTP 403 `HEALTH_CONSENT_REQUIRED`. PostgreSQL giữ A đang hoạt động.",
+      "actual": "HTTP 403 `HEALTH_CONSENT_REQUIRED`. PostgreSQL giữ A đang hoạt động.",
+      "result": "PASS"
+    },
+    {
+      "id": "12-02",
+      "use_case": "UC12",
+      "round": 1,
+      "junit_test": "lifestyle.LifestylePlanApiTest#aTemplateRetiredAfterPreviewCannotBeApplied",
+      "steps": "Xem trước mẫu B rồi chuyển B sang `RETIRED` trước khi xác nhận.",
+      "expected": "HTTP 404 `LIFESTYLE_TEMPLATE_NOT_FOUND`. API đọc lại vẫn trả lộ trình A.",
+      "actual": "HTTP 404 `LIFESTYLE_TEMPLATE_NOT_FOUND`. GET lộ trình vẫn trả A.",
+      "result": "PASS"
+    },
+    {
+      "id": "12-03",
+      "use_case": "UC12",
+      "round": 1,
+      "junit_test": "lifestyle.LifestylePlanApiTest#anAllergyAddedAfterPreviewBlocksConfirmation",
+      "steps": "Xem trước mẫu có tác nhân đậu phộng rồi cập nhật hồ sơ dị ứng đậu phộng trước khi xác nhận.",
+      "expected": "HTTP 409 `TEMPLATE_HAS_ALLERGEN`. Giữ A đang hoạt động và không tạo lộ trình từ mẫu bị chặn.",
+      "actual": "HTTP 409 `TEMPLATE_HAS_ALLERGEN`. PostgreSQL giữ A và có 0 lộ trình từ mẫu bị chặn.",
+      "result": "PASS"
+    },
+    {
+      "id": "12-04",
+      "use_case": "UC12",
+      "round": 1,
+      "junit_test": "lifestyle.LifestylePlanApiTest#twoConfirmationsAtOnceLeaveOneActivePlan",
+      "steps": "Gửi hai `PUT /api/v1/lifestyle/plan` đổi từ A sang cùng mẫu B. Giữ khóa A đến lúc PostgreSQL báo cả hai truy vấn đang chờ.",
+      "expected": "Một HTTP 200 `changed=true` với ID lộ trình đúng, một HTTP 409 `LIFESTYLE_PLAN_CONFLICT`. Cơ sở dữ liệu có B đang hoạt động và A trong lịch sử.",
+      "actual": "Cả hai câu SQL cùng chờ khóa A. Sau khi mở khóa, một request trả 200 với ID B và ID A trước đó, request còn lại trả 409 đúng mã. PostgreSQL có đúng hai dòng, một đang hoạt động.",
+      "result": "PASS"
+    },
+    {
+      "id": "12-05",
+      "use_case": "UC12",
+      "round": 2,
+      "junit_test": "lifestyle.LifestylePlanApiTest#removingARequiredProfileAfterPreviewBlocksConfirmation",
+      "steps": "Xem trước mẫu yêu cầu hồ sơ sức khỏe rồi xóa hồ sơ trước khi xác nhận.",
+      "expected": "HTTP 409 `HEALTH_PROFILE_REQUIRED`. Giữ lộ trình đang dùng và không tạo lộ trình từ mẫu bị chặn.",
+      "actual": "HTTP 409 `HEALTH_PROFILE_REQUIRED`. PostgreSQL giữ lộ trình đang dùng và có 0 lộ trình từ mẫu bị chặn.",
+      "result": "PASS"
+    },
+    {
+      "id": "12-06",
+      "use_case": "UC12–13",
+      "round": 2,
+      "junit_test": "lifestyle.LifestylePlanApiTest#confirmingTheActivePlanAgainKeepsItAndItsProgress",
+      "steps": "Đánh dấu một hoạt động hoàn thành rồi xác nhận lại mẫu đang dùng.",
+      "expected": "HTTP 200 với `changed=false`, giữ ID lộ trình và tiến độ. Không thêm dòng lộ trình hoặc dòng hoàn thành.",
+      "actual": "HTTP 200, `changed=false`, giữ nguyên ID. Trạng thái hoạt động vẫn hoàn thành, tổng dòng lộ trình không tăng và có đúng 1 dòng hoàn thành.",
+      "result": "PASS"
+    },
+    {
+      "id": "13-01",
+      "use_case": "UC12–13",
+      "round": 1,
+      "junit_test": "lifestyle.LifestylePlanApiTest#afterASwitchAnOldActivityCannotBeMarked",
+      "steps": "Đánh dấu hoạt động của A, chuyển sang B rồi thử đánh dấu lại hoạt động chỉ có trong A.",
+      "expected": "HTTP 404 `ACTIVITY_NOT_IN_PLAN`. Bản ghi hoàn thành cũ còn đúng một dòng.",
+      "actual": "HTTP 404 `ACTIVITY_NOT_IN_PLAN`. Dòng hoàn thành của A vẫn còn đúng một.",
+      "result": "PASS"
+    },
+    {
+      "id": "13-02",
+      "use_case": "UC12–13",
+      "round": 1,
+      "junit_test": "lifestyle.LifestylePlanApiTest#completionsDoNotCarryOverToAPlanWithTheSameActivityId",
+      "steps": "Cho A và B cùng có mã `sleep-time`. Hoàn thành trên A, chuyển sang B rồi đánh dấu lại cùng ngày.",
+      "expected": "B báo chưa hoàn thành trước khi đánh dấu. Sau đó PostgreSQL có hai dòng, mỗi lộ trình một dòng.",
+      "actual": "API của B trả `completed=false` trước khi đánh dấu. Sau đó có đúng hai dòng hoàn thành, ứng với hai lộ trình.",
+      "result": "PASS"
+    },
+    {
+      "id": "13-03",
+      "use_case": "UC13",
+      "round": 2,
+      "junit_test": "lifestyle.LifestyleApiTest#yesterdayCanBeMarkedButNotUnmarked",
+      "steps": "Đánh dấu hoàn thành cho ngày hôm qua. Đọc tiến độ hôm nay rồi yêu cầu bỏ đánh dấu hôm qua.",
+      "expected": "PUT trả 200 cho ngày hôm qua. Hôm nay vẫn chưa làm, chuỗi từ hôm qua là 1. DELETE trả 409 `COMPLETION_LOCKED`, dòng hôm qua còn.",
+      "actual": "PUT trả 200 cho ngày hôm qua. Hôm nay vẫn `completed=false`, `planStreak=1`. DELETE trả 409 và ngày trong PostgreSQL vẫn là hôm qua.",
+      "result": "PASS"
+    },
+    {
+      "id": "13-04",
+      "use_case": "UC13",
+      "round": 2,
+      "junit_test": "lifestyle.LifestyleApiTest#twoMarksAtOnceStoreOneRow",
+      "steps": "Khởi chạy hai yêu cầu PUT đánh dấu cùng hoạt động và cùng ngày từ hai luồng bắt đầu qua cùng một điểm đồng bộ.",
+      "expected": "Cả hai trả 200 với trạng thái hoàn thành. PostgreSQL chỉ có một dòng.",
+      "actual": "Cả hai HTTP 200 với một hoạt động hoàn thành. PostgreSQL có đúng 1 dòng.",
+      "result": "PASS"
+    },
+    {
+      "id": "14-01",
+      "use_case": "UC14",
+      "round": 1,
+      "junit_test": "lifestyle.ReminderDispatcherTest#aFailedSendIsNotRetriedAfterTheTimeIsChanged",
+      "steps": "Cho lượt 07:00 thất bại, sửa lịch thành 08:00 lúc 07:00:30, chạy worker lúc 07:01.",
+      "expected": "Số lượt gửi theo lịch cũ bằng 0.",
+      "actual": "Worker báo đã gửi 1 lượt lúc 07:01.",
+      "result": "FAIL",
+      "notes": "Bản ghi retry theo lịch cũ còn được chọn sau khi cấu hình giờ đổi.",
+      "tracking": {
+        "github": "#154",
+        "jira": "SCRUM-158",
+        "status": "Mở"
+      }
+    },
+    {
+      "id": "14-02",
+      "use_case": "UC14",
+      "round": 1,
+      "junit_test": "lifestyle.ReminderDispatcherTest#aRetryWriteFailureDoesNotStopOtherReminders",
+      "steps": "Dùng trigger gây lỗi khi ghi `SENT` cho lượt retry. Chuẩn bị một nhắc khác đến hạn cùng chu kỳ.",
+      "expected": "`runOnce()` hoàn tất và nhắc khác vẫn được gửi.",
+      "actual": "`UncategorizedSQLException` thoát khỏi `runOnce()` tại câu UPDATE `SENT` do trigger. Worker dừng trước vòng lặp gửi các nhắc mới.",
+      "result": "FAIL",
+      "notes": "Vòng lặp retry thiếu xử lý lỗi theo từng lượt. Trace chỉ ra lỗi PostgreSQL giả lập tại `markSent`.",
+      "tracking": {
+        "github": "PR #151",
+        "jira": "SCRUM-160",
+        "status": "Đã sửa"
+      }
+    },
+    {
+      "id": "14-03",
+      "use_case": "UC12–14",
+      "round": 1,
+      "junit_test": "lifestyle.LifestyleReminderApiTest#aReminderOfAnActivityTheNewPlanLacksIsNotSent",
+      "steps": "Tạo nhắc cho hoạt động trong A, đổi sang B rồi chạy worker ở giờ nhắc.",
+      "expected": "Theo giả định bàn giao, 0 lượt gửi cho nhắc gắn hoạt động cũ.",
+      "actual": "Worker gửi 1 lượt. JUnit báo fail với giả định 0 lượt.",
+      "result": "FAIL",
+      "expectation_pending": true,
+      "notes": "Đặc tả API chưa quy định nhắc gắn hoạt động sẽ tự dừng khi đổi lộ trình. Cần chốt kỳ vọng nghiệp vụ.",
+      "tracking": {
+        "github": "#156",
+        "jira": "SCRUM-161",
+        "status": "Mở"
+      }
+    },
+    {
+      "id": "14-04",
+      "use_case": "UC14",
+      "round": 1,
+      "junit_test": "lifestyle.LifestyleReminderApiTest#turningOffAfterAFailedSendStopsTheRetry",
+      "steps": "Sau một lần gửi giả lập thất bại, gọi `PATCH` với `enabled=false` rồi chạy worker sau một phút.",
+      "expected": "HTTP 200, `enabled=false`, không có `nextSendAt`. Không gửi lại và dòng `FAILED` vẫn giữ 1 lần thử.",
+      "actual": "PATCH trả 200 với `enabled=false` và không có `nextSendAt`. Worker trả 0 gửi, 0 lỗi. PostgreSQL lưu nhắc đã tắt và dòng giao nhận không đổi.",
+      "result": "PASS"
+    },
+    {
+      "id": "14-05",
+      "use_case": "UC14",
+      "round": 1,
+      "junit_test": "lifestyle.ReminderDispatcherTest#twoWorkersClaimTheSameRetryOnce",
+      "steps": "Hai worker trên hai luồng cùng đọc dòng `FAILED` rồi đợi nhau ngay trước câu SQL claim.",
+      "expected": "Kết quả worker là một lượt gửi và một lượt bỏ qua. Kênh giả chỉ nhận một lần. Cùng ID dòng chuyển sang `SENT`, 2 lần thử.",
+      "actual": "Hai worker trả lần lượt theo kết quả là 1 gửi và 0 gửi. Kênh giả ghi đúng một lần. Dòng cũ thành `SENT`, 2 lần thử, có `sent_at` và đã xóa mã lỗi.",
+      "result": "PASS"
+    },
+    {
+      "id": "14-06",
+      "use_case": "UC14",
+      "round": 1,
+      "junit_test": "lifestyle.LifestyleReminderApiTest#deletingAfterAFailedSendRemovesTheRetry",
+      "steps": "Xóa nhắc qua API sau lần gửi đầu thất bại, chạy lại worker trong cửa sổ retry.",
+      "expected": "HTTP 200. Nhắc và dòng giao nhận bị xóa, kênh giả không ghi nhận gửi lại.",
+      "actual": "DELETE trả 200. PostgreSQL còn 0 dòng nhắc và giao nhận tương ứng. Worker trả 0 gửi, 0 lỗi.",
+      "result": "PASS"
+    },
+    {
+      "id": "14-07",
+      "use_case": "UC14",
+      "round": 1,
+      "junit_test": "lifestyle.ReminderDispatcherTest#aFailedSendIsNotRetriedAfterTheWindow",
+      "steps": "Cho lần gửi đầu thất bại. Chạy worker sau đúng 10 phút 1 giây.",
+      "expected": "Không retry ngoài cửa sổ 10 phút. Dòng vẫn `FAILED`, 1 lần thử và giữ mã lỗi.",
+      "actual": "Worker trả 0 gửi, 0 lỗi. Dòng còn `FAILED`, 1 lần thử, mã `TEST_FAILURE`.",
+      "result": "PASS"
+    },
+    {
+      "id": "14-08",
+      "use_case": "UC14",
+      "round": 1,
+      "junit_test": "lifestyle.ReminderDispatcherTest#turningOffBetweenReadingAndClaimingStopsTheRetry",
+      "steps": "Tắt nhắc trong PostgreSQL ngay sau khi worker đã đọc danh sách retry và trước khi nó claim.",
+      "expected": "Sau khi đã tắt, claim không gửi lại và dòng vẫn `FAILED`, 1 lần thử.",
+      "actual": "Nhắc đã lưu `enabled=false` nhưng worker gửi 1 lượt. PostgreSQL chuyển dòng cũ sang `SENT`, 2 lần thử.",
+      "result": "FAIL",
+      "notes": "Phát hiện mới. `retryable` lọc cờ bật ở bước đọc, còn `claimRetry` chỉ kiểm tra trạng thái dòng và số lần thử.",
+      "tracking": {
+        "github": "#155",
+        "jira": "SCRUM-159",
+        "status": "Mở"
+      }
+    },
+    {
+      "id": "14-09",
+      "use_case": "UC14",
+      "round": 1,
+      "junit_test": "lifestyle.ReminderDispatcherTest#aRepeatedLocalTimeAtDstFallbackIsSentOnce",
+      "steps": "Hẹn 01:30 Chủ nhật tại `America/New_York`. Chạy ở cả hai thời điểm UTC cùng ánh xạ tới 01:30 ngày đổi giờ.",
+      "expected": "Chỉ gửi ở lần 01:30 sớm hơn. Có đúng một dòng PostgreSQL với `scheduled_for=05:30Z`.",
+      "actual": "Kênh giả ghi một lần tại 05:30Z và không ghi tại 06:30Z. PostgreSQL có đúng một dòng theo giờ 05:30Z.",
+      "result": "PASS",
+      "notes": "Quy ước kiểm thử chọn lần xuất hiện sớm hơn của cùng giờ địa phương."
+    },
+    {
+      "id": "14-10",
+      "use_case": "UC12–14",
+      "round": 2,
+      "junit_test": "lifestyle.LifestyleReminderApiTest#aReminderWithoutActivityIsStillSentAfterASwitch",
+      "steps": "Tạo nhắc độc lập rồi chuyển sang mẫu lộ trình khác. Chạy worker đến giờ nhắc.",
+      "expected": "Nhắc vẫn gửi đúng một lần. PostgreSQL có một dòng `SENT`, số lần thử là 1.",
+      "actual": "API xác nhận mẫu mới. Nhắc độc lập vẫn gửi đúng 1 lần, PostgreSQL ghi `SENT` với số lần thử là 1.",
+      "result": "PASS"
+    },
+    {
+      "id": "14-11",
+      "use_case": "UC14",
+      "round": 2,
+      "junit_test": "lifestyle.LifestyleReminderApiTest#unlinkingTheActivityKeepsContentAndState",
+      "steps": "Tạo nhắc gắn hoạt động rồi PATCH `activityId=null`.",
+      "expected": "HTTP 200. Xóa liên kết hoạt động, giữ nội dung và cờ bật. API vẫn có giờ gửi kế tiếp.",
+      "actual": "HTTP 200. `activity_id` là NULL. Nội dung và cờ bật giữ nguyên, API vẫn có giờ gửi kế tiếp.",
+      "result": "PASS"
+    },
+    {
+      "id": "14-12",
+      "use_case": "UC14",
+      "round": 2,
+      "junit_test": "lifestyle.LifestyleReminderApiTest#theLimitIsPerUserAndCountsRemindersTheUserTurnedOff",
+      "steps": "Đưa tài khoản A lên 20 nhắc, gồm các nhắc đã tắt. Yêu cầu tạo thêm cho A và cho B.",
+      "expected": "A nhận 409 `REMINDER_LIMIT_REACHED` và giữ nguyên 20 nhắc. B nhận 201 và chỉ B tăng một dòng.",
+      "actual": "A nhận 409 đúng mã và vẫn có 20 nhắc. B nhận 201 và tăng đúng 1 dòng.",
+      "result": "PASS"
+    },
+    {
+      "id": "14-13",
+      "use_case": "UC14",
+      "round": 2,
+      "junit_test": "lifestyle.ReminderDispatcherTest#aFailedSendIsNotRetriedAfterTurningOffAndOnAgain",
+      "steps": "Lượt 07:00 thất bại. Tắt nhắc lúc 07:00:15, bật lại lúc 07:00:45 và chạy worker lúc 07:01.",
+      "expected": "Không gửi lượt có giờ trước lần lưu cấu hình mới. Dòng cũ vẫn `FAILED`, số lần thử là 1.",
+      "actual": "Worker gửi 1 lượt lúc 07:01. Dòng cũ chuyển sang `SENT`, số lần thử là 2.",
+      "result": "FAIL",
+      "notes": "Truy vấn retry dùng cờ bật hiện tại và tuổi lượt gửi, thiếu đối chiếu `scheduled_for` với thời điểm lưu cấu hình. Cùng nhóm lỗi với 14-01.",
+      "tracking": {
+        "github": "#154",
+        "jira": "SCRUM-158",
+        "status": "Mở"
+      }
+    },
+    {
+      "id": "14-14",
+      "use_case": "UC14",
+      "round": 2,
+      "junit_test": "lifestyle.ReminderDispatcherTest#yesterdaysFailureDoesNotBlockTodaysSend",
+      "steps": "Lượt 07:00 ngày đầu thất bại. Chạy lại worker vào 07:00 ngày kế tiếp.",
+      "expected": "Gửi lượt mới đúng một lần. Lượt ngày đầu giữ `FAILED`, lượt ngày sau là `SENT`.",
+      "actual": "Worker chỉ gửi lượt ngày sau. PostgreSQL có hai dòng theo hai giờ hẹn, trạng thái lần lượt `FAILED`, `SENT`, mỗi dòng 1 lần thử.",
+      "result": "PASS"
+    },
+    {
+      "id": "14-15",
+      "use_case": "UC14",
+      "round": 2,
+      "junit_test": "lifestyle.ReminderDispatcherTest#aFailedSentWriteIsNotSentTwice",
+      "steps": "Dùng trigger gây lỗi ghi `SENT` cho lượt gửi đầu của A sau khi kênh giả lập đã nhận. B đến hạn cùng chu kỳ. Chạy thêm một chu kỳ.",
+      "expected": "Worker tiếp tục gửi B. Chu kỳ sau không gửi trùng A. PostgreSQL giữ A `PENDING`, B `SENT`.",
+      "actual": "Chu kỳ đầu ghi nhận 1 thành công và 1 lỗi, kênh giả lập nhận mỗi người đúng một lượt. Chu kỳ sau trả 0 gửi, 0 lỗi. Dòng A `PENDING`, B `SENT`.",
+      "result": "PASS",
+      "notes": "Trong ca giả lập này, dòng `PENDING` còn lại sau khi kênh đã nhận lượt A và thao tác ghi `SENT` thất bại."
+    },
+    {
+      "id": "14-16",
+      "use_case": "UC14",
+      "round": 2,
+      "junit_test": "lifestyle.ReminderDispatcherTest#aSkippedLocalTimeAtDstSpringForwardIsSentOnceLater",
+      "steps": "Hẹn 02:30 tại `America/New_York` ngày đồng hồ nhảy qua giờ đó. Chạy trước, đúng và sau 07:30Z.",
+      "expected": "Lượt được dời đến 03:30 địa phương, tương ứng 07:30Z, và chỉ ghi một dòng gửi.",
+      "actual": "Không gửi trước 07:30Z. Gửi một lượt đúng 07:30Z, không gửi lại sau 1 phút. PostgreSQL có một dòng với `scheduled_for=07:30Z`.",
+      "result": "PASS"
+    },
+    {
+      "id": "18-01",
+      "use_case": "UC18",
+      "round": 2,
+      "junit_test": "audit.BackendAuditRound1Test#roleRevocationTakesEffectWithSameAccessCookie",
+      "steps": "Dùng cùng access cookie gọi API quản trị trước khi cấp quyền, sau khi cấp role và sau khi thu hồi role.",
+      "expected": "HTTP lần lượt 403, 200, 403 `ACCESS_DENIED`. PostgreSQL chỉ giữ role gốc `CONTENT_EXPERT`.",
+      "actual": "Cùng cookie nhận 403, 200, rồi 403 `ACCESS_DENIED`. PostgreSQL chỉ còn `CONTENT_EXPERT`.",
+      "result": "PASS"
+    }
+  ]
+}

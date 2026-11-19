@@ -20,3 +20,8 @@ __pycache__/
 .pytest_cache/
 playwright-report/
 test-results/
+
+# Java / Python build output
+target/
+.venv/
+venv/
