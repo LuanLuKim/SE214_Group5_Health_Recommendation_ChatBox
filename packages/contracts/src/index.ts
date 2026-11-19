@@ -273,6 +273,27 @@ export interface CompletionResult {
   streak: number;
   progress: DailyProgress;
 }
+// M3 UC-04: GET/PUT /health/profile. weightKg is the latest weight in daily_metrics; PUT also records
+// today's weight there. Without a profile the fields are null and bmi is null (no BMI without height and weight).
+export type HealthSex = 'FEMALE' | 'MALE' | 'OTHER' | 'UNSPECIFIED';
+export interface HealthProfile {
+  heightCm: number | null;
+  weightKg: number | null;
+  weightRecordedOn: string | null;
+  age: number | null;
+  sex: HealthSex | null;
+  foodAllergies: string[];
+  bmi: number | null;
+  bmiNote: string | null;
+}
+// PUT body: heightCm 50-250, weightKg 20-300, age 18-120, sex required; foodAllergies optional (max 20 items).
+export interface HealthProfileInput {
+  heightCm: number;
+  weightKg: number;
+  age: number;
+  sex: HealthSex;
+  foodAllergies?: string[];
+}
 // M6 UC-12: only approved templates; the server checks consent, allergies and profile again on apply.
 export type LifestyleGoal = 'SLEEP' | 'MAINTAIN' | 'GAIN' | 'LOSE';
 export interface TemplateSummary {
