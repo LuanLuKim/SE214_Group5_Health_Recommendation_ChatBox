@@ -29,6 +29,16 @@ DEFAULT_RULES = HERE.parent / "localisation.json"
 _NUMBER = re.compile(r"(?<!\d)(?<!\d[.,])\d{1,3}(?: \d{3})+(?!\d|[.,]\d)|\d+(?:[.,]\d+)*")
 _NAME_BEFORE = re.compile(r"[A-Za-z]-$")
 _ORDINAL = re.compile(r"\b\d+(?:st|nd|rd|th)\b", re.I)
+_CLOCK = re.compile(r"\b(\d{1,2})(?:[.:](\d{2}))?\s?([ap])\.?m\b", re.I)
+
+
+def _clock_24h(text: str) -> str:
+    """'3pm' -> '15 ', '11am' -> '11 ': Vietnamese writes clock times in the 24-hour form (3pm = 15 giờ)."""
+    def hour(m: re.Match) -> str:
+        h = int(m.group(1))
+        h = h + 12 if m.group(3).lower() == "p" and 1 <= h <= 11 else h
+        return f"{h}:{m.group(2)} " if m.group(2) else f"{h} "
+    return _CLOCK.sub(hour, text)
 _WORD = re.compile(r"[A-Za-z]+")
 _LETTERS = re.compile(r"[^\W\d_]+")
 
@@ -199,7 +209,7 @@ class Rules:
         ``number_map`` renames (999 -> 115) or removes (111) localised numbers.
         """
         required: set[str] = set()
-        for match in _NUMBER.finditer(_ORDINAL.sub(" ", source)):
+        for match in _NUMBER.finditer(_ORDINAL.sub(" ", _clock_24h(source))):
             number = source_value(match.group(0))
             mapped = self.number_map.get(number, number)
             if mapped is not None:
@@ -279,6 +289,8 @@ class Rules:
             token = match.group(0)
             if not re.search(r"[.,]", token):
                 return token
+            if match.start() and target[match.start() - 1].isalpha():
+                return token  # part of a code or identifier (WHA74.8), not a quantity
             readings = {source_value(token)} if token in source_tokens else number_values(token) & wanted
             if len(readings) != 1:
                 return token

@@ -39,7 +39,7 @@ from translator.glossary import (  # noqa: E402
 from translator.pipeline import (  # noqa: E402
     Unit, build_units, consensus_lines, engine_statistics, finalise, machine_translate, refine, verify)
 from translator.quality import HARD_CHECKS, Issue, check_line, check_quality, count_bullets  # noqa: E402
-from translator.refine import LLMClient, Stop, build_item, parse_answer, system_prompt  # noqa: E402
+from translator.refine import DIRECT_PROMPT_VERSION, LLMClient, Stop, build_item, parse_answer, system_prompt  # noqa: E402
 from translator.segments import harmonise, split_marker, split_sentences  # noqa: E402
 from translator.verify import PROBLEM_TYPES, build_check_item, parse_findings, verify_prompt  # noqa: E402
 
@@ -388,6 +388,13 @@ class TestLocaliseNumbers(unittest.TestCase):
 
     def test_section_numbers_are_left_alone(self):
         self.assertEqual(self.fix("see section 3.2.1", "xem mục 3.2.1"), "xem mục 3.2.1")
+
+    def test_codes_keep_their_dot(self):
+        # REGRESSION (SCRUM-148, sample of 40 of run 3): resolution WHA74.8 was written WHA74,8
+        self.assertEqual(self.fix("• WHA74.8: The highest attainable standard of health",
+                                  "• WHA74.8: Tiêu chuẩn sức khỏe cao nhất có thể đạt được"),
+                         "• WHA74.8: Tiêu chuẩn sức khỏe cao nhất có thể đạt được")
+        self.assertEqual(self.fix("1.5 mg", "1.5 mg"), "1,5 mg")
 
     def test_ambiguous_token_is_left_alone(self):
         # source has 1.5 and 1500; '1.500' was not copied from it, so its reading is unknown
@@ -1723,7 +1730,34 @@ class TestMeaningChecks(unittest.TestCase):
          "Rối loạn dinh dưỡng › Các dạng rối loạn dinh dưỡng", "malnutrition"),
         ("It's offered on the NHS every year in autumn.", "Vắc-xin này được cung cấp hằng năm vào mùa thu.",
          "Vắc-xin này được NHS cung cấp hằng năm vào mùa thu.", "NHS kept"),
+        # sample of 40 of run 3 (vn-7)
+        ("Deafness and hearing loss", "Điếc và mất thính lực", "Điếc và giảm thính lực", "hearing loss"),
+        ("Cardiovascular diseases (CVDs) › Characteristics of rheumatic heart disease",
+         "Bệnh tim mạch (CVDs) › Đặc điểm của bệnh tim do thấp khớp",
+         "Bệnh tim mạch (CVDs) › Đặc điểm của bệnh tim do thấp", "rheumatic heart disease"),
+        ("In North America and Europe, human papillomavirus infections are responsible for a growing percentage.",
+         "Ở Bắc Mỹ và châu Âu, nhiễm vi-rút papilloma ở người (HPV) gây ra tỷ lệ ngày càng tăng.",
+         "Ở Bắc Mỹ và châu Âu, nhiễm vi-rút u nhú ở người (HPV) gây ra tỷ lệ ngày càng tăng.", "HPV"),
+        ("• The global target is a 15% relative reduction in physical inactivity among adults.",
+         "• Mục tiêu toàn cầu là giảm tương đối 15% tình trạng không hoạt động thể chất ở người lớn.",
+         "• Mục tiêu toàn cầu là giảm tương đối 15% tình trạng thiếu hoạt động thể chất ở người lớn.",
+         "physical inactivity"),
+        ("• do not share towels, flannels, cutlery or utensils",
+         "• không dùng chung khăn tắm, khăn mặt, dao kéo hoặc dụng cụ ăn uống",
+         "• không dùng chung khăn tắm, khăn mặt, dao, thìa, nĩa hoặc dụng cụ ăn uống", "cutlery"),
+        ("• avoid the sun between 11am and 3pm", "• tránh nắng từ 11am đến 3pm", "• tránh nắng từ 11 giờ đến 15 giờ",
+         "clock time"),
+        ("• hyperbilirubinemia (severe jaundice in the neonatal period)",
+         "• tăng bilirubin máu (vàng da nặng trong giai đoạn sơ sinh)",
+         "• tăng bilirubin máu (vàng da nặng trong giai đoạn dưới 28 ngày tuổi)", "newborn age"),
     ]
+
+    def test_malnutrition_from_poor_sanitation_may_be_suy_dinh_dưỡng(self):
+        # vn-7, user decision 19/11: by context; 'forms of malnutrition' stays rối loạn dinh dưỡng (RETURNED above)
+        self.assertEqual(review(self.line("Poor sanitation also contributes to malnutrition.",
+                                          "Vệ sinh kém cũng góp phần gây suy dinh dưỡng.")), set())
+        self.assertEqual(review(self.line("Poor sanitation also contributes to malnutrition.",
+                                          "Vệ sinh kém cũng góp phần gây rối loạn dinh dưỡng.")), set())
 
     def test_returned_lines_are_flagged_and_accepted_lines_are_not(self):
         for source, returned, accepted, label in self.RETURNED:
@@ -2300,10 +2334,10 @@ class TestRunMain(unittest.TestCase):
         record = self.records()["c-a2"]
         md = record["translation_metadata"]
         self.assertEqual((md["method"], md["model"], md["prompt_version"], md["engines"]),
-                         ("llm_direct", "fake-llm", "direct-1", []))
+                         ("llm_direct", "fake-llm", DIRECT_PROMPT_VERSION, []))
         self.assertIn("115", record["text_vi"])
         summary = self.read_json("summary.json")
-        self.assertEqual((summary["mode"], summary["prompt_version"]), ("direct", "direct-1"))
+        self.assertEqual((summary["mode"], summary["prompt_version"]), ("direct", DIRECT_PROMPT_VERSION))
         self.assertEqual(summary["refiner"]["mode"], "direct")
         self.assertEqual(summary["meaning_check"]["checked_units"], summary["refiner"]["answered_units"])
         # the translator sees only the English lines, never machine drafts

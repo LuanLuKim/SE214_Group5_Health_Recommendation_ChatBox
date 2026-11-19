@@ -26,8 +26,8 @@ from urllib.request import Request, urlopen
 
 from .glossary import Rules
 
-PROMPT_VERSION = "fusion-2"
-DIRECT_PROMPT_VERSION = "direct-1"
+PROMPT_VERSION = "fusion-3"
+DIRECT_PROMPT_VERSION = "direct-2"
 MODES = ("fusion", "direct")
 STOP_STATUS = {401, 402, 403, 429}  # auth, quota, rate limit: stop and keep what is done
 
@@ -107,7 +107,8 @@ and they were made from a source in which UK services were already replaced). So
 earlier answer) and "problems" (what an automatic check found in it): fix exactly those problems.
 
 For every line write ONE Vietnamese line. Use the drafts as raw material: keep what is right, fix what is wrong, \
-and follow the source when the drafts disagree with it."""
+and follow the source when the drafts disagree with it. When a draft already has the right meaning and the preferred \
+terms below, keep its wording: change words only to fix an error or to apply the tables."""
 
 _DIRECT_INTRO = """You are a medical translator. Translate public health information (NHS and WHO pages) from English \
 into Vietnamese for ordinary readers in Viet Nam. A chatbot will quote these texts, so they must be exact.
@@ -127,7 +128,11 @@ def system_prompt(rules: Rules, mode: str = "fusion") -> str:
 Rules
 1. Faithful: add nothing, drop nothing, never weaken or strengthen a warning. Do not explain, do not summarise. \
 Human reviewers returned lines for these changes of meaning, so check each of them:
-   - negation and conditions: keep every not / never / without / unless / if / except
+   - negation and conditions: keep every not / never / without / unless / if / except; "not X or Y" means \
+neither X nor Y ("until you've not been sick or had diarrhoea for 2 days" = "cho đến khi đã hết cả nôn và tiêu chảy \
+ít nhất 2 ngày", not "không còn nôn hoặc tiêu chảy")
+   - degree and speed words (sudden, rapid, severe, mild) stay on every word they modify ("sudden growth or weight \
+gain" = "phát triển hoặc tăng cân đột ngột")
    - scope: keep only / any / all / both / either / each on the same words; "any" refers to what the source refers \
 to; never narrow or widen a group ("cut yourself" is any cut, babies are not only newborns)
    - certainty: may / might / can / likely / unlikely / usually keep their strength ("unlikely" = "ít có khả năng")
@@ -135,13 +140,15 @@ to; never narrow or widen a group ("cut yourself" is any cut, babies are not onl
 khỏi nước")
    - route and form: oral is never "tiêm"; keep tablet / pessary / ring / cream / vaginal as in the source
    - names of products stay as written (Aqueous Cream)
-2. Keep every number, dose, unit, age, duration, temperature and percentage exactly as digits; do not convert units.
+2. Keep every number, dose, unit, age, duration, temperature and percentage exactly as digits; do not convert units. \
+Codes and identifiers stay exactly as written (WHA74.8 keeps its dot; ICD-10, YLDs). Clock times use the 24-hour \
+Vietnamese form without changing the time (11am -> 11 giờ, 3pm -> 15 giờ).
 3. One output line per input line, same order. Never merge, split, reorder or skip lines. A heading stays a short \
 heading, a list item stays a list item (no bullet character, no full stop if the source has none).
 4. Medicines: keep the international name of an individual medicine exactly as in the source (paracetamol, \
 ibuprofen...). Translate names of medicine groups (antibiotics -> thuốc kháng sinh). Never replace a name with a brand.
 5. Plain, natural Vietnamese that a patient understands; address the reader as "bạn". No English left except \
-proper names and medicine names.
+proper names and medicine names. A full English sentence becomes a full Vietnamese sentence with a clear subject.
 6. Localise UK services for Viet Nam; what exists only in the UK keeps its UK context:
 {_table(rules.tables.get("service_table", []))}
 7. Ages: say them the way Vietnamese doctors and parents do, never "nhũ nhi" or "trẻ chập chững"; follow the \

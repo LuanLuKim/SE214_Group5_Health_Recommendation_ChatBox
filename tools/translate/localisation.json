@@ -1,5 +1,5 @@
 {
-  "version": "vn-6",
+  "version": "vn-7",
   "comment": "UK -> Viet Nam localisation. Service numbers (999, 111) match only as whole numbers, never inside 1,999 or 9.99; GPs is case-sensitive (GPS is a device). source_rewrites turn UK-only services into neutral English BEFORE machine translation (first match wins per position, rules run in order). forbidden_in_target must never appear in the Vietnamese text; discouraged_in_target only flags the chunk for a human reviewer. The tables are also shown to the LLM post-editor.",
   "source_rewrites": [
     {"pattern": "\\bcall 111 or get help from 111 online\\b", "replace": "contact a doctor or the nearest health facility for advice"},
@@ -80,11 +80,12 @@
     {"en": "pharmacy / local pharmacy / pharmacist", "vi": "nhà thuốc / quầy thuốc / dược sĩ"},
     {"en": "the NHS, NHS services, NHS website or app, UK charities and UK helplines with phone numbers", "vi": "Việt Nam không có dịch vụ tương ứng: giữ tên riêng và số điện thoại đúng như bản gốc, thêm '(tại Anh)' sau tên; không bịa tên dịch vụ hay số điện thoại Việt Nam"},
     {"en": "offered / available / free on the NHS", "vi": "được NHS (tại Anh) cung cấp: không bỏ chủ thể NHS"},
-    {"en": "a UK-only arrangement (buy medicines in supermarkets, pharmacists give antibiotics, refer yourself, age limits of an NHS service)", "vi": "mở câu bằng 'Tại Anh,' hoặc ghi 'dịch vụ NHS tại Anh' để người đọc không hiểu là quy định chung tại Việt Nam"}
+    {"en": "a UK-only arrangement (buy medicines in supermarkets, pharmacists give antibiotics, refer yourself, age limits of an NHS service)", "vi": "mở câu bằng 'Tại Anh,' hoặc ghi 'dịch vụ NHS tại Anh' để người đọc không hiểu là quy định chung tại Việt Nam"},
+    {"en": "a recommendation of the NHS or a UK body (Department of Health and Social Care, UK health departments), including advice tied to UK seasons or climate", "vi": "ghi rõ quốc gia: 'Bộ Y tế và Chăm sóc Xã hội Anh', 'khuyến nghị của NHS tại Anh'; mỗi câu nêu tháng, mùa, liều hoặc nhóm đối tượng của khuyến nghị đó mở bằng 'Tại Anh,' hoặc 'Theo NHS tại Anh,'; giữ nguyên liều, tháng và nhóm tuổi"}
   ],
   "age_table_comment": "user decisions 18/11: words for an age group follow the source word; never 'nhũ nhi', never add an age group or a 28-day limit the source does not give",
   "age_table": [
-    {"en": "newborn / neonate / neonatal", "vi": "trẻ dưới 28 ngày tuổi / sơ sinh (chỉ khi dòng gốc nói newborn, neonate hoặc mốc 28 ngày)"},
+    {"en": "newborn / neonate / neonatal", "vi": "trẻ dưới 28 ngày tuổi (cả trong ngoặc và trong bảng số liệu; không viết 'sơ sinh' trơn); chỉ khi dòng gốc nói newborn, neonate hoặc mốc 28 ngày"},
     {"en": "baby / babies / infant(s) when the age decides the advice (dose, vaccine, feeding, salt, safety, warning signs, an age table)", "vi": "trẻ dưới 1 tuổi (hoặc đúng mốc tuổi mà bài nêu)"},
     {"en": "baby / babies / your baby in an ordinary sentence", "vi": "em bé / trẻ nhỏ"},
     {"en": "infant formula", "vi": "sữa công thức"},
@@ -93,7 +94,7 @@
     {"en": "children under X years / aged X to Y years / over X", "vi": "trẻ dưới X tuổi / trẻ từ X đến Y tuổi / trên X tuổi"},
     {"en": "one source group (babies, infants, children)", "vi": "một nhóm tiếng Việt: không tách thành hai nhóm ('trẻ sơ sinh và trẻ dưới 1 tuổi'), không thu hẹp hay mở rộng nhóm tuổi"}
   ],
-  "terminology_comment": "terms reviewers corrected in SCRUM-148 (79 emergency chunks, sample of 82); also shown to the LLM post-editor",
+  "terminology_comment": "terms reviewers corrected in SCRUM-148 (79 emergency chunks, sample of 82, sample of 40 of run 3); also shown to the LLM post-editor",
   "terminology": [
     {"en": "anaphylaxis", "vi": "phản vệ / sốc phản vệ"},
     {"en": "adrenaline auto-injector", "vi": "bút tiêm adrenaline tự động (không dịch là 'vòi phun' hay 'thuốc tự tiêm')"},
@@ -108,7 +109,9 @@
     {"en": "Do / Don't (headings of advice lists)", "vi": "Nên / Không nên"},
     {"en": "heart attack", "vi": "nhồi máu cơ tim (không viết 'đau tim')"},
     {"en": "fragility fracture", "vi": "gãy xương do chấn thương nhẹ (không đồng nghĩa loãng xương)"},
-    {"en": "malnutrition / undernutrition", "vi": "rối loạn dinh dưỡng (gồm cả thiếu dinh dưỡng, thừa cân, béo phì) / thiếu dinh dưỡng"},
+    {"en": "malnutrition (general, or when overweight and obesity are included)", "vi": "rối loạn dinh dưỡng (gồm cả thiếu dinh dưỡng, thừa cân, béo phì)"},
+    {"en": "malnutrition as a result of hunger, infection, diarrhoea, poor water or sanitation; stunting, wasting", "vi": "suy dinh dưỡng"},
+    {"en": "undernutrition", "vi": "thiếu dinh dưỡng"},
     {"en": "mosquito nets", "vi": "màn chống muỗi"},
     {"en": "mosquito coils / vaporizers", "vi": "nhang muỗi / thiết bị xông thuốc đuổi muỗi"},
     {"en": "artificial tanning devices, sunbeds", "vi": "thiết bị làm rám da bằng tia UV"},
@@ -136,7 +139,18 @@
     {"en": "you cut yourself", "vi": "bạn có vết cắt (không thu hẹp thành 'đứt tay')"},
     {"en": "bringing up food or fluids (heartburn)", "vi": "thức ăn hoặc dịch trào ngược lên (không phải 'nôn ra')"},
     {"en": "when applicable (treatment)", "vi": "khi có chỉ định phù hợp"},
-    {"en": "bypass: blood goes around a blocked artery", "vi": "tạo đường dẫn máu đi vòng qua đoạn động mạch bị tắc"}
+    {"en": "bypass: blood goes around a blocked artery", "vi": "tạo đường dẫn máu đi vòng qua đoạn động mạch bị tắc"},
+    {"en": "hearing loss", "vi": "giảm thính lực (gồm mọi mức độ; không viết 'mất thính lực'); deafness = điếc"},
+    {"en": "rheumatic heart disease", "vi": "bệnh tim do thấp (rheumatic fever vẫn là 'sốt thấp khớp')"},
+    {"en": "human papillomavirus (HPV)", "vi": "vi-rút u nhú ở người (HPV)"},
+    {"en": "physical inactivity / physically inactive", "vi": "thiếu hoạt động thể chất (không đủ mức khuyến nghị, không phải 'không hoạt động')"},
+    {"en": "public health care systems", "vi": "hệ thống y tế công (không phải 'chăm sóc sức khỏe cộng đồng')"},
+    {"en": "cutlery", "vi": "dao, thìa, nĩa (không viết 'dao kéo')"},
+    {"en": "sewerage", "vi": "hệ thống thoát nước thải"},
+    {"en": "well-being (health context)", "vi": "trạng thái an lành / sức khỏe tinh thần (không thu hẹp thành 'hạnh phúc')"},
+    {"en": "heat (topic: heat and health, heatwaves)", "vi": "nắng nóng ('Heat and health' = 'Nắng nóng và sức khỏe')"},
+    {"en": "acne: nodules and cysts", "vi": "mụn cục và mụn nang"},
+    {"en": "ice-pick / boxcar scars", "vi": "sẹo rỗ đáy nhọn / sẹo rỗ đáy vuông"}
   ],
   "units_comment": "a unit of the source line must stay in the Vietnamese line (5 mg -> 5 g changes a dose); hard check; (?<![^\\W\\d_]) = not after a letter, so '2mg' counts",
   "units": [
@@ -173,7 +187,16 @@
     {"label": "oral route", "source": "(?i)\\boral\\b[^.;]{0,40}vaccin|\\bOCV\\b|\\bby mouth\\b|\\bswallow", "unless_source": "(?i)inject", "forbid": "(?i)\\btiêm\\b", "hint": "vắc-xin/thuốc đường uống: dùng 'uống' hoặc 'sử dụng', không dùng 'tiêm'"},
     {"label": "heart attack", "source": "(?i)\\bheart attacks?\\b", "forbid": "(?i)đau tim", "hint": "'heart attack' là nhồi máu cơ tim, không viết 'đau tim'"},
     {"label": "fragility fracture", "source": "(?i)\\bfragility fractures?\\b", "unless_source": "(?i)osteopor", "forbid": "(?i)loãng xương", "hint": "'fragility fracture' là gãy xương do chấn thương nhẹ, không đồng nghĩa loãng xương"},
-    {"label": "malnutrition", "source": "(?i)\\bmalnutrition\\b", "require": "(?i)rối loạn dinh dưỡng", "hint": "'malnutrition' là rối loạn dinh dưỡng (gồm thiếu dinh dưỡng, thừa cân, béo phì)"},
+    {"label": "malnutrition", "source": "(?i)\\bmalnutrition\\b[^.;]{0,80}(?:forms?|overweight|obes|double burden)|(?:forms? of|overweight|obes|double burden)[^.;]{0,80}\\bmalnutrition\\b", "require": "(?i)rối loạn dinh dưỡng", "hint": "'malnutrition' gồm cả thừa cân, béo phì ở đây: viết 'rối loạn dinh dưỡng'"},
+    {"label": "malnutrition (context)", "source": "(?i)\\bmalnutrition\\b", "require": "(?i)rối loạn dinh dưỡng|suy dinh dưỡng", "hint": "'malnutrition' là rối loạn dinh dưỡng; khi là hậu quả của đói, nhiễm trùng, tiêu chảy, nước và vệ sinh kém thì viết 'suy dinh dưỡng'"},
+    {"label": "newborn age", "source": "(?i)\\bnew-?borns?\\b|\\bneonat", "unless_source": "(?i)\\bMNTE\\b|tetanus elimination", "require": "28 ngày", "hint": "'newborn/neonate' là trẻ dưới 28 ngày tuổi: ghi rõ mốc này, không viết 'sơ sinh' trơn"},
+    {"label": "hearing loss", "source": "(?i)\\bhearing loss\\b", "forbid": "(?i)mất thính lực", "hint": "'hearing loss' là giảm thính lực (mọi mức độ), không viết 'mất thính lực'"},
+    {"label": "rheumatic heart disease", "source": "(?i)\\brheumatic heart disease\\b", "forbid": "(?i)bệnh tim do thấp khớp", "hint": "'rheumatic heart disease' là bệnh tim do thấp; 'rheumatic fever' vẫn là sốt thấp khớp"},
+    {"label": "HPV", "source": "(?i)papilloma ?virus", "require": "(?i)u nhú", "hint": "'human papillomavirus' là vi-rút u nhú ở người (HPV)"},
+    {"label": "physical inactivity", "source": "(?i)\\bphysical(?:ly)? inactiv", "forbid": "(?i)không hoạt động thể chất", "hint": "'physical inactivity' là thiếu hoạt động thể chất, không phải 'không hoạt động'"},
+    {"label": "cutlery", "source": "(?i)\\bcutlery\\b", "forbid": "(?i)dao kéo", "hint": "'cutlery' là dao, thìa, nĩa"},
+    {"label": "clock time", "source": "(?i)\\b\\d{1,2}(?:[.:]\\d{2})?\\s?[ap]\\.?m\\b", "forbid": "(?i)\\d\\s?[ap]\\.?m\\b", "hint": "ghi giờ kiểu Việt Nam 24 giờ, không đổi giờ: 11am = 11 giờ, 3pm = 15 giờ"},
+    {"label": "UK health department", "source": "(?i)\\bDepartment of Health\\b|\\bUK health departments?\\b", "require": "Anh", "hint": "khuyến nghị của cơ quan y tế Anh: ghi rõ 'Anh' (Bộ Y tế và Chăm sóc Xã hội Anh), tránh hiểu là cơ quan Việt Nam"},
     {"label": "mosquito nets", "source": "(?i)\\b(?:mosquito |bed ?)nets?\\b", "forbid": "(?i)lưới", "hint": "'mosquito nets' khi ngủ là màn chống muỗi, không phải 'lưới'"},
     {"label": "vaporizers", "source": "(?i)\\bvapori[sz]ers?\\b", "forbid": "(?i)tinh dầu", "hint": "'vaporizers' là thiết bị xông thuốc đuổi muỗi"},
     {"label": "tanning devices", "source": "(?i)\\btanning\\b|\\bsunbeds?\\b", "forbid": "(?i)nhuộm da", "hint": "thiết bị làm rám da bằng tia UV, không phải 'nhuộm da'"},
