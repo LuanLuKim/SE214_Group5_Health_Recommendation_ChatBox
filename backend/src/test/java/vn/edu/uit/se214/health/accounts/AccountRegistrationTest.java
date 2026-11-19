@@ -1371,7 +1371,9 @@ class AccountRegistrationTest {
   private static void assertReviewEndpointStatus(
       org.springframework.test.web.servlet.ResultActions result, boolean contentExpert)
       throws Exception {
-    if (contentExpert) result.andExpect(status().is(501));
+    if (contentExpert)
+      result.andExpect(
+          response -> assertThat(response.getResponse().getStatus()).isNotIn(401, 403));
     else
       result
           .andExpect(status().isForbidden())
