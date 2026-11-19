@@ -15,6 +15,7 @@ import java.sql.Connection;
 import java.sql.Statement;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -98,7 +99,9 @@ class AccountRegistrationTest {
     jdbc.sql("DELETE FROM accounts.users WHERE email LIKE 'uc01-%@example.test'").update();
     jdbc.sql("DELETE FROM accounts.users WHERE email LIKE 'uc02-%@example.test'").update();
     jdbc.sql("DELETE FROM accounts.users WHERE email LIKE 'uc03-%@example.test'").update();
+    jdbc.sql("DELETE FROM accounts.users WHERE email LIKE 'uc18-%@example.test'").update();
     jdbc.sql("DELETE FROM accounts.registration_challenges WHERE email LIKE 'uc01-%@example.test'").update();
+    jdbc.sql("DELETE FROM accounts.roles WHERE role_key LIKE 'UC18_%'").update();
   }
 
   @Test
@@ -752,10 +755,6 @@ class AccountRegistrationTest {
                     .cookie(refresh))
         .andExpect(status().isUnauthorized())
         .andExpect(jsonPath("$.error.code").value("REFRESH_TOKEN_INVALID"));
-    mvc.perform(
-                post("/api/v1/accounts/refresh")
-                    .cookie(refresh))
-        .andExpect(status().isUnauthorized());
     login(email, "correct-password")
         .andExpect(status().isUnauthorized())
         .andExpect(jsonPath("$.error.code").value("LOGIN_FAILED"));
@@ -794,6 +793,158 @@ class AccountRegistrationTest {
                     .cookie(new Cookie("HA_ACCESS", cookieValue(reopened, "HA_ACCESS"))))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.data.email").value(email));
+  }
+
+  @Test
+  void userManagerCannotGrantOrRevokeAdminWithoutAdminRolePermission() throws Exception {
+    UUID managerId = insertAccount("uc18-user-manager@example.test", null);
+    createTestRole("UC18_USER_MANAGER", List.of("USER_MANAGE"));
+    replaceRoles(managerId, "UC18_USER_MANAGER");
+    UUID regularUserId = insertAccount("uc18-regular@example.test", null);
+    UUID adminId = insertAccount("uc18-admin@example.test", null);
+    replaceRoles(adminId, "ADMIN");
+    UUID expertTargetId = insertAccount("uc18-expert-target@example.test", null);
+    Cookie managerAccess = accessCookie(managerId);
+
+    putUserRoles(managerAccess, regularUserId, "[\"USER\",\"ADMIN\"]")
+        .andExpect(status().isForbidden())
+        .andExpect(jsonPath("$.error.code").value("ACCESS_DENIED"));
+    putUserRoles(managerAccess, adminId, "[\"USER\"]")
+        .andExpect(status().isForbidden())
+        .andExpect(jsonPath("$.error.code").value("ACCESS_DENIED"));
+    mvc.perform(
+            org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                .patch("/api/v1/accounts/users/" + adminId + "/status")
+                .cookie(managerAccess, new Cookie("XSRF-TOKEN", csrfToken))
+                .header("X-XSRF-TOKEN", csrfToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"status\":\"LOCKED\"}"))
+        .andExpect(status().isForbidden())
+        .andExpect(jsonPath("$.error.code").value("ACCESS_DENIED"));
+    putUserRoles(managerAccess, expertTargetId, "[\"CONTENT_EXPERT\",\"USER\"]")
+        .andExpect(status().isForbidden())
+        .andExpect(jsonPath("$.error.code").value("ACCESS_DENIED"));
+
+    assertThat(userRoles(regularUserId)).containsExactly("USER");
+    assertThat(userRoles(adminId)).containsExactly("ADMIN");
+    assertThat(
+            jdbc.sql("SELECT status FROM accounts.users WHERE id = :id")
+                .param("id", adminId)
+                .query(String.class)
+                .single())
+        .isEqualTo("ACTIVE");
+    assertThat(userRoles(expertTargetId)).containsExactly("USER");
+  }
+
+  @Test
+  void adminRoleChangesRequireDedicatedPermissionAndAreAudited() throws Exception {
+    UUID adminId = insertAccount("uc18-authorized-admin@example.test", null);
+    replaceRoles(adminId, "ADMIN");
+    UUID targetId = insertAccount("uc18-role-target@example.test", null);
+    Cookie adminAccess = accessCookie(adminId);
+
+    putUserRoles(adminAccess, targetId, "[\"USER\",\"ADMIN\"]")
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.data.roles").isArray());
+    putUserRoles(adminAccess, targetId, "[\"USER\"]")
+        .andExpect(status().isOk());
+
+    assertThat(
+            jdbc.sql(
+                    """
+                    SELECT count(*) FROM accounts.admin_audit_logs
+                    WHERE actor_user_id = :actor AND target_id = :target
+                      AND action = 'USER_ROLES_CHANGED'
+                    """)
+                .param("actor", adminId)
+                .param("target", targetId.toString())
+                .query(Integer.class)
+                .single())
+        .isEqualTo(2);
+    assertThat(userRoles(targetId)).containsExactly("USER");
+  }
+
+  @Test
+  void revokingAdminFromLastActiveAdminIsBlockedEvenIfAnotherAdminIsLocked() throws Exception {
+    UUID managerId = insertAccount("uc18-admin-role-manager@example.test", null);
+    createTestRole(
+        "UC18_ADMIN_ROLE_MANAGER", List.of("USER_MANAGE", "ADMIN_ROLE_MANAGE"));
+    replaceRoles(managerId, "UC18_ADMIN_ROLE_MANAGER");
+    UUID activeAdminId = insertAccount("uc18-active-admin@example.test", null);
+    replaceRoles(activeAdminId, "ADMIN");
+    UUID lockedAdminId = insertAccount("uc18-locked-admin@example.test", null, "LOCKED");
+    replaceRoles(lockedAdminId, "ADMIN");
+
+    putUserRoles(accessCookie(managerId), activeAdminId, "[\"USER\"]")
+        .andExpect(status().isConflict())
+        .andExpect(jsonPath("$.error.code").value("LAST_ACTIVE_ADMIN"));
+
+    assertThat(userRoles(activeAdminId)).containsExactly("ADMIN");
+  }
+
+  @Test
+  void adminDoesNotInheritContentReviewOrFeedbackAccess() throws Exception {
+    UUID adminId = insertAccount("uc18-content-admin@example.test", null);
+    replaceRoles(adminId, "ADMIN");
+    UUID expertId = insertAccount("uc18-content-expert@example.test", null);
+    replaceRoles(expertId, "CONTENT_EXPERT");
+
+    assertReviewEndpointStatus(
+        mvc.perform(
+            org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                .get("/api/v1/knowledge/reviews")
+                .cookie(accessCookie(adminId))),
+        false);
+    assertReviewEndpointStatus(
+        mvc.perform(
+            org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                .get("/api/v1/knowledge/reviews")
+                .cookie(accessCookie(expertId))),
+        true);
+    assertReviewEndpointStatus(
+        mvc.perform(
+            org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                .get("/api/v1/knowledge/feedback")
+                .cookie(accessCookie(adminId))),
+        false);
+    assertReviewEndpointStatus(
+        mvc.perform(
+            org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                .get("/api/v1/knowledge/feedback")
+                .cookie(accessCookie(expertId))),
+        true);
+    assertReviewEndpointStatus(
+        mvc.perform(
+            post("/api/v1/knowledge/reviews/example/decision")
+                .cookie(accessCookie(adminId))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{}")),
+        false);
+    assertReviewEndpointStatus(
+        mvc.perform(
+            post("/api/v1/knowledge/reviews/example/decision")
+                .cookie(accessCookie(expertId))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{}")),
+        true);
+    assertReviewEndpointStatus(
+        mvc.perform(
+            org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                .patch("/api/v1/knowledge/feedback/example")
+                .cookie(accessCookie(adminId), new Cookie("XSRF-TOKEN", csrfToken))
+                .header("X-XSRF-TOKEN", csrfToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{}")),
+        false);
+    assertReviewEndpointStatus(
+        mvc.perform(
+            org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                .patch("/api/v1/knowledge/feedback/example")
+                .cookie(accessCookie(expertId), new Cookie("XSRF-TOKEN", csrfToken))
+                .header("X-XSRF-TOKEN", csrfToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{}")),
+        true);
   }
 
   @Test
@@ -1166,5 +1317,66 @@ class AccountRegistrationTest {
          "nonDiagnosticAcknowledged":%s,"adultConfirmed":%s,"termsVersion":"%s"}
         """
         .formatted(accepted, accepted, accepted, adult, version);
+  }
+
+  private void createTestRole(String key, List<String> permissions) {
+    jdbc.sql("INSERT INTO accounts.roles (role_key, name) VALUES (:key, :name)")
+        .param("key", key)
+        .param("name", key)
+        .update();
+    for (String permission : permissions) {
+      jdbc.sql(
+              "INSERT INTO accounts.role_permissions (role_key, permission_key) VALUES (:role, :permission)")
+          .param("role", key)
+          .param("permission", permission)
+          .update();
+    }
+  }
+
+  private void replaceRoles(UUID userId, String... roles) {
+    jdbc.sql("DELETE FROM accounts.user_roles WHERE user_id = :userId")
+        .param("userId", userId)
+        .update();
+    for (String role : roles) {
+      jdbc.sql("INSERT INTO accounts.user_roles (user_id, role) VALUES (:userId, :role)")
+          .param("userId", userId)
+          .param("role", role)
+          .update();
+    }
+  }
+
+  private List<String> userRoles(UUID userId) {
+    return jdbc.sql("SELECT role FROM accounts.user_roles WHERE user_id = :userId ORDER BY role")
+        .param("userId", userId)
+        .query(String.class)
+        .list();
+  }
+
+  private Cookie accessCookie(UUID userId) {
+    return new Cookie(
+        "HA_ACCESS", accessTokens.issue(userId, Instant.now().plus(10, ChronoUnit.MINUTES)));
+  }
+
+  private org.springframework.test.web.servlet.ResultActions putUserRoles(
+      Cookie access, UUID userId, String roles) throws Exception {
+    return mvc.perform(
+        org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+            .put("/api/v1/accounts/users/" + userId + "/roles")
+            .cookie(access, new Cookie("XSRF-TOKEN", csrfToken))
+            .header("X-XSRF-TOKEN", csrfToken)
+            .contentType(MediaType.APPLICATION_JSON)
+            .content("{\"roles\":" + roles + "}"));
+  }
+
+  private static void assertReviewEndpointStatus(
+      org.springframework.test.web.servlet.ResultActions result, boolean contentExpert)
+      throws Exception {
+    if (contentExpert)
+      result.andExpect(
+          response -> assertThat(response.getResponse().getStatus()).isNotIn(401, 403));
+    else
+      result
+          .andExpect(status().isForbidden())
+          .andExpect(jsonPath("$.error.code").value("ACCESS_DENIED"));
   }
 }
