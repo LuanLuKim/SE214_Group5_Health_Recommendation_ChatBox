@@ -159,6 +159,8 @@ class Rules:
     direction_checks: list[tuple[str, re.Pattern, str]] = field(default_factory=list)
     negation: tuple[int, re.Pattern, re.Pattern, re.Pattern] | None = None  # min words, source, target, exempt
     meaning_checks: list[MeaningCheck] = field(default_factory=list)
+    # review policy and reviewer notes for the LLM prompt (translator.notes), set by run.py
+    reviewer_notes: str = ""
 
     @classmethod
     def load(cls, path: Path = DEFAULT_RULES) -> "Rules":

@@ -26,8 +26,8 @@ from urllib.request import Request, urlopen
 
 from .glossary import Rules
 
-PROMPT_VERSION = "fusion-3"
-DIRECT_PROMPT_VERSION = "direct-2"
+PROMPT_VERSION = "fusion-4"
+DIRECT_PROMPT_VERSION = "direct-3"
 MODES = ("fusion", "direct")
 STOP_STATUS = {401, 402, 403, 429}  # auth, quota, rate limit: stop and keep what is done
 
@@ -121,6 +121,14 @@ Translate every line yourself from the English source. Read the whole item first
 stay the same from line to line, then write ONE Vietnamese line per source line."""
 
 
+def _notes(rules: Rules) -> str:
+    if not rules.reviewer_notes:
+        return ""
+    return ("9. Review policy and reviewer notes (human review of earlier runs, in Vietnamese). Rules 1-8 and their "
+            "tables win over a note. A note shows a correction and why: apply the same reasoning to every similar "
+            "line, do not copy a note onto a line it does not fit.\n" + rules.reviewer_notes + "\n")
+
+
 def system_prompt(rules: Rules, mode: str = "fusion") -> str:
     intro = _DIRECT_INTRO if mode == "direct" else _FUSION_INTRO
     return intro + f"""
@@ -156,7 +164,7 @@ source word and the context, never add an age limit the source does not give:
 {_table(rules.tables.get("age_table", []))}
 8. Preferred terms (a UK programme name such as 5 A Day is explained once in Vietnamese):
 {_table(rules.tables.get("terminology", []))}
-
+{_notes(rules)}
 Answer ONLY a JSON array, one object per item, same ids, "vi" with exactly as many strings as the item has lines:
 [{{"id": "...", "vi": ["...", "..."]}}]"""
 

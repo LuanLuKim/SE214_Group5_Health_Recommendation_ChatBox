@@ -73,11 +73,14 @@ $env:LLM_REASONING = "low"        # tùy chọn, gửi làm reasoning_effort
 
 Có đủ ba biến thì `--refiner auto` (mặc định) dùng LLM; thiếu thì tự chuyển sang đồng thuận. Kết quả LLM được cache theo nội dung gửi đi, nên chạy lại không gọi lại.
 
+Prompt của LLM có thêm chính sách duyệt (`reviewer_policy.md`) và mọi dòng người duyệt đã sửa, kèm loại lỗi và lý do, lấy từ các tệp `paths.human_corrections` (config `llm.reviewer_notes`). Bản sửa trái với quyết định đã chốt (chữ "nhũ nhi") bị bỏ. `--no-notes` tắt phần này. `--notes-holdout` dùng khi đo trên các chunk đã duyệt: bỏ ghi chú của chính các chunk đang dịch, để điểm cho thấy model áp quy tắc vào câu nó chưa thấy bản sửa.
+
 ## Cấu hình (không sửa mã)
 
 | Tệp | Nội dung |
 | --- | --- |
 | `config.json` | Model của từng engine, tham số sinh, cỡ lô, ngưỡng của cổng kiểm định, đường dẫn, số chunk mỗi request LLM |
+| `reviewer_policy.md` | Chính sách duyệt SCRUM-148: ba mức lỗi, các quyết định đã chốt về tuổi, sốt, dinh dưỡng; đưa vào prompt LLM cùng ghi chú của người duyệt |
 | `localisation.json` | Luật Anh → Việt Nam: viết lại nguồn (`999`, `111`, `GP`, `A&E`), từ cấm và từ cần rà trong bản dịch, bảng dịch vụ / độ tuổi / thuật ngữ đưa cho LLM; luật kiểm nghĩa: đơn vị liều (`units`), chiều của giới hạn (`direction_checks`), phủ định (`negation`), cách viết người duyệt đã trả lại (`meaning_checks`) |
 
 Tên thuốc không nằm trong mã: đọc từ trang chỉ mục thuốc đã crawl (cùng nguồn với normalizer). Tên thuốc mà đa số model giữ nguyên thì bản cuối cũng phải giữ; tên nhóm thuốc (antibiotics → thuốc kháng sinh) được dịch.

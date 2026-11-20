@@ -16,6 +16,7 @@ No imports from apps/, packages/, database/ or any backend/frontend code.
 from __future__ import annotations
 
 import contextlib
+from dataclasses import replace
 import io
 import json
 from pathlib import Path
@@ -38,6 +39,7 @@ from translator.glossary import (  # noqa: E402
     Rules, compile_names, find_names, load_medicine_names, name_kept, numbers_in)
 from translator.pipeline import (  # noqa: E402
     Unit, build_units, consensus_lines, engine_statistics, finalise, machine_translate, refine, verify)
+from translator.notes import load_rows, note_lines, reviewer_notes  # noqa: E402
 from translator.quality import HARD_CHECKS, Issue, check_line, check_quality, count_bullets  # noqa: E402
 from translator.refine import DIRECT_PROMPT_VERSION, LLMClient, Stop, build_item, parse_answer, system_prompt  # noqa: E402
 from translator.segments import harmonise, split_marker, split_sentences  # noqa: E402
@@ -1274,6 +1276,51 @@ class TestRefineHelpers(unittest.TestCase):
         self.assertEqual(parse_answer('[1, 2]', {"u1": 1}), {})
 
 
+class TestReviewerNotes(unittest.TestCase):
+
+    def write(self, folder: Path, name: str, rows: list[dict]) -> Path:
+        path = folder / name
+        path.write_text(json.dumps({"corrections": rows}, ensure_ascii=False), encoding="utf-8")
+        return path
+
+    def test_notes_show_the_change_type_and_reason(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = self.write(Path(tmp), "c.json", [{
+                "chunk_id": "c1", "line": 3, "en": "• a high temperature", "old_vi": "• sốt cao", "new_vi": "• sốt",
+                "error_type": "Triệu chứng / mức độ", "severity": "Vừa",
+                "reason": "NHS dùng a high temperature để chỉ sốt nói chung.\nNguồn: https://www.nhs.uk/x"}])
+            notes = note_lines(load_rows([path]))
+        self.assertEqual(notes, ['- EN "• a high temperature": drop "cao" [Triệu chứng / mức độ / Vừa] — '
+                                 'NHS dùng a high temperature để chỉ sốt nói chung.'])
+
+    def test_later_file_wins_and_overruled_words_are_left_out(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            old = self.write(Path(tmp), "a.json", [
+                {"chunk_id": "c1", "line": 1, "en": "babies", "old_vi": "trẻ sơ sinh", "new_vi": "trẻ nhũ nhi"},
+                {"chunk_id": "c2", "line": 1, "en": "infants", "old_vi": "trẻ nhỏ", "new_vi": "trẻ nhũ nhi"}])
+            new = self.write(Path(tmp), "b.json", [
+                {"chunk_id": "c1", "line": 1, "en": "babies", "new_vi": "em bé", "reason": "câu thông thường"}])
+            notes = note_lines(load_rows([old, new]))
+        self.assertEqual(notes, ['- EN "babies": write "em bé" — câu thông thường'])
+
+    def test_holdout_and_prompt_section(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = self.write(Path(tmp), "c.json", [
+                {"chunk_id": "c1", "line": 1, "en": "a", "old_vi": "x", "new_vi": "y"},
+                {"chunk_id": "c2", "line": 1, "en": "b", "old_vi": "x", "new_vi": "z"}])
+            policy = Path(tmp) / "policy.md"
+            policy.write_text("# Chính sách\nMức Nghiêm trọng", encoding="utf-8")
+            text = reviewer_notes(policy, [path], exclude={"c1"})
+            self.assertEqual(reviewer_notes(None, [], exclude=set()), "")
+        self.assertIn("Mức Nghiêm trọng", text)
+        self.assertIn('"x" -> "z"', text)
+        self.assertNotIn('"x" -> "y"', text)
+        self.assertNotIn("9. Review policy", system_prompt(RULES))
+        prompt = system_prompt(replace(RULES, reviewer_notes=text), "direct")
+        self.assertIn("9. Review policy and reviewer notes", prompt)
+        self.assertLess(prompt.index('"x" -> "z"'), prompt.index("Answer ONLY"))
+
+
 # =============================================================================
 # pipeline
 # =============================================================================
@@ -1750,6 +1797,11 @@ class TestMeaningChecks(unittest.TestCase):
         ("• hyperbilirubinemia (severe jaundice in the neonatal period)",
          "• tăng bilirubin máu (vàng da nặng trong giai đoạn sơ sinh)",
          "• tăng bilirubin máu (vàng da nặng trong giai đoạn dưới 28 ngày tuổi)", "newborn age"),
+        # vn-8: both LLMs of the 40-chunk comparison of 20/11 wrote "Nghị quyết 74,8"
+        ("As requested in the World Assembly Resolution 74.8, WHO will launch the report.",
+         "Theo yêu cầu trong Nghị quyết 74,8 của Đại hội đồng Y tế Thế giới, WHO sẽ công bố báo cáo.",
+         "Theo yêu cầu trong Nghị quyết WHA74.8 của Đại hội đồng Y tế Thế giới, WHO sẽ công bố báo cáo.",
+         "WHA resolution"),
     ]
 
     def test_malnutrition_from_poor_sanitation_may_be_suy_dinh_dưỡng(self):

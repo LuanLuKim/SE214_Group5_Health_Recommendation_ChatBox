@@ -5,6 +5,7 @@
     "output_dir": ".data/translated",
     "medicine_index_urls": "docs/urls_discovery.txt",
     "collection_dir": ".data/collection",
+    "reviewer_policy": "tools/translate/reviewer_policy.md",
     "human_corrections": [
       "docs/reviews/scrum148/corrections_applied.json",
       "docs/reviews/scrum148/mau_82/corrections.json",
@@ -50,7 +51,8 @@
     "timeout_seconds": 600,
     "default_reasoning": "low",
     "repair_rounds": 1,
-    "verify": true
+    "verify": true,
+    "reviewer_notes": true
   },
   "quality": {
     "min_length_ratio": 0.3,

@@ -31,6 +31,7 @@ from __future__ import annotations
 
 import argparse
 from collections import Counter
+from dataclasses import replace
 from datetime import datetime, timezone
 import json
 from pathlib import Path
@@ -43,6 +44,7 @@ sys.path.insert(0, str(HERE))
 
 from translator.engines import get_engine  # noqa: E402
 from translator.glossary import Rules, compile_names, load_medicine_names  # noqa: E402
+from translator.notes import reviewer_notes  # noqa: E402
 from translator.pipeline import (  # noqa: E402
     UnitResult, build_units, engine_statistics, finalise, machine_translate, refine, verify)
 from translator.refine import MODES, LLMClient, prompt_version  # noqa: E402
@@ -280,6 +282,10 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--only-tag", default="", help="only chunks with this scope tag, e.g. emergency")
     parser.add_argument("--llm-max-requests", type=int, default=0, help="0 = until done or out of quota")
     parser.add_argument("--no-verify", action="store_true", help="skip the LLM meaning check (config llm.verify)")
+    parser.add_argument("--no-notes", action="store_true",
+                        help="no review policy and reviewer notes in the LLM prompt (config llm.reviewer_notes)")
+    parser.add_argument("--notes-holdout", action="store_true",
+                        help="evaluation on reviewed chunks: leave out the notes of the chunks being translated")
     parser.add_argument("--no-corrections", action="store_true",
                         help="ignore the human corrections of config paths.human_corrections")
     parser.add_argument("--input", type=Path, default=ROOT / paths["input_chunks"])
@@ -329,6 +335,11 @@ def main(argv: list[str] | None = None) -> int:
         return 2
 
     rules = Rules.load()
+    if client and config["llm"].get("reviewer_notes") and not args.no_notes:
+        policy = paths.get("reviewer_policy")
+        rules = replace(rules, reviewer_notes=reviewer_notes(
+            ROOT / policy if policy else None, [ROOT / p for p in paths.get("human_corrections", [])],
+            exclude={c["id"] for c in to_translate} if args.notes_holdout else frozenset()))
     names = load_medicine_names(ROOT, ROOT / paths["medicine_index_urls"], ROOT / paths["collection_dir"])
     db_rows = load_db_rows(args.db_rows)
 
@@ -358,6 +369,9 @@ def main(argv: list[str] | None = None) -> int:
     print(f"  Units / lines:   {len(units)} / {line_total}")
     print(f"  Medicine names:  {len(names)} from the crawled index")
     print(f"  Localisation:    {rules.version}")
+    if rules.reviewer_notes:
+        print(f"  Reviewer notes:  {rules.reviewer_notes.count(chr(10) + '- EN ')} corrected lines + policy"
+              + (" (holdout: notes of these chunks left out)" if args.notes_holdout else ""))
     print()
     if args.dry_run:
         for i, chunk in enumerate(to_translate[:10], 1):

@@ -1,5 +1,5 @@
 {
-  "version": "vn-7",
+  "version": "vn-8",
   "comment": "UK -> Viet Nam localisation. Service numbers (999, 111) match only as whole numbers, never inside 1,999 or 9.99; GPs is case-sensitive (GPS is a device). source_rewrites turn UK-only services into neutral English BEFORE machine translation (first match wins per position, rules run in order). forbidden_in_target must never appear in the Vietnamese text; discouraged_in_target only flags the chunk for a human reviewer. The tables are also shown to the LLM post-editor.",
   "source_rewrites": [
     {"pattern": "\\bcall 111 or get help from 111 online\\b", "replace": "contact a doctor or the nearest health facility for advice"},
@@ -150,7 +150,8 @@
     {"en": "well-being (health context)", "vi": "trạng thái an lành / sức khỏe tinh thần (không thu hẹp thành 'hạnh phúc')"},
     {"en": "heat (topic: heat and health, heatwaves)", "vi": "nắng nóng ('Heat and health' = 'Nắng nóng và sức khỏe')"},
     {"en": "acne: nodules and cysts", "vi": "mụn cục và mụn nang"},
-    {"en": "ice-pick / boxcar scars", "vi": "sẹo rỗ đáy nhọn / sẹo rỗ đáy vuông"}
+    {"en": "ice-pick / boxcar scars", "vi": "sẹo rỗ đáy nhọn / sẹo rỗ đáy vuông"},
+    {"en": "World (Health) Assembly Resolution 74.8", "vi": "Nghị quyết WHA74.8 (mã nghị quyết viết WHA + số, giữ dấu chấm, không viết 74,8)"}
   ],
   "units_comment": "a unit of the source line must stay in the Vietnamese line (5 mg -> 5 g changes a dose); hard check; (?<![^\\W\\d_]) = not after a letter, so '2mg' counts",
   "units": [
@@ -179,6 +180,7 @@
   },
   "meaning_checks_comment": "wording a reviewer returned in SCRUM-148; a rule applies when the source line matches 'source' and not 'unless_source'; 'forbid' must not be in the Vietnamese line, 'require' must be; 'on': 'rewritten' tests the source after source_rewrites; the hint is sent to the LLM repair round; flagged for review",
   "meaning_checks": [
+    {"label": "WHA resolution", "source": "(?i)\\b(?:resolution|WHA)\\s*\\d+\\.\\d+", "require": "WHA\\d+\\.\\d+", "hint": "mã nghị quyết của Đại hội đồng Y tế Thế giới viết 'WHA' + số, giữ dấu chấm: 'Resolution 74.8' -> 'Nghị quyết WHA74.8', không viết '74,8'"},
     {"label": "high temperature", "source": "(?i)\\bhigh temperature\\b", "unless_source": "(?i)very high|high fever", "forbid": "(?i)sốt cao", "hint": "'a high temperature' là sốt nói chung: viết 'sốt', không viết 'sốt cao'"},
     {"label": "low temperature", "source": "(?i)\\blow temperature\\b", "forbid": "(?i)sốt[^,.;]{0,15}thấp", "hint": "'low temperature' là thân nhiệt thấp, không phải 'sốt thấp'"},
     {"label": "28-day limit", "source": ".", "unless_source": "(?i)new-?borns?|neonat|\\b28 days\\b|\\bfirst (?:4|four) weeks\\b|\\bfirst month\\b", "forbid": "28 ngày", "hint": "nguồn không nói newborn/neonate: không thêm mốc 'dưới 28 ngày tuổi'"},
