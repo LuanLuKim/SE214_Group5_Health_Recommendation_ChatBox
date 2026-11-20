@@ -143,6 +143,74 @@ class ChatServiceTest {
   }
 
   @Test
+  void sessionCountsMessagesAndTracksLastExchangeEvenForEmptySession() {
+    UUID userId = UUID.randomUUID();
+    ChatSession session = repository.createSession(userId);
+
+    // Empty session has 0 messages and null lastMessageAt
+    ChatSession fetchedEmpty = chatService.getSession(session.id(), userId);
+    assertThat(fetchedEmpty.messageCount()).isZero();
+    assertThat(fetchedEmpty.lastMessageAt()).isNull();
+
+    List<ChatSession> listedEmpty = chatService.listSessions(userId);
+    assertThat(listedEmpty).hasSize(1);
+    assertThat(listedEmpty.get(0).messageCount()).isZero();
+    assertThat(listedEmpty.get(0).lastMessageAt()).isNull();
+
+    // Add 1st message
+    ChatMessage msg1 = repository.addMessage(session.id(), "user", "Tin nhắn 1");
+    ChatSession fetched1 = chatService.getSession(session.id(), userId);
+    assertThat(fetched1.messageCount()).isEqualTo(1);
+    assertThat(fetched1.lastMessageAt()).isEqualTo(msg1.createdAt());
+
+    // Add 2nd message
+    ChatMessage msg2 = repository.addMessage(session.id(), "assistant", "Tin nhắn 2");
+    ChatSession fetched2 = chatService.getSession(session.id(), userId);
+    assertThat(fetched2.messageCount()).isEqualTo(2);
+    assertThat(fetched2.lastMessageAt()).isEqualTo(msg2.createdAt());
+
+    List<ChatSession> listed = chatService.listSessions(userId);
+    assertThat(listed).hasSize(1);
+    assertThat(listed.get(0).messageCount()).isEqualTo(2);
+    assertThat(listed.get(0).lastMessageAt()).isEqualTo(msg2.createdAt());
+  }
+
+  @Test
+  void getSessionEnforcesOwnership() {
+    UUID user1 = UUID.randomUUID();
+    UUID user2 = UUID.randomUUID();
+    ChatSession session = repository.createSession(user1);
+
+    assertThatThrownBy(() -> chatService.getSession(session.id(), user2))
+        .isInstanceOf(ApiException.class)
+        .hasMessageContaining("Không tìm thấy phiên hội thoại");
+
+    assertThat(chatService.getSession(session.id(), user1).id()).isEqualTo(session.id());
+  }
+
+  @Test
+  void deleteSessionIsPermanentAndCleansUpEverything() {
+    UUID userId = UUID.randomUUID();
+    ChatSession session = repository.createSession(userId);
+    repository.addMessage(session.id(), "user", "Câu hỏi kiểm thử");
+
+    assertThat(chatService.deleteSession(session.id(), userId)).isTrue();
+
+    // Subsequent access returns not found
+    assertThatThrownBy(() -> chatService.getSession(session.id(), userId))
+        .isInstanceOf(ApiException.class)
+        .hasMessageContaining("Không tìm thấy phiên hội thoại");
+
+    assertThatThrownBy(() -> chatService.getMessages(session.id(), userId))
+        .isInstanceOf(ApiException.class)
+        .hasMessageContaining("Không tìm thấy phiên hội thoại");
+
+    assertThatThrownBy(() -> chatService.deleteSession(session.id(), userId))
+        .isInstanceOf(ApiException.class)
+        .hasMessageContaining("Không tìm thấy phiên hội thoại");
+  }
+
+  @Test
   void submitFeedbackAttachesPrecedingUserQuestionWhenOptedIn() {
     UUID userId = UUID.randomUUID();
     ChatSession session = repository.createSession(userId);
@@ -166,5 +234,53 @@ class ChatServiceTest {
 
     assertThat(feedbackNoShare.sharedQuestion()).isNull();
     assertThat(feedbackNoShare.sharedAnswer()).isNull();
+  }
+
+  @Test
+  void submitFeedbackRejectsUserMessageRole() {
+    UUID userId = UUID.randomUUID();
+    ChatSession session = repository.createSession(userId);
+    ChatMessage userMsg = repository.addMessage(session.id(), "user", "Tin nhắn câu hỏi");
+
+    assertThatThrownBy(
+            () ->
+                chatService.submitFeedback(
+                    userMsg.id(), userId, new ChatFeedbackRequest("OTHER", "Đánh giá nhầm", false)))
+        .isInstanceOf(ApiException.class)
+        .hasMessageContaining("Chỉ có thể đánh giá câu trả lời của trợ lý");
+  }
+
+  @Test
+  void submitFeedbackRejectsOptInWhenNoPrecedingQuestion() {
+    UUID userId = UUID.randomUUID();
+    ChatSession session = repository.createSession(userId);
+    ChatMessage assistantMsg = repository.addMessage(session.id(), "assistant", "Câu trả lời mồ côi.");
+
+    assertThatThrownBy(
+            () ->
+                chatService.submitFeedback(
+                    assistantMsg.id(), userId, new ChatFeedbackRequest("OTHER", "Không có câu hỏi", true)))
+        .isInstanceOf(ApiException.class)
+        .hasMessageContaining("Không tìm thấy câu hỏi liền trước");
+  }
+
+  @Test
+  void submitFeedbackSanitizesEmailAndPhoneNumber() {
+    UUID userId = UUID.randomUUID();
+    ChatSession session = repository.createSession(userId);
+    repository.addMessage(
+        session.id(), "user", "Email của tôi là benhnhan@gmail.com và sđt 0987654321, tôi bị sốt.");
+    ChatMessage assistantMsg =
+        repository.addMessage(
+            session.id(), "assistant", "Bạn có thể liên hệ tổng đài hỗ trợ 02812345678 hoặc support@med.vn.");
+
+    ChatFeedbackRecord feedback =
+        chatService.submitFeedback(
+            assistantMsg.id(), userId, new ChatFeedbackRequest("OTHER", "Cần bảo mật", true));
+
+    assertThat(feedback.sharedQuestion())
+        .isEqualTo("Email của tôi là [REDACTED_EMAIL] và sđt [REDACTED_PHONE], tôi bị sốt.");
+    assertThat(feedback.sharedAnswer())
+        .isEqualTo("Bạn có thể liên hệ tổng đài hỗ trợ [REDACTED_PHONE] hoặc [REDACTED_EMAIL].");
   }
 }

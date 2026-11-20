@@ -30,14 +30,34 @@ public class InMemoryChatRepository implements ChatRepository {
 
   @Override
   public Optional<ChatSession> findSession(UUID sessionId) {
-    return Optional.ofNullable(sessions.get(sessionId));
+    ChatSession session = sessions.get(sessionId);
+    if (session == null) {
+      return Optional.empty();
+    }
+    List<ChatMessage> sessionMsgs =
+        messages.stream().filter(m -> m.sessionId().equals(sessionId)).toList();
+    int count = sessionMsgs.size();
+    String lastMsgAt = sessionMsgs.isEmpty() ? null : sessionMsgs.get(sessionMsgs.size() - 1).createdAt();
+    return Optional.of(new ChatSession(session.id(), session.userId(), session.createdAt(), count, lastMsgAt));
   }
 
   @Override
   public List<ChatSession> listSessions(UUID userId) {
     return sessions.values().stream()
         .filter(s -> s.userId().equals(userId))
-        .sorted(Comparator.comparing(ChatSession::createdAt).reversed())
+        .map(
+            s -> {
+              List<ChatMessage> sessionMsgs =
+                  messages.stream().filter(m -> m.sessionId().equals(s.id())).toList();
+              int count = sessionMsgs.size();
+              String lastMsgAt =
+                  sessionMsgs.isEmpty() ? null : sessionMsgs.get(sessionMsgs.size() - 1).createdAt();
+              return new ChatSession(s.id(), s.userId(), s.createdAt(), count, lastMsgAt);
+            })
+        .sorted(
+            Comparator.comparing(
+                    (ChatSession s) -> s.lastMessageAt() != null ? s.lastMessageAt() : s.createdAt())
+                .reversed())
         .toList();
   }
 
