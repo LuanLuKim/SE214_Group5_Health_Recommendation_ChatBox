@@ -43,7 +43,7 @@
   "engine_aliases": {"medev": "vinai"},
   "default_engines": ["nllb", "vinai", "medcrab"],
   "llm": {
-    "mode": "direct",
+    "mode": "fusion",
     "units_per_request": 4,
     "extra_lines_per_unit": 40,
     "workers": 3,

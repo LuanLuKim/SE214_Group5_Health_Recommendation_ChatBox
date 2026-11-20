@@ -53,7 +53,7 @@ python -B tools/translate/run.py --only-tag emergency     # chỉ các chunk c�
 python -B tools/translate/run.py --engines nllb,vinai     # chọn model
 python -B tools/translate/run.py --mode fusion --refiner consensus   # không dùng LLM, chỉ 3 model
 python -B tools/translate/run.py --mode fusion            # 3 model dịch nháp + LLM biên tập
-python -B tools/translate/run.py                          # toàn bộ theo llm.mode (direct); tự chạy tiếp từ cache
+python -B tools/translate/run.py                          # toàn bộ theo llm.mode (fusion); tự chạy tiếp từ cache
 python -B tools/translate/run.py --status                 # tóm tắt lần chạy gần nhất
 python -B tools/translate/test_translate.py               # kiểm thử (không cần model, không cần mạng)
 ```
