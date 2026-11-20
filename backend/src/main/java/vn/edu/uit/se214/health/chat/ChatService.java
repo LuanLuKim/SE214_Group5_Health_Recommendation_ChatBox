@@ -147,6 +147,13 @@ public class ChatService {
     return repository.listSessions(userId);
   }
 
+  public ChatSession getSession(UUID sessionId, UUID userId) {
+    return repository
+        .findSession(sessionId)
+        .filter(s -> s.userId().equals(userId))
+        .orElseThrow(() -> ApiException.notFound("Không tìm thấy phiên hội thoại."));
+  }
+
   public List<ChatMessage> getMessages(UUID sessionId, UUID userId) {
     repository
         .findSession(sessionId)

@@ -143,6 +143,74 @@ class ChatServiceTest {
   }
 
   @Test
+  void sessionCountsMessagesAndTracksLastExchangeEvenForEmptySession() {
+    UUID userId = UUID.randomUUID();
+    ChatSession session = repository.createSession(userId);
+
+    // Empty session has 0 messages and null lastMessageAt
+    ChatSession fetchedEmpty = chatService.getSession(session.id(), userId);
+    assertThat(fetchedEmpty.messageCount()).isZero();
+    assertThat(fetchedEmpty.lastMessageAt()).isNull();
+
+    List<ChatSession> listedEmpty = chatService.listSessions(userId);
+    assertThat(listedEmpty).hasSize(1);
+    assertThat(listedEmpty.get(0).messageCount()).isZero();
+    assertThat(listedEmpty.get(0).lastMessageAt()).isNull();
+
+    // Add 1st message
+    ChatMessage msg1 = repository.addMessage(session.id(), "user", "Tin nhắn 1");
+    ChatSession fetched1 = chatService.getSession(session.id(), userId);
+    assertThat(fetched1.messageCount()).isEqualTo(1);
+    assertThat(fetched1.lastMessageAt()).isEqualTo(msg1.createdAt());
+
+    // Add 2nd message
+    ChatMessage msg2 = repository.addMessage(session.id(), "assistant", "Tin nhắn 2");
+    ChatSession fetched2 = chatService.getSession(session.id(), userId);
+    assertThat(fetched2.messageCount()).isEqualTo(2);
+    assertThat(fetched2.lastMessageAt()).isEqualTo(msg2.createdAt());
+
+    List<ChatSession> listed = chatService.listSessions(userId);
+    assertThat(listed).hasSize(1);
+    assertThat(listed.get(0).messageCount()).isEqualTo(2);
+    assertThat(listed.get(0).lastMessageAt()).isEqualTo(msg2.createdAt());
+  }
+
+  @Test
+  void getSessionEnforcesOwnership() {
+    UUID user1 = UUID.randomUUID();
+    UUID user2 = UUID.randomUUID();
+    ChatSession session = repository.createSession(user1);
+
+    assertThatThrownBy(() -> chatService.getSession(session.id(), user2))
+        .isInstanceOf(ApiException.class)
+        .hasMessageContaining("Không tìm thấy phiên hội thoại");
+
+    assertThat(chatService.getSession(session.id(), user1).id()).isEqualTo(session.id());
+  }
+
+  @Test
+  void deleteSessionIsPermanentAndCleansUpEverything() {
+    UUID userId = UUID.randomUUID();
+    ChatSession session = repository.createSession(userId);
+    repository.addMessage(session.id(), "user", "Câu hỏi kiểm thử");
+
+    assertThat(chatService.deleteSession(session.id(), userId)).isTrue();
+
+    // Subsequent access returns not found
+    assertThatThrownBy(() -> chatService.getSession(session.id(), userId))
+        .isInstanceOf(ApiException.class)
+        .hasMessageContaining("Không tìm thấy phiên hội thoại");
+
+    assertThatThrownBy(() -> chatService.getMessages(session.id(), userId))
+        .isInstanceOf(ApiException.class)
+        .hasMessageContaining("Không tìm thấy phiên hội thoại");
+
+    assertThatThrownBy(() -> chatService.deleteSession(session.id(), userId))
+        .isInstanceOf(ApiException.class)
+        .hasMessageContaining("Không tìm thấy phiên hội thoại");
+  }
+
+  @Test
   void submitFeedbackAttachesPrecedingUserQuestionWhenOptedIn() {
     UUID userId = UUID.randomUUID();
     ChatSession session = repository.createSession(userId);
