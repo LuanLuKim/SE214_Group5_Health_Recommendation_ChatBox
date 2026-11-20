@@ -51,6 +51,13 @@ public class ChatController {
     return ApiResponse.of(list, new ApiResponse.Meta("ok", list.size()));
   }
 
+  @GetMapping("/sessions/{id}")
+  public ApiResponse.Success<ChatSession> session(
+      @AuthenticationPrincipal Jwt principal, @PathVariable String id) {
+    UUID userId = userId(principal);
+    return ApiResponse.of(chatService.getSession(parseUuid(id), userId));
+  }
+
   @GetMapping("/sessions/{id}/messages")
   public ApiResponse.Success<List<ChatMessage>> messages(
       @AuthenticationPrincipal Jwt principal, @PathVariable String id) {
