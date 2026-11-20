@@ -22,8 +22,13 @@ CREATE TABLE knowledge.chunks (
   fetched_at timestamptz NOT NULL,
   normalizer_version text,
   translation_model text,
-  translation_status text CHECK (translation_status IN ('auto_verified','flagged','reviewer_corrected')),
+  translation_status text
+    CHECK (translation_status IN ('pending','auto_verified','flagged','reviewer_corrected')),
   search tsvector GENERATED ALWAYS AS (to_tsvector('simple', coalesce(heading, '') || ' ' || text)) STORED,
   CHECK (NOT rag_eligible OR review_status = 'APPROVED')
 );
 CREATE INDEX chunks_search_idx ON knowledge.chunks USING gin (search);
+-- Loại CHUNK trong hàng đợi duyệt chung (M2 thêm trong V025).
+ALTER TABLE knowledge.review_events DROP CONSTRAINT review_events_subject_type_check;
+ALTER TABLE knowledge.review_events ADD CONSTRAINT review_events_subject_type_check
+  CHECK (subject_type IN ('ARTICLE','TEMPLATE','RULE','FEEDBACK','CHUNK'));

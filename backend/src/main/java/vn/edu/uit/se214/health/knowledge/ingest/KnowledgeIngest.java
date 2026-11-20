@@ -12,6 +12,7 @@ import org.springframework.transaction.support.TransactionOperations;
 import vn.edu.uit.se214.health.knowledge.ingest.IngestSource.ArticleRow;
 import vn.edu.uit.se214.health.knowledge.ingest.IngestSource.Batch;
 import vn.edu.uit.se214.health.knowledge.ingest.IngestSource.ChunkRow;
+import vn.edu.uit.se214.health.knowledge.ingest.IngestSource.ReviewDecision;
 import vn.edu.uit.se214.health.knowledge.ingest.KnowledgeIngestRepository.Outcome;
 
 /**
@@ -19,9 +20,17 @@ import vn.edu.uit.se214.health.knowledge.ingest.KnowledgeIngestRepository.Outcom
  * the database as it was. Running it again with the same files changes nothing.
  */
 public class KnowledgeIngest {
-  /** Counts only: the report never carries content. */
+  /**
+   * Counts only: the report never carries content. {@code decisionsNotRecorded}: decisions of the files
+   * left out because no reviewer account was given.
+   */
   public record Report(
-      Map<Outcome, Integer> articles, Map<Outcome, Integer> chunks, int retiredChunks, int skippedOutsideRag) {}
+      Map<Outcome, Integer> articles,
+      Map<Outcome, Integer> chunks,
+      int retiredChunks,
+      int skippedOutsideRag,
+      int recordedDecisions,
+      int decisionsNotRecorded) {}
 
   private final IngestSource source;
   private final KnowledgeIngestRepository repository;
@@ -34,21 +43,37 @@ public class KnowledgeIngest {
   }
 
   public Report run(Path normalizedDir, Path translatedDir) {
-    requireDir(normalizedDir, "normalized-dir");
-    requireDir(translatedDir, "translated-dir");
-    Batch batch = source.read(normalizedDir, translatedDir);
-    validate(batch);
-    return transactions.execute(status -> write(batch));
+    return run(normalizedDir, translatedDir, List.of(), null);
   }
 
-  private Report write(Batch batch) {
+  /**
+   * @param decisionFiles SCRUM-148 review decision files: approved texts and the decisions to record
+   * @param reviewer the CONTENT_EXPERT account the decisions are recorded under; null records none
+   */
+  public Report run(Path normalizedDir, Path translatedDir, List<Path> decisionFiles, UUID reviewer) {
+    requireDir(normalizedDir, "normalized-dir");
+    requireDir(translatedDir, "translated-dir");
+    for (Path file : decisionFiles)
+      if (!Files.isRegularFile(file)) throw new IngestException("app.knowledge.ingest.review-decisions: missing file");
+    Batch batch = source.read(normalizedDir, translatedDir, decisionFiles);
+    validate(batch);
+    return transactions.execute(status -> write(batch, reviewer));
+  }
+
+  private Report write(Batch batch, UUID reviewer) {
+    if (reviewer != null && !batch.decisions().isEmpty() && !repository.isActiveContentExpert(reviewer))
+      throw new IngestException("app.knowledge.ingest.reviewer-id is not an active CONTENT_EXPERT account");
     Map<Outcome, Integer> articles = counter();
     Map<Outcome, Integer> chunks = counter();
     for (ArticleRow a : batch.articles()) articles.merge(repository.upsertArticle(a), 1, Integer::sum);
     for (ChunkRow c : batch.chunks()) chunks.merge(repository.upsertChunk(c), 1, Integer::sum);
     int retired = repository.retireMissing(
         batch.articles().stream().map(ArticleRow::id).toList(), batch.chunks().stream().map(ChunkRow::id).toList());
-    return new Report(articles, chunks, retired, batch.skippedOutsideRag());
+    int recorded = 0;
+    if (reviewer != null)
+      for (ReviewDecision d : batch.decisions()) recorded += repository.recordDecision(d, reviewer);
+    int notRecorded = reviewer == null ? batch.decisions().size() : 0;
+    return new Report(articles, chunks, retired, batch.skippedOutsideRag(), recorded, notRecorded);
   }
 
   /** Every chunk belongs to a loaded article, and no id or chunk key appears twice. */
@@ -80,6 +105,7 @@ public class KnowledgeIngest {
   static List<String> describe(Report r) {
     return List.of(
         "articles " + r.articles(), "chunks " + r.chunks(), "retired chunks " + r.retiredChunks(),
-        "skipped outside RAG corpus " + r.skippedOutsideRag());
+        "skipped outside RAG corpus " + r.skippedOutsideRag(), "review decisions recorded " + r.recordedDecisions(),
+        "review decisions not recorded (no reviewer-id) " + r.decisionsNotRecorded());
   }
 }

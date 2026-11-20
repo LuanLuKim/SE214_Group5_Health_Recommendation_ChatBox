@@ -1,10 +1,12 @@
 package vn.edu.uit.se214.health.knowledge.ingest;
 
+import java.nio.charset.StandardCharsets;
 import java.util.Collection;
 import java.util.UUID;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import vn.edu.uit.se214.health.knowledge.ingest.IngestSource.ArticleRow;
 import vn.edu.uit.se214.health.knowledge.ingest.IngestSource.ChunkRow;
+import vn.edu.uit.se214.health.knowledge.ingest.IngestSource.ReviewDecision;
 
 /**
  * SQL of the loader. Values are always bound. Rows land as DRAFT with rag_eligible = false; a row whose
@@ -97,6 +99,33 @@ class KnowledgeIngestRepository {
             WHERE article_id = ANY(?) AND NOT (id = ANY(?)) AND review_status <> 'RETIRED'
             """)
         .params(articles.toArray(UUID[]::new), chunks.toArray(UUID[]::new))
+        .update();
+  }
+
+  /** The account decisions are recorded under must be an active CONTENT_EXPERT (a real reviewer, not admin). */
+  boolean isActiveContentExpert(UUID user) {
+    return jdbc.sql("""
+            SELECT count(*) FROM accounts.users u JOIN accounts.user_roles r ON r.user_id = u.id
+            WHERE u.id = ? AND u.status = 'ACTIVE' AND r.role = 'CONTENT_EXPERT'
+            """)
+        .param(user)
+        .query(Integer.class)
+        .single() > 0;
+  }
+
+  /**
+   * One SCRUM-148 decision as a CHUNK review event, at the time it was recorded. The event id is derived
+   * from the decision, so loading the same file again adds nothing. Returns 1 when a row was added.
+   */
+  int recordDecision(ReviewDecision d, UUID reviewer) {
+    UUID id = UUID.nameUUIDFromBytes(("scrum148:" + d.chunkId() + ":" + d.decision() + ":" + d.recordedAt())
+        .getBytes(StandardCharsets.UTF_8));
+    return jdbc.sql("""
+            INSERT INTO knowledge.review_events (id, subject_type, subject_id, reviewer_id, decision, note, created_at)
+            VALUES (?, 'CHUNK', ?, ?, ?, ?, ?)
+            ON CONFLICT (id) DO NOTHING
+            """)
+        .params(id, d.chunkId(), reviewer, d.decision(), d.note() == null ? "" : d.note(), d.recordedAt())
         .update();
   }
 

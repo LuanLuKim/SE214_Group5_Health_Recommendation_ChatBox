@@ -107,7 +107,8 @@ class KnowledgeIngestTest {
 
     assertThat(status(VERIFIED)).isEqualTo("auto_verified");
     assertThat(status(FLAGGED)).isEqualTo("flagged");
-    assertThat(status(CORRECTED)).isEqualTo("reviewer_corrected");
+    // corrected lines, but no expert checked this text again: what the gate says (M2, 20/11)
+    assertThat(status(CORRECTED)).isEqualTo("auto_verified");
     assertThat(status(NATIVE)).isEqualTo("none");
     assertThat(count("SELECT count(*) FROM knowledge.chunks WHERE id = ? AND original_text IS NULL", NATIVE))
         .isEqualTo(1);
@@ -119,6 +120,69 @@ class KnowledgeIngestTest {
         SELECT count(*) FROM knowledge.chunks
         WHERE search @@ to_tsquery('simple', 'emollient | dưỡng') AND id = ?
         """, VERIFIED)).isEqualTo(1);
+  }
+
+  @Test
+  void aChunkWithoutAGateResultIsPending() throws IOException {
+    chunks.get(0).set("translation_metadata", json.createObjectNode().put("model", "[TEST]-model"));
+    run();
+
+    assertThat(status(VERIFIED)).isEqualTo("pending");
+  }
+
+  @Test
+  void reviewerCorrectedOnlyWhenTheExpertApprovedExactlyTheTextBeingLoaded() throws IOException {
+    Path approvedThis = decisions(decision(CORRECTED, "APPROVED", "[TEST] Trẻ dưới 1 tuổi.", null));
+    run(List.of(approvedThis), null);
+    assertThat(status(CORRECTED)).isEqualTo("reviewer_corrected");
+
+    Path approvedOlder = decisions(decision(CORRECTED, "APPROVED", "[TEST] Bản cũ đã duyệt.", null));
+    run(List.of(approvedOlder), null);
+    assertThat(status(CORRECTED)).isEqualTo("auto_verified");
+
+    Path returned = decisions(decision(CORRECTED, "RETURNED", "[TEST] Trẻ dưới 1 tuổi.", null));
+    run(List.of(returned), null);
+    assertThat(status(CORRECTED)).isEqualTo("auto_verified");
+  }
+
+  @Test
+  void decisionsAreRecordedOnceUnderTheRealExpertAtTheTimeTheyWereMade() throws IOException {
+    UUID expert = user("CONTENT_EXPERT", "ACTIVE");
+    Path file = decisions(
+        decision(CORRECTED, "APPROVED", "[TEST] Trẻ dưới 1 tuổi.", "2026-11-15T15:37:06Z"),
+        decision(VERIFIED, "APPROVED", "[TEST] Bôi kem dưỡng ẩm.", null),
+        decision(UUID.randomUUID(), "APPROVED", "[TEST] Chunk không có trong file.", "2026-11-15T15:37:06Z"));
+
+    KnowledgeIngest.Report first = run(List.of(file), expert);
+    KnowledgeIngest.Report second = run(List.of(file), expert);
+
+    assertThat(first.recordedDecisions()).isEqualTo(1);
+    assertThat(second.recordedDecisions()).isZero();
+    assertThat(jdbc.sql("""
+        SELECT subject_type || '/' || decision || '/' || (reviewer_id = ?) || '/' || (created_at = ?)
+        FROM knowledge.review_events WHERE subject_id = ?
+        """).params(expert, OffsetDateTime.parse("2026-11-15T15:37:06Z"), CORRECTED).query(String.class).single())
+        .isEqualTo("CHUNK/APPROVED/true/true");
+    // a recorded decision never switches a chunk on: only approving the article (UC-17) does
+    assertThat(count("SELECT count(*) FROM knowledge.chunks WHERE rag_eligible")).isZero();
+  }
+
+  @Test
+  void decisionsNeedAnActiveContentExpertAndAreLeftOutWithoutOne() throws IOException {
+    Path file = decisions(decision(CORRECTED, "APPROVED", "[TEST] Trẻ dưới 1 tuổi.", "2026-11-15T15:37:06Z"));
+    UUID admin = user("ADMIN", "ACTIVE");
+    UUID locked = user("CONTENT_EXPERT", "LOCKED");
+
+    for (UUID reviewer : List.of(admin, locked)) {
+      assertThatThrownBy(() -> run(List.of(file), reviewer))
+          .isInstanceOf(IngestException.class).hasMessageContaining("CONTENT_EXPERT");
+      assertThat(count("SELECT count(*) FROM knowledge.chunks")).isZero();
+    }
+
+    KnowledgeIngest.Report report = run(List.of(file), null);
+    assertThat(report.decisionsNotRecorded()).isEqualTo(1);
+    assertThat(count("SELECT count(*) FROM knowledge.review_events")).isZero();
+    assertThat(count("SELECT count(*) FROM knowledge.chunks")).isEqualTo(4);
   }
 
   @Test
@@ -223,6 +287,10 @@ class KnowledgeIngestTest {
   // --- [TEST] files shaped like the M7 output -------------------------------------------------------
 
   KnowledgeIngest.Report run() throws IOException {
+    return run(List.of(), null);
+  }
+
+  KnowledgeIngest.Report run(List<Path> decisionFiles, UUID reviewer) throws IOException {
     write(translated.resolve("db_rows_vi.json"), json.writeValueAsString(articles));
     StringBuilder vi = new StringBuilder();
     StringBuilder en = new StringBuilder();
@@ -243,7 +311,35 @@ class KnowledgeIngestTest {
       file.put("source_updated_at", "2026-07-09T15:27:58+00:00");
       write(normalized.resolve("articles/" + a.get("id").asText() + ".json"), json.writeValueAsString(file));
     }
-    return ingest.run(normalized, translated);
+    return ingest.run(normalized, translated, decisionFiles, reviewer);
+  }
+
+  /** A review_decisions.json shaped like docs/reviews/scrum148: the hash is of the given Vietnamese text. */
+  Path decisions(ObjectNode... rows) throws IOException {
+    ObjectNode file = json.createObjectNode();
+    ArrayNode list = file.putArray("decisions");
+    for (ObjectNode row : rows) list.add(row);
+    Path path = Files.createTempFile(dir, "review_decisions", ".json");
+    write(path, json.writeValueAsString(file));
+    return path;
+  }
+
+  ObjectNode decision(UUID chunk, String decision, String approvedText, String recordedAt) {
+    ObjectNode d = json.createObjectNode();
+    d.put("chunk_id", chunk.toString());
+    d.put("decision", decision);
+    d.put("notes", "[TEST] Đã đọc và xác nhận bản đã sửa.");
+    d.put("corrected_text_vi_sha256", IngestSource.sha256(approvedText));
+    if (recordedAt != null) d.put("approval_recorded_at", recordedAt);
+    return d;
+  }
+
+  UUID user(String role, String status) {
+    UUID id = UUID.randomUUID();
+    jdbc.sql("INSERT INTO accounts.users (id, email, display_name, status) VALUES (?, ?, '[TEST] Reviewer', ?)")
+        .params(id, id + "@example.test", status).update();
+    jdbc.sql("INSERT INTO accounts.user_roles (user_id, role) VALUES (?, ?)").params(id, role).update();
+    return id;
   }
 
   void approve() {

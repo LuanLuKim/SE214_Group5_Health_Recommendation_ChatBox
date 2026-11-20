@@ -12,9 +12,11 @@ import java.security.NoSuchAlgorithmException;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.HexFormat;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Stream;
 
@@ -22,6 +24,7 @@ import java.util.stream.Stream;
  * Reads the M7 files into rows for knowledge.articles and knowledge.chunks. The Vietnamese text
  * comes from tools/translate; crawl time, rule tags and normalizer version from the normalizer.
  * Only the RAG corpus is read: pages kept as expert reference (medicine pages) never reach these rows.
+ * Review decision files (SCRUM-148) give the texts an expert approved and the decisions to record.
  */
 final class IngestSource {
   static final String RAG = "rag";
@@ -56,7 +59,13 @@ final class IngestSource {
       String translationModel,
       TranslationStatus translationStatus) {}
 
-  record Batch(List<ArticleRow> articles, List<ChunkRow> chunks, int skippedOutsideRag) {}
+  /** One expert decision on a chunk, with the time it was recorded (no time: not recorded as an event). */
+  record ReviewDecision(UUID chunkId, String decision, String note, OffsetDateTime recordedAt) {}
+
+  record Batch(
+      List<ArticleRow> articles, List<ChunkRow> chunks, int skippedOutsideRag, List<ReviewDecision> decisions) {}
+
+  private record Decisions(Map<UUID, Set<String>> approvedTexts, List<ReviewDecision> timed) {}
 
   private final ObjectMapper json;
 
@@ -64,7 +73,8 @@ final class IngestSource {
     this.json = json;
   }
 
-  Batch read(Path normalizedDir, Path translatedDir) {
+  Batch read(Path normalizedDir, Path translatedDir, List<Path> decisionFiles) {
+    Decisions decisions = decisions(decisionFiles);
     Map<UUID, JsonNode> normalizedChunks = byId(lines(normalizedDir.resolve("chunks.jsonl")), "id");
     Map<UUID, JsonNode> normalizedArticles = byId(articleFiles(normalizedDir.resolve("articles")), "uuid");
     int skipped = 0;
@@ -97,8 +107,9 @@ final class IngestSource {
       JsonNode normalized = normalizedChunks.get(id);
       if (normalized == null) throw new IngestException("chunk " + id + " is missing from chunks.jsonl");
       JsonNode meta = row.path("translation_metadata");
-      TranslationStatus status = TranslationStatus.of(meta);
       String vietnamese = required(row, "text_vi");
+      TranslationStatus status =
+          TranslationStatus.of(meta, sha256(vietnamese), decisions.approvedTexts().getOrDefault(id, Set.of()));
       String english = text(row, "text_en");
       chunks.add(new ChunkRow(
           id,
@@ -119,7 +130,35 @@ final class IngestSource {
           status == null ? null : text(meta, "model"),
           status));
     }
-    return new Batch(articles, chunks, skipped);
+    Set<UUID> loaded = new HashSet<>();
+    chunks.forEach(c -> loaded.add(c.id()));
+    List<ReviewDecision> timed = decisions.timed().stream().filter(d -> loaded.contains(d.chunkId())).toList();
+    return new Batch(articles, chunks, skipped, timed);
+  }
+
+  /**
+   * {@code {"decisions": [{chunk_id, decision, note|notes, corrected_text_vi_sha256|reviewed_text_vi_sha256,
+   * approval_recorded_at?}]}}. The hash is of the Vietnamese lines joined with LF, as the loaded text.
+   */
+  private Decisions decisions(List<Path> files) {
+    Map<UUID, Set<String>> approved = new HashMap<>();
+    List<ReviewDecision> timed = new ArrayList<>();
+    for (Path file : files) {
+      for (JsonNode d : json(file).path("decisions")) {
+        UUID chunk = UUID.fromString(required(d, "chunk_id"));
+        String decision = required(d, "decision");
+        if (!decision.equals("APPROVED") && !decision.equals("RETURNED"))
+          throw new IngestException("decision " + decision + " is neither APPROVED nor RETURNED");
+        String hash = text(d, "corrected_text_vi_sha256");
+        if (hash == null) hash = text(d, "reviewed_text_vi_sha256");
+        if (decision.equals("APPROVED") && hash != null)
+          approved.computeIfAbsent(chunk, k -> new HashSet<>()).add(hash);
+        OffsetDateTime at = time(d, "approval_recorded_at");
+        String note = text(d, "notes");
+        if (at != null) timed.add(new ReviewDecision(chunk, decision, note == null ? text(d, "note") : note, at));
+      }
+    }
+    return new Decisions(approved, timed);
   }
 
   private List<JsonNode> lines(Path file) {

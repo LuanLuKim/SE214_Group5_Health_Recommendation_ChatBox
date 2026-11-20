@@ -108,6 +108,11 @@ app:
       normalized-dir: ${KNOWLEDGE_INGEST_NORMALIZED_DIR:}
       # Thư mục có chunks_vi.jsonl và db_rows_vi.json của tools/translate.
       translated-dir: ${KNOWLEDGE_INGEST_TRANSLATED_DIR:}
+      # File quyết định duyệt SCRUM-148 (review_decisions.json), cách nhau dấu phẩy: bản chuyên gia đã duyệt lại
+      # (reviewer_corrected) và các quyết định ghi vào knowledge.review_events. Để trống thì bỏ qua.
+      review-decisions: ${KNOWLEDGE_INGEST_REVIEW_DECISIONS:}
+      # Tài khoản CONTENT_EXPERT thật đứng tên các quyết định; để trống thì không ghi quyết định nào.
+      reviewer-id: ${KNOWLEDGE_INGEST_REVIEWER_ID:}
   # Chạy dữ liệu tổng hợp trong database/seeds sau migration (chỉ máy phát triển).
   seed-synthetic: ${SEED_SYNTHETIC:false}
   database-dir: ${DATABASE_DIR:../database}

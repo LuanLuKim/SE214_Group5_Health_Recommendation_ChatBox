@@ -2,6 +2,7 @@ package vn.edu.uit.se214.health.knowledge.ingest;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.nio.file.Path;
+import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.ApplicationRunner;
@@ -32,7 +33,10 @@ class KnowledgeIngestConfig {
   @Bean
   ApplicationRunner knowledgeIngestRunner(KnowledgeIngest ingest, IngestProperties properties) {
     return args -> {
-      KnowledgeIngest.Report report = ingest.run(path(properties.normalizedDir()), path(properties.translatedDir()));
+      List<Path> decisions = properties.reviewDecisions() == null ? List.of()
+          : properties.reviewDecisions().stream().filter(v -> v != null && !v.isBlank()).map(Path::of).toList();
+      KnowledgeIngest.Report report = ingest.run(
+          path(properties.normalizedDir()), path(properties.translatedDir()), decisions, properties.reviewerId());
       KnowledgeIngest.describe(report).forEach(line -> log.info("Knowledge ingest: {}", line));
     };
   }
