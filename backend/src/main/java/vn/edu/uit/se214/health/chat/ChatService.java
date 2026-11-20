@@ -9,6 +9,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.regex.Pattern;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
@@ -23,6 +24,10 @@ import vn.edu.uit.se214.health.shared.web.ApiException;
 public class ChatService {
   private static final int MAX_MESSAGE_LENGTH = 4000;
   private static final long SSE_TIMEOUT_MS = 60_000L;
+  private static final Pattern EMAIL_PATTERN =
+      Pattern.compile("[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}");
+  private static final Pattern PHONE_PATTERN =
+      Pattern.compile("(?<!\\d)(?:\\+84|0)(?:[\\s.-]?\\d){9,10}(?!\\d)");
 
   private final ChatRepository repository;
   private final PythonServiceClient ai;
@@ -180,6 +185,10 @@ public class ChatService {
             .filter(s -> s.userId().equals(userId))
             .orElseThrow(() -> ApiException.notFound("Không tìm thấy tin nhắn."));
 
+    if (!"assistant".equals(message.role())) {
+      throw ApiException.invalidRequest("Chỉ có thể đánh giá câu trả lời của trợ lý.");
+    }
+
     String sharedQuestion = null;
     String sharedAnswer = null;
 
@@ -196,13 +205,25 @@ public class ChatService {
           break;
         }
       }
+
+      if (sharedQuestion == null || sharedQuestion.isBlank()) {
+        throw ApiException.invalidRequest("Không tìm thấy câu hỏi liền trước để đính kèm hội thoại.");
+      }
     }
 
     return repository.createFeedback(
         request.reason().trim(),
         request.note() != null ? request.note().trim() : "",
-        sharedQuestion,
-        sharedAnswer);
+        sanitizePii(sharedQuestion),
+        sanitizePii(sharedAnswer));
+  }
+
+  private static String sanitizePii(String text) {
+    if (text == null) {
+      return null;
+    }
+    String cleaned = EMAIL_PATTERN.matcher(text).replaceAll("[REDACTED_EMAIL]");
+    return PHONE_PATTERN.matcher(cleaned).replaceAll("[REDACTED_PHONE]");
   }
 
   private void requireConsent(UUID userId) {

@@ -167,4 +167,52 @@ class ChatServiceTest {
     assertThat(feedbackNoShare.sharedQuestion()).isNull();
     assertThat(feedbackNoShare.sharedAnswer()).isNull();
   }
+
+  @Test
+  void submitFeedbackRejectsUserMessageRole() {
+    UUID userId = UUID.randomUUID();
+    ChatSession session = repository.createSession(userId);
+    ChatMessage userMsg = repository.addMessage(session.id(), "user", "Tin nhắn câu hỏi");
+
+    assertThatThrownBy(
+            () ->
+                chatService.submitFeedback(
+                    userMsg.id(), userId, new ChatFeedbackRequest("OTHER", "Đánh giá nhầm", false)))
+        .isInstanceOf(ApiException.class)
+        .hasMessageContaining("Chỉ có thể đánh giá câu trả lời của trợ lý");
+  }
+
+  @Test
+  void submitFeedbackRejectsOptInWhenNoPrecedingQuestion() {
+    UUID userId = UUID.randomUUID();
+    ChatSession session = repository.createSession(userId);
+    ChatMessage assistantMsg = repository.addMessage(session.id(), "assistant", "Câu trả lời mồ côi.");
+
+    assertThatThrownBy(
+            () ->
+                chatService.submitFeedback(
+                    assistantMsg.id(), userId, new ChatFeedbackRequest("OTHER", "Không có câu hỏi", true)))
+        .isInstanceOf(ApiException.class)
+        .hasMessageContaining("Không tìm thấy câu hỏi liền trước");
+  }
+
+  @Test
+  void submitFeedbackSanitizesEmailAndPhoneNumber() {
+    UUID userId = UUID.randomUUID();
+    ChatSession session = repository.createSession(userId);
+    repository.addMessage(
+        session.id(), "user", "Email của tôi là benhnhan@gmail.com và sđt 0987654321, tôi bị sốt.");
+    ChatMessage assistantMsg =
+        repository.addMessage(
+            session.id(), "assistant", "Bạn có thể liên hệ tổng đài hỗ trợ 02812345678 hoặc support@med.vn.");
+
+    ChatFeedbackRecord feedback =
+        chatService.submitFeedback(
+            assistantMsg.id(), userId, new ChatFeedbackRequest("OTHER", "Cần bảo mật", true));
+
+    assertThat(feedback.sharedQuestion())
+        .isEqualTo("Email của tôi là [REDACTED_EMAIL] và sđt [REDACTED_PHONE], tôi bị sốt.");
+    assertThat(feedback.sharedAnswer())
+        .isEqualTo("Bạn có thể liên hệ tổng đài hỗ trợ [REDACTED_PHONE] hoặc [REDACTED_EMAIL].");
+  }
 }
