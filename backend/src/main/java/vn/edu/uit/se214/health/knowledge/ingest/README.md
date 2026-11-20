@@ -39,7 +39,13 @@ Phụ trách: M7 (LuanLu). Bảng `knowledge.chunks` và hàng đợi duyệt th
   | `NULL` | Chunk gốc tiếng Việt, không dịch; khi đó `original_text` và `translation_model` cũng NULL |
 
   Chunk có câu được sửa nhưng chưa được duyệt lại cả chunk thì ghi theo kết quả cổng chạy lại trên bản đã sửa.
-  Khi duyệt bài (UC-17), chỉ chunk `auto_verified` hoặc `reviewer_corrected` được bật.
+  Khi duyệt bài (UC-17), điều kiện bản dịch để bật chunk là:
+
+  ```sql
+  translation_status IS NULL OR translation_status IN ('auto_verified', 'reviewer_corrected')
+  ```
+
+  `NULL` nghĩa là "không cần dịch": 37 chunk viết sẵn bằng tiếng Việt không qua bộ dịch. Chúng vẫn phải đạt duyệt nội dung như mọi chunk khác. `pending` và `flagged` không bao giờ được bật.
 
 - Quyết định duyệt có thời điểm ghi nhận (`approval_recorded_at`, ví dụ bộ 79 chunk cấp cứu) được ghi vào `knowledge.review_events`:
   - loại `CHUNK`, đúng thời điểm trong file, dưới tài khoản `reviewer-id`;
@@ -70,4 +76,3 @@ Sau đó đặt `KNOWLEDGE_INGEST_ENABLED=false`.
   1. xóa file đó;
   2. bỏ bước nạp file đó trong `KnowledgeIngestTest`;
   3. sửa tên cột trong `KnowledgeIngestRepository` nếu M2 đặt tên khác.
-- 37 chunk gốc tiếng Việt có `translation_status = NULL`. Đang chờ M2 chốt điều kiện bật chunk có tính NULL là "không cần dịch" hay không.
