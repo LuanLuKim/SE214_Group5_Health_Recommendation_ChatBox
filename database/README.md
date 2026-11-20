@@ -25,6 +25,7 @@ Một PostgreSQL instance, sáu schema cùng tên module. Không cần sáu data
 | `V019__lifestyle_plan_summary.sql`      | lifestyle | plans: tóm tắt completion (`completion_count`, `completed_days`) cho lịch sử sau khi dọn dữ liệu chi tiết |
 | `V020__lifestyle_retention_indexes.sql` | lifestyle | index cho job dọn dữ liệu M6 (lần gửi theo trạng thái/giờ, nhắc tạm tắt, lộ trình chưa tóm tắt) |
 | `V021__knowledge_content_authoring.sql` | knowledge, lifestyle | UC-15: nguồn, bản quyền, người tạo/sửa/gửi duyệt và `revision` cho bài viết và mẫu kế hoạch; mẫu có thêm điều kiện áp dụng, lời nhắc và ngày xác minh |
+| `V024__health_profile_sex.sql`          | health    | profiles: `sex` chỉ nhận `FEMALE`, `MALE`, `OTHER`, `UNSPECIFIED` (UC-04) |
 
 Đây là schema khởi đầu, chưa đủ để tuyên bố hoàn thành SRS. Khi triển khai nghiệp vụ, cần versioning/audit và reviewer metadata đầy đủ; thông tin bản quyền và ngày nguồn; quản lý consent; dữ liệu eligibility/allergy phù hợp; lịch retry/delivery idempotency; chính sách retention và deletion cho feedback/backup.
 
