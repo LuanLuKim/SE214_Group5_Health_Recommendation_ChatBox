@@ -99,6 +99,15 @@ app:
       ended-plan-completions: ${LIFESTYLE_RETENTION_ENDED_PLAN_COMPLETIONS:P365D}
       paused-reminders: ${LIFESTYLE_RETENTION_PAUSED_REMINDERS:P90D}
       batch-size: ${LIFESTYLE_RETENTION_BATCH_SIZE:1000}
+  # SCRUM-48: nạp bài và chunk của M7 vào knowledge.* một lần lúc khởi động (chỉ DATA_MODE=postgres).
+  # Mọi dòng nạp vào đều DRAFT, rag_eligible = false; chỉ UC-17 duyệt. Chạy lại với cùng file không đổi gì.
+  knowledge:
+    ingest:
+      enabled: ${KNOWLEDGE_INGEST_ENABLED:false}
+      # Thư mục có chunks.jsonl và articles/*.json của bộ chuẩn hóa.
+      normalized-dir: ${KNOWLEDGE_INGEST_NORMALIZED_DIR:}
+      # Thư mục có chunks_vi.jsonl và db_rows_vi.json của tools/translate.
+      translated-dir: ${KNOWLEDGE_INGEST_TRANSLATED_DIR:}
   # Chạy dữ liệu tổng hợp trong database/seeds sau migration (chỉ máy phát triển).
   seed-synthetic: ${SEED_SYNTHETIC:false}
   database-dir: ${DATABASE_DIR:../database}
