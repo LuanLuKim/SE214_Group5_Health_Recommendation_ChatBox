@@ -52,8 +52,8 @@ Sau đó đặt `KNOWLEDGE_INGEST_ENABLED=false`.
 
 ## Còn chờ
 
-- Bảng `knowledge.chunks` thật là migration V024 của M2. Hiện test chạy trên bản sao bảng đề xuất ở `backend/src/test/resources/knowledge-ingest/proposed_knowledge_chunks.sql`. Khi V024 lên `main`:
+- Bảng `knowledge.chunks` thật là migration V025 của M2 (V024 là UC-04 của M3). Hiện test chạy trên bản sao bảng đề xuất ở `backend/src/test/resources/knowledge-ingest/proposed_knowledge_chunks.sql`. Khi V025 lên `main`:
   1. xóa file đó;
   2. bỏ bước nạp file đó trong `KnowledgeIngestTest`;
   3. sửa tên cột trong `KnowledgeIngestRepository` nếu M2 đặt tên khác.
-- Nạp 79 quyết định SCRUM-148 vào `knowledge.review_events` (loại `CHUNK`). Phần này cần V024 và câu trả lời của M2 về chunk thuộc bài chưa duyệt. Lệnh nạp nhận `reviewer_id` qua tham số và kiểm tài khoản đó là `CONTENT_EXPERT` đang hoạt động.
+- Nạp 79 quyết định SCRUM-148 vào `knowledge.review_events` (loại `CHUNK`). Phần này cần V025 và câu trả lời của M2 về chunk thuộc bài chưa duyệt. Lệnh nạp nhận `reviewer_id` qua tham số và kiểm tài khoản đó là `CONTENT_EXPERT` đang hoạt động.

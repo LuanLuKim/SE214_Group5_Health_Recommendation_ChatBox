@@ -1,6 +1,6 @@
 -- Chỉ dùng cho test của loader SCRUM-48, KHÔNG phải migration.
 -- Bản sao bảng knowledge.chunks đã đề xuất trên #50 (thêm translation_status, câu 2 gửi M2).
--- Migration thật do M2 viết (V024). Khi V024 lên main: xóa file này và bỏ bước nạp nó trong
+-- Migration thật do M2 viết (V025). Khi V025 lên main: xóa file này và bỏ bước nạp nó trong
 -- KnowledgeIngestTest, test sẽ chạy trên migration thật.
 CREATE TABLE knowledge.chunks (
   id uuid PRIMARY KEY,
