@@ -37,7 +37,16 @@ public class JdbcChatRepository implements ChatRepository {
 
   @Override
   public Optional<ChatSession> findSession(UUID sessionId) {
-    return jdbc.sql("SELECT id, user_id, created_at FROM chat.sessions WHERE id = ?")
+    return jdbc.sql(
+            """
+            SELECT s.id, s.user_id, s.created_at,
+                   COUNT(m.id) AS message_count,
+                   MAX(m.created_at) AS last_message_at
+            FROM chat.sessions s
+            LEFT JOIN chat.messages m ON m.session_id = s.id
+            WHERE s.id = ?
+            GROUP BY s.id, s.user_id, s.created_at
+            """)
         .params(sessionId)
         .query(this::mapSession)
         .optional();
@@ -45,7 +54,17 @@ public class JdbcChatRepository implements ChatRepository {
 
   @Override
   public List<ChatSession> listSessions(UUID userId) {
-    return jdbc.sql("SELECT id, user_id, created_at FROM chat.sessions WHERE user_id = ? ORDER BY created_at DESC")
+    return jdbc.sql(
+            """
+            SELECT s.id, s.user_id, s.created_at,
+                   COUNT(m.id) AS message_count,
+                   MAX(m.created_at) AS last_message_at
+            FROM chat.sessions s
+            LEFT JOIN chat.messages m ON m.session_id = s.id
+            WHERE s.user_id = ?
+            GROUP BY s.id, s.user_id, s.created_at
+            ORDER BY COALESCE(MAX(m.created_at), s.created_at) DESC
+            """)
         .params(userId)
         .query(this::mapSession)
         .list();
@@ -113,10 +132,22 @@ public class JdbcChatRepository implements ChatRepository {
   }
 
   private ChatSession mapSession(ResultSet rs, int rowNum) throws SQLException {
+    int messageCount = 0;
+    try {
+      messageCount = rs.getInt("message_count");
+    } catch (SQLException ignored) {
+    }
+    OffsetDateTime lastMsg = null;
+    try {
+      lastMsg = rs.getObject("last_message_at", OffsetDateTime.class);
+    } catch (SQLException ignored) {
+    }
     return new ChatSession(
         rs.getObject("id", UUID.class),
         rs.getObject("user_id", UUID.class),
-        Instants.iso(rs.getObject("created_at", OffsetDateTime.class)));
+        Instants.iso(rs.getObject("created_at", OffsetDateTime.class)),
+        messageCount,
+        lastMsg != null ? Instants.iso(lastMsg) : null);
   }
 
   private ChatMessage mapMessage(ResultSet rs, int rowNum) throws SQLException {

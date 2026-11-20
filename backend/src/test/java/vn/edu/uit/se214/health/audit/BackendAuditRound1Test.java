@@ -155,7 +155,6 @@ class BackendAuditRound1Test {
 
   @Test
   @Transactional
-  @KnownBug("#152")
   @DisplayName("08-02 · UC08 · API từ chối đánh giá tin nhắn role user và không lưu")
   void feedbackApiRejectsUserMessageWithoutSaving() throws Exception {
     String note = "UC08 user message audit";
@@ -243,7 +242,6 @@ class BackendAuditRound1Test {
 
   /** Not @Transactional: the 500 comes from a constraint violation inside the request. */
   @Test
-  @KnownBug("#153")
   @DisplayName("08-07 · UC08 · Chia sẻ câu trả lời thiếu câu hỏi liền trước trả 4xx, không phải 500")
   void optInForAnswerWithoutPrecedingQuestionReturnsClientError() throws Exception {
     String note = "UC08 missing question audit";

@@ -42,7 +42,6 @@ class ChatFeedbackServiceAuditTest {
   }
 
   @Test
-  @KnownBug("#152")
   @DisplayName("08-01 · UC08 · Service từ chối đánh giá tin nhắn role user")
   void feedbackOnlyAcceptsAssistantAnswers() {
     UUID userId = UUID.randomUUID();
