@@ -85,7 +85,8 @@
   ],
   "age_table_comment": "user decisions 18/11: words for an age group follow the source word; never 'nhũ nhi', never add an age group or a 28-day limit the source does not give",
   "age_table": [
-    {"en": "newborn / neonate / neonatal", "vi": "trẻ dưới 28 ngày tuổi (cả trong ngoặc và trong bảng số liệu; không viết 'sơ sinh' trơn); chỉ khi dòng gốc nói newborn, neonate hoặc mốc 28 ngày"},
+    {"en": "newborn / neonate / neonatal", "vi": "trẻ dưới 28 ngày tuổi (cả trong ngoặc và trong bảng số liệu; không viết 'sơ sinh' trơn); chỉ khi dòng gốc nói newborn, neonate hoặc mốc 28 ngày; trừ tên bệnh 'neonatal tetanus'"},
+    {"en": "neonatal tetanus (disease name)", "vi": "uốn ván sơ sinh (tên bệnh, không đổi thành 'uốn ván ở trẻ dưới 28 ngày tuổi')"},
     {"en": "baby / babies / infant(s) when the age decides the advice (dose, vaccine, feeding, salt, safety, warning signs, an age table)", "vi": "trẻ dưới 1 tuổi (hoặc đúng mốc tuổi mà bài nêu)"},
     {"en": "baby / babies / your baby in an ordinary sentence", "vi": "em bé / trẻ nhỏ"},
     {"en": "infant formula", "vi": "sữa công thức"},
@@ -191,7 +192,7 @@
     {"label": "fragility fracture", "source": "(?i)\\bfragility fractures?\\b", "unless_source": "(?i)osteopor", "forbid": "(?i)loãng xương", "hint": "'fragility fracture' là gãy xương do chấn thương nhẹ, không đồng nghĩa loãng xương"},
     {"label": "malnutrition", "source": "(?i)\\bmalnutrition\\b[^.;]{0,80}(?:forms?|overweight|obes|double burden)|(?:forms? of|overweight|obes|double burden)[^.;]{0,80}\\bmalnutrition\\b", "require": "(?i)rối loạn dinh dưỡng", "hint": "'malnutrition' gồm cả thừa cân, béo phì ở đây: viết 'rối loạn dinh dưỡng'"},
     {"label": "malnutrition (context)", "source": "(?i)\\bmalnutrition\\b", "require": "(?i)rối loạn dinh dưỡng|suy dinh dưỡng", "hint": "'malnutrition' là rối loạn dinh dưỡng; khi là hậu quả của đói, nhiễm trùng, tiêu chảy, nước và vệ sinh kém thì viết 'suy dinh dưỡng'"},
-    {"label": "newborn age", "source": "(?i)\\bnew-?borns?\\b|\\bneonat", "unless_source": "(?i)\\bMNTE\\b|tetanus elimination", "require": "28 ngày", "hint": "'newborn/neonate' là trẻ dưới 28 ngày tuổi: ghi rõ mốc này, không viết 'sơ sinh' trơn"},
+    {"label": "newborn age", "source": "(?i)\\bnew-?borns?\\b|\\bneonat", "unless_source": "(?i)\\bMNTE\\b|tetanus elimination|neonatal tetanus", "require": "28 ngày", "hint": "'newborn/neonate' là trẻ dưới 28 ngày tuổi: ghi rõ mốc này, không viết 'sơ sinh' trơn"},
     {"label": "hearing loss", "source": "(?i)\\bhearing loss\\b", "forbid": "(?i)mất thính lực", "hint": "'hearing loss' là giảm thính lực (mọi mức độ), không viết 'mất thính lực'"},
     {"label": "rheumatic heart disease", "source": "(?i)\\brheumatic heart disease\\b", "forbid": "(?i)bệnh tim do thấp khớp", "hint": "'rheumatic heart disease' là bệnh tim do thấp; 'rheumatic fever' vẫn là sốt thấp khớp"},
     {"label": "HPV", "source": "(?i)papilloma ?virus", "require": "(?i)u nhú", "hint": "'human papillomavirus' là vi-rút u nhú ở người (HPV)"},

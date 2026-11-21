@@ -10,7 +10,7 @@ Các loại lỗi người duyệt dùng: Thuật ngữ, Phạm vi, Tuổi / th�
 
 Quyết định đã chốt (thắng mọi ghi chú cũ trái với nó):
 
-- Tuổi theo đúng chữ của bản gốc. newborn, neonate: "trẻ dưới 28 ngày tuổi". babies, infant: khi tuổi quan trọng (liều, vắc-xin, cho ăn, muối, an toàn, bảng tuổi) viết "trẻ dưới 1 tuổi" hoặc tuổi mà văn bản ngụ ý; trong câu thông thường viết "em bé" hoặc "trẻ nhỏ". Không bao giờ viết "nhũ nhi", không gộp hai nhóm tuổi, không thêm giới hạn tuổi bản gốc không có.
+- Tuổi theo đúng chữ của bản gốc. newborn, neonate: "trẻ dưới 28 ngày tuổi"; riêng tên bệnh "neonatal tetanus" viết "uốn ván sơ sinh". babies, infant: khi tuổi quan trọng (liều, vắc-xin, cho ăn, muối, an toàn, bảng tuổi) viết "trẻ dưới 1 tuổi" hoặc tuổi mà văn bản ngụ ý; trong câu thông thường viết "em bé" hoặc "trẻ nhỏ". Không bao giờ viết "nhũ nhi", không gộp hai nhóm tuổi, không thêm giới hạn tuổi bản gốc không có.
 - a high temperature: "sốt" (NHS dùng để chỉ sốt nói chung), không phải "sốt cao".
 - malnutrition: mặc định "rối loạn dinh dưỡng"; khi là hậu quả của đói, nhiễm trùng, tiêu chảy, nước hoặc vệ sinh kém thì "suy dinh dưỡng". undernutrition: "thiếu dinh dưỡng".
 - Tên chế phẩm giữ nguyên (Aqueous Cream). Mã và số hiệu giữ nguyên (WHA74.8).

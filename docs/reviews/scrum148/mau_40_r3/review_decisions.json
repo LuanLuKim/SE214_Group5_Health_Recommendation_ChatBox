@@ -678,7 +678,7 @@
       "en": "Stay off school or work until you've not been sick or had diarrhoea for at least 2 days.",
       "vi": "Nghỉ học hoặc nghỉ làm cho đến khi bạn không còn nôn hoặc bị tiêu chảy trong ít nhất 2 ngày.",
       "error_type": "Phủ định / điều kiện",
-      "severity": "Vừa",
+      "severity": "Nghiêm trọng",
       "proposed_vi": "Chỉ trở lại trường học hoặc nơi làm việc sau ít nhất 2 ngày không còn nôn và không còn tiêu chảy.",
       "note": "Làm rõ cần hết cả nôn và tiêu chảy trong ít nhất 2 ngày; tránh cách hiểu chỉ cần hết một trong hai triệu chứng."
     },

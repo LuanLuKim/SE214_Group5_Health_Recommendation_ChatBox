@@ -1826,6 +1826,10 @@ class TestMeaningChecks(unittest.TestCase):
         self.assertEqual(review(self.line("Newborn babies need warmth", "Trẻ sơ sinh (dưới 28 ngày tuổi) cần được giữ ấm")),
                          set())
 
+    def test_neonatal_tetanus_is_the_disease_name_uốn_ván_sơ_sinh(self):
+        self.assertEqual(review(self.line("Neonatal tetanus is still common in some countries.",
+                                          "Uốn ván sơ sinh vẫn còn phổ biến ở một số quốc gia.")), set())
+
     def test_very_high_temperature_may_be_sốt_cao(self):
         self.assertEqual(review(self.line("a very high temperature", "sốt rất cao")), set())
 
