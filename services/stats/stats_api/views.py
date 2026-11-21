@@ -1,11 +1,13 @@
 import hmac
 import json
+from decimal import Decimal
 from functools import wraps
 
 from django.conf import settings
 from django.http import JsonResponse
 from django.views.decorators.http import require_GET, require_POST
 
+from .trends import InvalidTrendRequest, compute_trends, parse_request
 from .system_stats import InvalidStatisticsRequest, compute_statistics
 from .system_stats import parse_request as parse_statistics_request
 
@@ -40,10 +42,19 @@ def healthz(request):
     return JsonResponse({"data": {"status": "ok", "service": "health-assistant-stats", "mode": "scaffold"}})
 
 
-@require_GET
 @require_service_key
+@require_POST
 def metric_trends(request):
-    return error(request, 501, "NOT_IMPLEMENTED", "Chức năng này đang chờ triển khai.")
+    """UC-05. Spring Boot posts one person's days in a window; the body is never stored or logged."""
+    try:
+        payload = json.loads(request.body.decode("utf-8"), parse_float=Decimal, parse_constant=_reject_constant)
+    except (UnicodeDecodeError, ValueError):
+        return error(request, 400, "INVALID_JSON", "Nội dung gửi lên không phải JSON hợp lệ.")
+    try:
+        period, start, end, points = parse_request(payload)
+    except InvalidTrendRequest as exc:
+        return error(request, 400, "TRENDS_INVALID", str(exc))
+    return JsonResponse({"data": compute_trends(period, start, end, points)}, json_dumps_params={"ensure_ascii": False})
 
 
 def _reject_constant(name):

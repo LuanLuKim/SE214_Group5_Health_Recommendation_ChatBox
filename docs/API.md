@@ -161,6 +161,24 @@ Body PUT: `heightCm` (số, 50–250), `weightKg` (số, 20–300), `age` (số 
 
 Lỗi: 403 `HEALTH_CONSENT_REQUIRED` (A1), 400 `HEALTH_PROFILE_INVALID` (A3: thông báo nêu tên từng trường sai hoặc thiếu, không lặp lại giá trị), 500 `HEALTH_PROFILE_SAVE_FAILED` (A4: ghi trong một transaction nên hồ sơ cũ còn nguyên, thử lại được), 503 `HEALTH_UNAVAILABLE` (chế độ không có cơ sở dữ liệu).
 
+### M3 – UC-05 Ghi nhận và xem thống kê chỉ số
+
+| Route                         | Hành vi                                                                                                                                                                                                |
+| ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| GET `/health/metrics`         | Chỉ số của chính người dùng trong một khoảng, kèm thống kê và nhận xét. Tham số tùy chọn: `period` = `week` (7 ngày) hoặc `month` (30 ngày), mặc định `week`; `to` = ngày kết thúc `yyyy-MM-dd`, mặc định hôm nay, không ở tương lai |
+| PUT `/health/metrics/{date}`  | Tạo hoặc cập nhật chỉ số của ngày `{date}` (`yyyy-MM-dd`, không ở tương lai). Mỗi ngày một bản ghi, gửi lặp không tạo trùng. Chỉ số không gửi (hoặc `null`) giữ giá trị cũ, kể cả cân nặng do UC-04 ghi |
+| DELETE `/health/metrics/{date}` | Xóa bản ghi của ngày đó; xóa ngày không có bản ghi vẫn trả 200. Không cần consent để người dùng đã rút đồng ý vẫn xóa được                                                                           |
+
+Body PUT: `weightKg` (số, 20–300 kg) và/hoặc `sleepHours` (số, 0–24 giờ); cần ít nhất một. Đọc và lưu cần consent xử lý dữ liệu sức khỏe.
+
+Kết quả GET: `points` (chỉ các ngày có bản ghi, cũ trước), `units` (`kg`, `giờ`), `insightsStatus`, `summary`, `insights`, `message`.
+- `OK`: `summary` (cân nặng: số lần ghi, trung bình, nhỏ nhất, lớn nhất, đầu, cuối, thay đổi; giờ ngủ: số lần ghi, trung bình, nhỏ nhất, lớn nhất) và `insights` (mỗi nhận xét có `code`, `severity` là `WARNING` hoặc `INFO`, `symbol` và `message` bằng chữ) do `services/stats` tính theo ngưỡng cấu hình được. Nhận xét không phải chẩn đoán.
+- `NO_DATA`: khoảng không có dữ liệu (A4), `points` rỗng, không có nhận xét xu hướng.
+- `UNAVAILABLE`: chưa tạo được nhận xét (A5) nhưng `points` vẫn có để vẽ biểu đồ; người dùng thử lại bằng cách gọi lại.
+
+Backend đọc các ngày của chính người dùng rồi gửi `POST /v1/metrics/trends` sang `services/stats` (chỉ ngày, cân nặng, giờ ngủ; không gửi mã người dùng). Xem `services/stats/README.md`.
+
+Lỗi: 403 `HEALTH_CONSENT_REQUIRED`, 400 `HEALTH_METRICS_INVALID` (nêu tên trường sai, không lặp lại giá trị), 500 `HEALTH_METRICS_SAVE_FAILED` hoặc `HEALTH_METRICS_READ_FAILED` (thử lại được, dữ liệu cũ giữ nguyên), 503 `HEALTH_UNAVAILABLE` (chế độ không có cơ sở dữ liệu). Kiểu dữ liệu: `HealthMetricPoint`, `HealthMetricInput`, `HealthMetricsView` trong `packages/contracts`.
 ### M3 – UC-19 Xem thống kê hệ thống
 
 | Route                     | Hành vi                                                                                                                                                                  |
