@@ -294,6 +294,47 @@ export interface HealthProfileInput {
   sex: HealthSex;
   foodAllergies?: string[];
 }
+// M3 UC-05: GET /health/metrics?period=week|month&to=yyyy-MM-dd, PUT/DELETE /health/metrics/:date.
+// A week is the 7 days and a month the 30 days ending on `to`. points holds only days with a record.
+export interface HealthMetricPoint {
+  date: string;
+  weightKg: number | null;
+  sleepHours: number | null;
+}
+// PUT body: weightKg 20-300 and/or sleepHours 0-24, at least one; a metric left out keeps its stored value.
+export interface HealthMetricInput {
+  weightKg?: number | null;
+  sleepHours?: number | null;
+}
+export type HealthMetricsPeriod = 'week' | 'month';
+export interface HealthMetricStat {
+  unit: string;
+  count: number;
+  average: number;
+  min: number;
+  max: number;
+  first?: number;
+  last?: number;
+  change?: number;
+}
+export interface HealthMetricInsight {
+  code: string;
+  severity: 'INFO' | 'WARNING';
+  symbol: string;
+  message: string;
+}
+// insightsStatus: OK (summary and insights present), NO_DATA (empty window, no comment), UNAVAILABLE (chart only, retry).
+export interface HealthMetricsView {
+  period: HealthMetricsPeriod;
+  from: string;
+  to: string;
+  points: HealthMetricPoint[];
+  units: { weightKg: string; sleepHours: string };
+  insightsStatus: 'OK' | 'NO_DATA' | 'UNAVAILABLE';
+  summary: { weight: HealthMetricStat | null; sleep: HealthMetricStat | null } | null;
+  insights: HealthMetricInsight[];
+  message: string | null;
+}
 // M6 UC-12: only approved templates; the server checks consent, allergies and profile again on apply.
 export type LifestyleGoal = 'SLEEP' | 'MAINTAIN' | 'GAIN' | 'LOSE';
 export interface TemplateSummary {

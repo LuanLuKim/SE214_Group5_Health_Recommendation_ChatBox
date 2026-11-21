@@ -1,12 +1,13 @@
 """Settings for the statistics service (M3: UC-05 trends, UC-19 system statistics).
 
-Secrets come from environment variables or services/stats/.env. No database is configured: Spring
-Boot reads the data and posts only what each statistic needs (UC-19: per-day counts of aggregate
-events), and this service computes from that without storing anything.
+Secrets come from environment variables or services/stats/.env. No database is configured:
+UC-05 trends are computed from the days Spring Boot sends (stateless, nothing stored). M3 adds a
+read-only PostgreSQL connection (aggregate data only) when the UC-19 system statistics are built.
 """
 
 import os
 import secrets
+from decimal import Decimal, InvalidOperation
 from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -32,11 +33,21 @@ ALLOWED_HOSTS = [
 ]
 STATS_SERVICE_KEY = ENV.get("STATS_SERVICE_KEY", "")
 
-# UC-19: khoảng ngày rộng nhất một yêu cầu thống kê hệ thống được gửi (giữ bằng HEALTH_STATS_MAX_DAYS của backend).
-try:
-    STATS_SYSTEM_MAX_DAYS = int(ENV.get("STATS_SYSTEM_MAX_DAYS") or "366")
-except ValueError:
-    STATS_SYSTEM_MAX_DAYS = 366
+
+def _decimal(name: str, default: str) -> Decimal:
+    try:
+        return Decimal(ENV.get(name) or default)
+    except InvalidOperation:
+        return Decimal(default)
+
+
+# UC-05 ngưỡng tham chiếu cho nhận xét xu hướng (cấu hình được, không phải chẩn đoán).
+# Mặc định tạm thời, nhóm cần chốt lại với nguồn tham chiếu trước khi phát hành.
+STATS_SLEEP_LOW_HOURS = _decimal("STATS_SLEEP_LOW_HOURS", "7")
+STATS_SLEEP_LOW_DAYS = int(_decimal("STATS_SLEEP_LOW_DAYS", "5"))
+STATS_SLEEP_WINDOW_DAYS = int(_decimal("STATS_SLEEP_WINDOW_DAYS", "7"))
+STATS_WEIGHT_CHANGE_KG_WEEK = _decimal("STATS_WEIGHT_CHANGE_KG_WEEK", "2")
+STATS_WEIGHT_CHANGE_KG_MONTH = _decimal("STATS_WEIGHT_CHANGE_KG_MONTH", "4")
 
 INSTALLED_APPS = ["stats_api"]
 MIDDLEWARE = ["stats_service.middleware.RequestContextMiddleware"]
