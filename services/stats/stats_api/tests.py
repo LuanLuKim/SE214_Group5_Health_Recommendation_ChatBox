@@ -21,8 +21,8 @@ class StatsApiTest(SimpleTestCase):
                 self.assertEqual(body["code"], "UNAUTHORIZED")
                 self.assertEqual(body["requestId"], response["X-Request-ID"])
 
-    def test_system_statistics_are_not_implemented_yet(self):
-        self.assertEqual(self.client.get("/v1/system/statistics", **KEY).status_code, 501)
+    def test_system_statistics_only_accepts_post(self):
+        self.assertEqual(self.client.get("/v1/system/statistics", **KEY).status_code, 405)
 
     @override_settings(STATS_SERVICE_KEY="")
     def test_missing_service_key_configuration_fails_closed(self):

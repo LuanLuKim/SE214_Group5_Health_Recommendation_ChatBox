@@ -8,6 +8,8 @@ from django.http import JsonResponse
 from django.views.decorators.http import require_GET, require_POST
 
 from .trends import InvalidTrendRequest, compute_trends, parse_request
+from .system_stats import InvalidStatisticsRequest, compute_statistics
+from .system_stats import parse_request as parse_statistics_request
 
 
 def error(request, status: int, code: str, message: str) -> JsonResponse:
@@ -40,10 +42,6 @@ def healthz(request):
     return JsonResponse({"data": {"status": "ok", "service": "health-assistant-stats", "mode": "scaffold"}})
 
 
-def _reject_constant(name):
-    raise ValueError(name)
-
-
 @require_service_key
 @require_POST
 def metric_trends(request):
@@ -59,10 +57,23 @@ def metric_trends(request):
     return JsonResponse({"data": compute_trends(period, start, end, points)}, json_dumps_params={"ensure_ascii": False})
 
 
-@require_GET
+def _reject_constant(name):
+    raise ValueError(name)
+
+
 @require_service_key
+@require_POST
 def system_statistics(request):
-    return error(request, 501, "NOT_IMPLEMENTED", "Chức năng này đang chờ triển khai.")
+    """UC-19. Spring Boot posts per-day counts of aggregate events; nothing is stored or logged."""
+    try:
+        payload = json.loads(request.body.decode("utf-8"), parse_constant=_reject_constant)
+    except (UnicodeDecodeError, ValueError):
+        return error(request, 400, "INVALID_JSON", "Nội dung gửi lên không phải JSON hợp lệ.")
+    try:
+        start, end, days = parse_statistics_request(payload)
+    except InvalidStatisticsRequest as exc:
+        return error(request, 400, "STATISTICS_INVALID", str(exc))
+    return JsonResponse({"data": compute_statistics(start, end, days)}, json_dumps_params={"ensure_ascii": False})
 
 
 def not_found(request, exception=None):

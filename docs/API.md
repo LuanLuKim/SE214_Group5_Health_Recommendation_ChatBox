@@ -179,6 +179,19 @@ Kết quả GET: `points` (chỉ các ngày có bản ghi, cũ trước), `units
 Backend đọc các ngày của chính người dùng rồi gửi `POST /v1/metrics/trends` sang `services/stats` (chỉ ngày, cân nặng, giờ ngủ; không gửi mã người dùng). Xem `services/stats/README.md`.
 
 Lỗi: 403 `HEALTH_CONSENT_REQUIRED`, 400 `HEALTH_METRICS_INVALID` (nêu tên trường sai, không lặp lại giá trị), 500 `HEALTH_METRICS_SAVE_FAILED` hoặc `HEALTH_METRICS_READ_FAILED` (thử lại được, dữ liệu cũ giữ nguyên), 503 `HEALTH_UNAVAILABLE` (chế độ không có cơ sở dữ liệu). Kiểu dữ liệu: `HealthMetricPoint`, `HealthMetricInput`, `HealthMetricsView` trong `packages/contracts`.
+### M3 – UC-19 Xem thống kê hệ thống
+
+| Route                     | Hành vi                                                                                                                                                                  |
+| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| GET `/health/statistics`  | Chỉ vai trò có `PERM_SYSTEM_STATS_VIEW` (ADMIN). Số tài khoản mới, lượt truy cập, lượt tương tác chatbot theo từng ngày và tổng trong khoảng `from`–`to` (`yyyy-MM-dd`) |
+
+- Không gửi `from`/`to`: 30 ngày gần nhất tính tới hôm nay (`HEALTH_STATS_DEFAULT_DAYS`). Ngày tính theo múi giờ `HEALTH_STATS_ZONE` (mặc định `Asia/Ho_Chi_Minh`). Khoảng rộng nhất `HEALTH_STATS_MAX_DAYS` (mặc định 366) ngày.
+- `data`: `from`, `to`, `timezone`, `hasData`, `totals` (`newAccounts`, `visits`, `chatInteractions`), `series` (mỗi ngày trong khoảng một phần tử, ngày không có sự kiện là 0), `metrics` (`key`, `label`, `unit` cho chú thích và trục biểu đồ), `message` (A3: khi `hasData = false`, ví dụ "Không có dữ liệu trong khoảng thời gian đã chọn.").
+- Chỉ có số đếm tổng hợp: không có người dùng, email, nội dung hội thoại hay chỉ số sức khỏe (M-11).
+- Nguồn số liệu (SCRUM-51): bảng `health.usage_events` (chỉ có loại và thời điểm). Mỗi phản hồi thành công của route cấu hình trong `app.health.statistics.event-routes` là một sự kiện: `POST /accounts/register/verify` 201 → tài khoản mới; `POST /accounts/login` và `POST /accounts/oauth` 200 → lượt truy cập; `POST /chat/messages` 200 → lượt tương tác chatbot. Tài khoản tạo qua OAuth hiện chỉ được tính là lượt truy cập. Tắt ghi sự kiện: `HEALTH_STATS_RECORD_EVENTS=false`.
+- Spring Boot đếm sự kiện theo ngày rồi gửi `POST /v1/system/statistics` (chỉ ngày và số đếm) cho `services/stats`; Django điền các ngày trống, cộng tổng và gắn nhãn.
+
+Lỗi: 401 chưa đăng nhập, 403 `ACCESS_DENIED` (A1, không phải ADMIN), 400 `HEALTH_STATS_RANGE_INVALID` (A2: sai định dạng, ngày bắt đầu sau ngày kết thúc, khoảng quá rộng), 503 `HEALTH_STATS_UNAVAILABLE` (A4: không đọc hoặc không tổng hợp được, kèm thông báo để thử lại; hoặc chế độ không có cơ sở dữ liệu).
 
 ### M6 – UC-13 Theo dõi thói quen
 

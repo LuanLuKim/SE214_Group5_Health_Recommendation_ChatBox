@@ -22,3 +22,9 @@ Route: `GET /healthz`, `POST /v1/metrics/trends`, `GET /v1/system/statistics` (r
 Trả `{"data": {"status": "OK|NO_DATA", "summary": {"weight": {...}, "sleep": {...}}, "insights": [{"code", "severity", "symbol", "message"}], ...}}`. `period` là `week` (7 ngày) hoặc `month` (30 ngày), tối đa 31 ngày và 31 điểm. Lỗi: 400 `INVALID_JSON`, 400 `TRENDS_INVALID` (thông báo nêu tên trường, không lặp lại giá trị).
 
 Nhận xét theo ngưỡng cấu hình được qua biến môi trường `STATS_SLEEP_LOW_HOURS`, `STATS_SLEEP_LOW_DAYS`, `STATS_SLEEP_WINDOW_DAYS`, `STATS_WEIGHT_CHANGE_KG_WEEK`, `STATS_WEIGHT_CHANGE_KG_MONTH` (xem `.env.example`). Mặc định hiện tại (ngủ dưới 7 giờ ở 5/7 ngày, cân nặng đổi từ 2 kg/tuần hoặc 4 kg/tháng) chỉ là giá trị tạm thời để nhóm chốt. Nhận xét không phải chẩn đoán.
+Route:
+
+- `GET /healthz`.
+- `POST /v1/system/statistics` (UC-19, `stats_api/system_stats.py`): nhận `{from, to, days: [{date, newAccounts, visits, chatInteractions}]}` do Spring Boot đếm từ `health.usage_events`, trả mọi ngày trong khoảng (ngày không có sự kiện là 0), tổng, nhãn và đơn vị từng chuỗi, `hasData` và thông báo khi không có dữ liệu. Sai dữ liệu: 400 `STATISTICS_INVALID` (thông báo nêu tên trường, không lặp lại giá trị). Khoảng rộng nhất `STATS_SYSTEM_MAX_DAYS` ngày (mặc định 366, giữ bằng `HEALTH_STATS_MAX_DAYS` của backend).
+
+Không cấu hình database: Spring Boot đọc dữ liệu và chỉ gửi số liệu tổng hợp mà từng thống kê cần; dịch vụ này không lưu và không ghi log nội dung nhận được, không bao giờ nhận dữ liệu sức khỏe của từng người cho Quản trị viên.

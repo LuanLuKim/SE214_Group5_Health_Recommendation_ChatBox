@@ -92,8 +92,5 @@ public class HealthController {
     return ApiResponse.empty();
   }
 
-  @GetMapping("/statistics")
-  public Object statistics() {
-    throw ApiException.notImplemented();
-  }
+  // GET /statistics (UC-19) is served by SystemStatisticsController.
 }
