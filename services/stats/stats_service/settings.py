@@ -1,7 +1,8 @@
 """Settings for the statistics service (M3: UC-05 trends, UC-19 system statistics).
 
-Secrets come from environment variables or services/stats/.env. No database is configured yet:
-M3 adds a read-only PostgreSQL connection (aggregate data only) when the first statistic is built.
+Secrets come from environment variables or services/stats/.env. No database is configured: Spring
+Boot reads the data and posts only what each statistic needs (UC-19: per-day counts of aggregate
+events), and this service computes from that without storing anything.
 """
 
 import os
@@ -30,6 +31,12 @@ ALLOWED_HOSTS = [
     h.strip() for h in ENV.get("DJANGO_ALLOWED_HOSTS", "127.0.0.1,localhost,testserver").split(",") if h.strip()
 ]
 STATS_SERVICE_KEY = ENV.get("STATS_SERVICE_KEY", "")
+
+# UC-19: khoảng ngày rộng nhất một yêu cầu thống kê hệ thống được gửi (giữ bằng HEALTH_STATS_MAX_DAYS của backend).
+try:
+    STATS_SYSTEM_MAX_DAYS = int(ENV.get("STATS_SYSTEM_MAX_DAYS") or "366")
+except ValueError:
+    STATS_SYSTEM_MAX_DAYS = 366
 
 INSTALLED_APPS = ["stats_api"]
 MIDDLEWARE = ["stats_service.middleware.RequestContextMiddleware"]

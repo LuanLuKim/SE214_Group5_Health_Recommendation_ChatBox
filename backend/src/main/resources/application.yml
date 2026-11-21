@@ -113,6 +113,22 @@ app:
       review-decisions: ${KNOWLEDGE_INGEST_REVIEW_DECISIONS:}
       # Tài khoản CONTENT_EXPERT thật đứng tên các quyết định; để trống thì không ghi quyết định nào.
       reviewer-id: ${KNOWLEDGE_INGEST_REVIEWER_ID:}
+  health:
+    # UC-19 thống kê hệ thống và SCRUM-51 ghi sự kiện. Sự kiện chỉ có loại và thời điểm, không có
+    # người dùng hay nội dung. Ngày thống kê tính theo múi giờ zone.
+    statistics:
+      zone: ${HEALTH_STATS_ZONE:Asia/Ho_Chi_Minh}
+      default-days: ${HEALTH_STATS_DEFAULT_DAYS:30}
+      max-days: ${HEALTH_STATS_MAX_DAYS:366}
+      record-events: ${HEALTH_STATS_RECORD_EVENTS:true}
+      # Mỗi phản hồi thành công của route dưới đây tính là một sự kiện. Đăng ký qua OAuth (Google,
+      # Facebook) chỉ tính là lượt truy cập vì route không phân biệt tài khoản mới; M5 có thể gọi
+      # UsageEventRecorder.record(REGISTRATION) khi tạo tài khoản OAuth.
+      event-routes:
+        - { method: POST, path: /api/v1/accounts/register/verify, status: 201, type: REGISTRATION }
+        - { method: POST, path: /api/v1/accounts/login, status: 200, type: VISIT }
+        - { method: POST, path: /api/v1/accounts/oauth, status: 200, type: VISIT }
+        - { method: POST, path: /api/v1/chat/messages, status: 200, type: CHAT_INTERACTION }
   # Chạy dữ liệu tổng hợp trong database/seeds sau migration (chỉ máy phát triển).
   seed-synthetic: ${SEED_SYNTHETIC:false}
   database-dir: ${DATABASE_DIR:../database}

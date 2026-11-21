@@ -409,8 +409,10 @@ class PostgresModeTest {
                 .content("{}"))
         .andExpect(status().isBadRequest())
         .andExpect(jsonPath("$.error.code").value("OTP_INVALID"));
+    // UC-19: the admin passes the permission check; no stats service is configured in this test
     mvc.perform(signed(get("/api/v1/health/statistics")))
-        .andExpect(status().isNotImplemented());
+        .andExpect(status().isServiceUnavailable())
+        .andExpect(jsonPath("$.error.code").value("HEALTH_STATS_UNAVAILABLE"));
     mvc.perform(
             signedAs(userId, get("/api/v1/health/statistics")))
         .andExpect(status().isForbidden())
