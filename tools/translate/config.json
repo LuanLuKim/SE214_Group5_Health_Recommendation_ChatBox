@@ -4,7 +4,14 @@
     "input_db_rows": ".data/normalized/db_rows.json",
     "output_dir": ".data/translated",
     "medicine_index_urls": "docs/urls_discovery.txt",
-    "collection_dir": ".data/collection"
+    "collection_dir": ".data/collection",
+    "reviewer_policy": "tools/translate/reviewer_policy.md",
+    "human_corrections": [
+      "docs/reviews/scrum148/corrections_applied.json",
+      "docs/reviews/scrum148/mau_82/corrections.json",
+      "docs/reviews/scrum148/dieu_chinh_do_tuoi.json",
+      "docs/reviews/scrum148/mau_40_r3/corrections.json"
+    ]
   },
   "languages": {"source": "en", "target": "vi"},
   "segments": {"max_words": 60},
@@ -37,12 +44,15 @@
   "engine_aliases": {"medev": "vinai"},
   "default_engines": ["nllb", "vinai", "medcrab"],
   "llm": {
+    "mode": "fusion",
     "units_per_request": 4,
     "extra_lines_per_unit": 40,
     "workers": 3,
     "timeout_seconds": 600,
     "default_reasoning": "low",
-    "repair_rounds": 1
+    "repair_rounds": 1,
+    "verify": true,
+    "reviewer_notes": true
   },
   "quality": {
     "min_length_ratio": 0.3,

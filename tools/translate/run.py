@@ -5,6 +5,7 @@ Usage (from the repo root, inside the se214-translate environment):
     python -B tools/translate/run.py --max-chunks 10           # small trial, all engines
     python -B tools/translate/run.py --engines nllb,vinai      # choose the engines
     python -B tools/translate/run.py --refiner consensus       # no LLM: engines' consensus only
+    python -B tools/translate/run.py --mode direct             # LLM translates from English, no MT engines
     python -B tools/translate/run.py                           # everything; resumes from the cache
     python -B tools/translate/run.py --status                  # summary of the last run
 
@@ -12,8 +13,11 @@ Pipeline:
     .data/normalized/chunks.jsonl
         -> lines (bullet markers kept aside)
         -> UK services rewritten in English (localisation.json)
-        -> machine drafts from every engine (cached per segment)
-        -> LLM fusion of the drafts (optional: LLM_BASE_URL, LLM_MODEL, LLM_API_KEY)
+        -> machine drafts from every engine (cached per segment; none in --mode direct)
+        -> LLM fusion of the drafts, or in --mode direct the LLM translates each chunk from English
+           (optional: LLM_BASE_URL, LLM_MODEL, LLM_API_KEY; config llm.mode is the default)
+        -> LLM meaning check, one repair of what it finds (config llm.verify; --no-verify skips it)
+        -> lines a human reviewer corrected (config paths.human_corrections)
         -> quality gate per line, consensus fallback
         -> .data/translated/chunks_vi.jsonl, db_rows_vi.json, candidates.jsonl,
            quality_report.json, review_queue.md, summary.json
@@ -27,6 +31,7 @@ from __future__ import annotations
 
 import argparse
 from collections import Counter
+from dataclasses import replace
 from datetime import datetime, timezone
 import json
 from pathlib import Path
@@ -39,9 +44,11 @@ sys.path.insert(0, str(HERE))
 
 from translator.engines import get_engine  # noqa: E402
 from translator.glossary import Rules, compile_names, load_medicine_names  # noqa: E402
+from translator.notes import reviewer_notes  # noqa: E402
 from translator.pipeline import (  # noqa: E402
-    UnitResult, build_units, engine_statistics, finalise, machine_translate, refine)
-from translator.refine import PROMPT_VERSION, LLMClient  # noqa: E402
+    UnitResult, build_units, engine_statistics, finalise, machine_translate, refine, verify)
+from translator.refine import MODES, LLMClient, prompt_version  # noqa: E402
+from translator.verify import VERIFY_VERSION  # noqa: E402
 
 CONFIG_PATH = HERE / "config.json"
 
@@ -70,6 +77,36 @@ def write_json(path: Path, data: Any) -> None:
     tmp.replace(path)
 
 
+def load_corrections(paths: list[Path], chunks: list[dict[str, Any]]) -> tuple[dict[str, dict[int, str]], dict[str, Any]]:
+    """Lines a human reviewer corrected: chunk id -> {0-based line: Vietnamese line}.
+
+    Each file holds ``{"corrections": [{"chunk_id", "line" (1-based), "en", "new_vi"}, ...]}``. A
+    correction applies only while its English line is still in the chunk (at ``line``, or once
+    elsewhere when the chunk moved); otherwise it is reported as not matched. A later file wins.
+    """
+    lines = {c["id"]: c["text"].split("\n") for c in chunks}
+    out: dict[str, dict[int, str]] = {}
+    stats: dict[str, Any] = {"files": [], "applied": 0, "not_matched": []}
+    for path in paths:
+        if not path.exists():
+            stats["not_matched"].append({"file": path.name, "reason": "file not found"})
+            continue
+        rows = json.loads(path.read_text(encoding="utf-8")).get("corrections", [])
+        stats["files"].append({"file": path.name, "corrections": len(rows)})
+        for row in rows:
+            source = lines.get(row.get("chunk_id"), [])
+            index = int(row.get("line") or 0) - 1
+            if not (0 <= index < len(source) and source[index] == row.get("en")):
+                found = [i for i, line in enumerate(source) if line == row.get("en")]
+                index = found[0] if len(found) == 1 else -1
+            if index < 0 or not row.get("new_vi"):
+                stats["not_matched"].append({"file": path.name, "chunk_id": row.get("chunk_id"), "line": row.get("line")})
+                continue
+            out.setdefault(row["chunk_id"], {})[index] = row["new_vi"]
+    stats["applied"] = sum(len(v) for v in out.values())
+    return out, stats
+
+
 def localised_tags(tags: list[str], text_vi: str, rules: Rules) -> list[str]:
     """Scope tags of the Vietnamese chunk: UK services were replaced, Vietnamese ones may have appeared."""
     out = set(tags)
@@ -83,7 +120,8 @@ def localised_tags(tags: list[str], text_vi: str, rules: Rules) -> list[str]:
 def chunk_record(chunk: dict[str, Any], result: UnitResult, strings: dict[str, str], meta: dict[str, Any],
                  rules: Rules) -> dict[str, Any]:
     methods = Counter(m for m in result.methods if m != "copy")
-    method = "llm_fusion" if methods.get("llm") else "consensus"
+    mode = meta.get("mode", "fusion")
+    method = f"llm_{mode}" if methods.get("llm") else "consensus"
     path = list(chunk.get("heading_path") or [])
     return {
         "chunk_id": chunk["id"],
@@ -102,13 +140,15 @@ def chunk_record(chunk: dict[str, Any], result: UnitResult, strings: dict[str, s
         "text_vi": result.text,
         "translation_metadata": {
             "method": method,
-            "model": meta["refiner_model"] if method == "llm_fusion" else "consensus",
+            "model": meta["refiner_model"] if methods.get("llm") else "consensus",
             "engines": meta["engine_models"],
             "line_methods": dict(methods),
             "src_lang": meta["src_lang"],
             "tgt_lang": meta["tgt_lang"],
             "localisation_version": rules.version,
-            "prompt_version": PROMPT_VERSION if method == "llm_fusion" else "",
+            "prompt_version": prompt_version(mode) if methods.get("llm") else "",
+            "checker_version": meta.get("checker_version", ""),
+            "human_corrected_lines": methods.get("human", 0),
             "source_text_sha256": chunk.get("text_sha256", ""),
             "translated_at": meta["translated_at"],
             "quality_status": result.report.status,
@@ -229,14 +269,25 @@ def main(argv: list[str] | None = None) -> int:
     paths = config["paths"]
     parser = argparse.ArgumentParser(description="Translate normalized medical chunks EN->VI",
                                      epilog="Models and thresholds: tools/translate/config.json")
-    parser.add_argument("--engines", "--engine", default=",".join(config["default_engines"]),
-                        help="comma-separated engines (%(default)s); 'none' = LLM only")
+    parser.add_argument("--engines", "--engine", default=None,
+                        help=f"comma-separated engines (default {','.join(config['default_engines'])}; "
+                             "none in --mode direct); 'none' = LLM only")
+    parser.add_argument("--mode", choices=MODES, default=config["llm"].get("mode", "fusion"),
+                        help="fusion: LLM post-edits the MT drafts; direct: LLM translates from English "
+                             "(default from config llm.mode: %(default)s)")
     parser.add_argument("--refiner", choices=("auto", "llm", "consensus"), default="auto",
                         help="auto: LLM when LLM_BASE_URL/LLM_MODEL/LLM_API_KEY are set, else consensus")
     parser.add_argument("--device", default="auto", help="auto, cpu, cuda, cuda:0 ...")
     parser.add_argument("--max-chunks", type=int, default=0, help="limit the number of chunks (0 = all)")
     parser.add_argument("--only-tag", default="", help="only chunks with this scope tag, e.g. emergency")
     parser.add_argument("--llm-max-requests", type=int, default=0, help="0 = until done or out of quota")
+    parser.add_argument("--no-verify", action="store_true", help="skip the LLM meaning check (config llm.verify)")
+    parser.add_argument("--no-notes", action="store_true",
+                        help="no review policy and reviewer notes in the LLM prompt (config llm.reviewer_notes)")
+    parser.add_argument("--notes-holdout", action="store_true",
+                        help="evaluation on reviewed chunks: leave out the notes of the chunks being translated")
+    parser.add_argument("--no-corrections", action="store_true",
+                        help="ignore the human corrections of config paths.human_corrections")
     parser.add_argument("--input", type=Path, default=ROOT / paths["input_chunks"])
     parser.add_argument("--db-rows", type=Path, default=ROOT / paths["input_db_rows"])
     parser.add_argument("--output", type=Path, default=ROOT / paths["output_dir"])
@@ -264,6 +315,8 @@ def main(argv: list[str] | None = None) -> int:
         to_translate = to_translate[:args.max_chunks]
 
     try:
+        if args.engines is None:
+            args.engines = "none" if args.mode == "direct" else ",".join(config["default_engines"])
         engine_names = [] if args.engines.strip().lower() == "none" else [
             name.strip() for name in args.engines.split(",") if name.strip()]
         engines = [get_engine(name, config, device=args.device) for name in engine_names]
@@ -274,11 +327,19 @@ def main(argv: list[str] | None = None) -> int:
     if args.refiner == "llm" and client is None:
         print(f"--refiner llm needs: {', '.join(LLMClient.missing_env())}", file=sys.stderr)
         return 2
+    if args.mode == "direct" and client is None and not args.dry_run:
+        print(f"--mode direct needs the LLM: {', '.join(LLMClient.missing_env())}", file=sys.stderr)
+        return 2
     if client is None and not engines:
         print("Nothing can translate: no engine and no LLM endpoint.", file=sys.stderr)
         return 2
 
     rules = Rules.load()
+    if client and config["llm"].get("reviewer_notes") and not args.no_notes:
+        policy = paths.get("reviewer_policy")
+        rules = replace(rules, reviewer_notes=reviewer_notes(
+            ROOT / policy if policy else None, [ROOT / p for p in paths.get("human_corrections", [])],
+            exclude={c["id"] for c in to_translate} if args.notes_holdout else frozenset()))
     names = load_medicine_names(ROOT, ROOT / paths["medicine_index_urls"], ROOT / paths["collection_dir"])
     db_rows = load_db_rows(args.db_rows)
 
@@ -302,12 +363,15 @@ def main(argv: list[str] | None = None) -> int:
     print("Medical Translation Pipeline — tools/translate/")
     print("=" * 70)
     print(f"  Engines:         {', '.join(e.key for e in engines) or 'none'}")
-    print(f"  Refiner:         {'LLM ' + client.model if client else 'consensus of the engines (no LLM endpoint)'}")
+    print(f"  Refiner:         {'LLM ' + client.model + ' (' + args.mode + ')' if client else 'consensus of the engines (no LLM endpoint)'}")
     print(f"  Chunks:          {len(chunks)} total, {len(to_translate)} to translate, {len(passthrough)} already "
           f"{tgt_lang}")
     print(f"  Units / lines:   {len(units)} / {line_total}")
     print(f"  Medicine names:  {len(names)} from the crawled index")
     print(f"  Localisation:    {rules.version}")
+    if rules.reviewer_notes:
+        print(f"  Reviewer notes:  {rules.reviewer_notes.count(chr(10) + '- EN ')} corrected lines + policy"
+              + (" (holdout: notes of these chunks left out)" if args.notes_holdout else ""))
     print()
     if args.dry_run:
         for i, chunk in enumerate(to_translate[:10], 1):
@@ -321,17 +385,27 @@ def main(argv: list[str] | None = None) -> int:
     engine_stats = machine_translate(units, engines, cache_dir, rules, int(config["segments"]["max_words"]))
     llm_lines: dict[str, list[str]] = {}
     llm_stats: dict[str, Any] = {}
+    flags: dict[str, list[Any]] = {}
+    verify_stats: dict[str, Any] = {}
     if client:
         llm_lines, llm_stats = refine(units, client, rules, cache_dir, config["llm"], quality_settings,
-                                      max_requests=args.llm_max_requests)
-    results = {u.id: finalise(u, llm_lines.get(u.id), rules, quality_settings) for u in units}
+                                      max_requests=args.llm_max_requests, mode=args.mode)
+        if config["llm"].get("verify") and not args.no_verify and not llm_stats.get("stopped"):
+            llm_lines, flags, verify_stats = verify(units, llm_lines, client, rules, cache_dir, config["llm"],
+                                                    quality_settings, max_requests=args.llm_max_requests,
+                                                    mode=args.mode)
+    correction_paths = [] if args.no_corrections else [ROOT / p for p in paths.get("human_corrections", [])]
+    corrections, correction_stats = load_corrections(correction_paths, to_translate)
+    results = {u.id: finalise(u, llm_lines.get(u.id), rules, quality_settings, flags=flags.get(u.id),
+                              corrections=corrections.get(u.id)) for u in units}
 
     strings: dict[str, str] = {}
     for result in results.values():
         if result.unit.kind == "extra":
             strings.update(zip(result.unit.lines, result.lines))
-    meta = {"src_lang": src_lang, "tgt_lang": tgt_lang, "translated_at": now,
-            "refiner_model": client.model if client else "", "engine_models": [e.model_id for e in engines]}
+    meta = {"src_lang": src_lang, "tgt_lang": tgt_lang, "translated_at": now, "mode": args.mode,
+            "refiner_model": client.model if client else "", "engine_models": [e.model_id for e in engines],
+            "checker_version": VERIFY_VERSION if verify_stats else ""}
     records = [chunk_record(c, results[c["id"]], strings, meta, rules) for c in to_translate]
     records += [passthrough_record(c, meta) for c in passthrough]
     reports = {r.unit.id: r.report.to_dict() for r in results.values()}
@@ -344,8 +418,8 @@ def main(argv: list[str] | None = None) -> int:
     (args.output / "candidates.jsonl").write_text("".join(json.dumps({
         "chunk_id": c["id"],
         "lines": [{"en": en, **{key: drafts[i] for key, drafts in results[c["id"]].unit.drafts.items()},
-                   "consensus": results[c["id"]].consensus[i], "final": results[c["id"]].bodies[i],
-                   "method": results[c["id"]].methods[i]}
+                   "consensus": results[c["id"]].consensus[i], "machine": results[c["id"]].machine_bodies[i],
+                   "final": results[c["id"]].bodies[i], "method": results[c["id"]].methods[i]}
                   for i, en in enumerate(results[c["id"]].unit.bodies)],
     }, ensure_ascii=False) + "\n" for c in to_translate), encoding="utf-8")
     write_json(args.output / "db_rows_vi.json", rows)
@@ -363,8 +437,12 @@ def main(argv: list[str] | None = None) -> int:
         "engines": engine_stats,
         "engine_vs_final": engine_statistics([results[c["id"]] for c in to_translate], rules, quality_settings),
         "refiner": llm_stats or {"model": "consensus"},
+        "meaning_check": verify_stats,
+        "human_corrections": correction_stats,
         "localisation_version": rules.version,
-        "prompt_version": PROMPT_VERSION if client else "",
+        "mode": args.mode if client else "consensus",
+        "prompt_version": prompt_version(args.mode) if client else "",
+        "checker_version": meta["checker_version"],
         "medicine_names_from_index": len(names),
         "total_chunks_input": len(chunks),
         "chunks_translated": len(to_translate),
@@ -399,9 +477,15 @@ def main(argv: list[str] | None = None) -> int:
     print(f"  Passthrough ({tgt_lang}):  {len(passthrough)} chunks")
     print(f"  Quality passed:    {summary['quality_passed']}/{len(chunk_reports)}   hard issues: {dict(hard)}")
     print(f"  Needs review:      {summary['needs_human_review']}   soft issues: {dict(soft)}")
+    if verify_stats:
+        print(f"  Meaning check:     {verify_stats['checked_units']} units checked, "
+              f"{verify_stats['units_with_problems']} with problems, {verify_stats['repaired_units']} repaired, "
+              f"{verify_stats['flagged_units']} still flagged")
+    print(f"  Human corrections: {correction_stats['applied']} lines applied, "
+          f"{len(correction_stats['not_matched'])} not matched")
     print(f"  Article rows:      {len(rows)} ({untranslated} lines without translation)")
     print(f"  Output:            {args.output}")
-    if llm_stats.get("stopped"):
+    if llm_stats.get("stopped") or verify_stats.get("stopped"):
         return 3
     return 1 if failed else 0
 

@@ -29,6 +29,16 @@ DEFAULT_RULES = HERE.parent / "localisation.json"
 _NUMBER = re.compile(r"(?<!\d)(?<!\d[.,])\d{1,3}(?: \d{3})+(?!\d|[.,]\d)|\d+(?:[.,]\d+)*")
 _NAME_BEFORE = re.compile(r"[A-Za-z]-$")
 _ORDINAL = re.compile(r"\b\d+(?:st|nd|rd|th)\b", re.I)
+_CLOCK = re.compile(r"\b(\d{1,2})(?:[.:](\d{2}))?\s?([ap])\.?m\b", re.I)
+
+
+def _clock_24h(text: str) -> str:
+    """'3pm' -> '15 ', '11am' -> '11 ': Vietnamese writes clock times in the 24-hour form (3pm = 15 giờ)."""
+    def hour(m: re.Match) -> str:
+        h = int(m.group(1))
+        h = h + 12 if m.group(3).lower() == "p" and 1 <= h <= 11 else h
+        return f"{h}:{m.group(2)} " if m.group(2) else f"{h} "
+    return _CLOCK.sub(hour, text)
 _WORD = re.compile(r"[A-Za-z]+")
 _LETTERS = re.compile(r"[^\W\d_]+")
 
@@ -95,6 +105,36 @@ def _keep_case(match: re.Match, replacement: str) -> str:
     return replacement[:1].upper() + replacement[1:] if capitalised_word or starts_sentence else replacement
 
 
+@dataclass(frozen=True)
+class MeaningCheck:
+    """One reviewer finding turned into a rule: when the source says X, the Vietnamese must (not) say Y."""
+
+    label: str
+    source: re.Pattern
+    hint: str
+    forbid: re.Pattern | None = None
+    require: re.Pattern | None = None
+    unless_source: re.Pattern | None = None
+    on_rewritten: bool = False
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> "MeaningCheck":
+        def opt(key: str) -> re.Pattern | None:
+            return re.compile(data[key]) if data.get(key) else None
+
+        if not (data.get("forbid") or data.get("require")):
+            raise ValueError(f"meaning check {data.get('label')!r} needs 'forbid' or 'require'")
+        return cls(label=data["label"], source=re.compile(data["source"]), hint=data.get("hint", ""),
+                   forbid=opt("forbid"), require=opt("require"), unless_source=opt("unless_source"),
+                   on_rewritten=data.get("on") == "rewritten")
+
+    def broken(self, source: str, rewritten: str, target: str) -> bool:
+        text = rewritten if self.on_rewritten else source
+        if not self.source.search(text) or (self.unless_source and self.unless_source.search(text)):
+            return False
+        return bool((self.forbid and self.forbid.search(target)) or (self.require and not self.require.search(target)))
+
+
 @dataclass
 class Rules:
     """Compiled view of localisation.json."""
@@ -114,6 +154,13 @@ class Rules:
     tolerated_by_source: list[tuple[re.Pattern, frozenset[str]]] = field(default_factory=list)
     # (pattern on the source or None, pattern on the target, replacement): fixed wording after the final line is chosen
     target_replacements: list[tuple[re.Pattern | None, re.Pattern, str]] = field(default_factory=list)
+    # meaning checks: units of a dose, direction of a limit, negation, wording reviewers returned
+    units: list[tuple[str, re.Pattern, re.Pattern]] = field(default_factory=list)
+    direction_checks: list[tuple[str, re.Pattern, str]] = field(default_factory=list)
+    negation: tuple[int, re.Pattern, re.Pattern, re.Pattern] | None = None  # min words, source, target, exempt
+    meaning_checks: list[MeaningCheck] = field(default_factory=list)
+    # review policy and reviewer notes for the LLM prompt (translator.notes), set by run.py
+    reviewer_notes: str = ""
 
     @classmethod
     def load(cls, path: Path = DEFAULT_RULES) -> "Rules":
@@ -140,6 +187,13 @@ class Rules:
             target_replacements=[(re.compile(r["source"], re.I) if r.get("source") else None,
                                   re.compile(r["pattern"], re.I), r["replace"])
                                  for r in data.get("target_replacements", [])],
+            units=[(r["label"], re.compile(r["source"]), re.compile(r["target"])) for r in data.get("units", [])],
+            direction_checks=[(r["label"], re.compile(r["source"]), r["target_opposite"])
+                              for r in data.get("direction_checks", [])],
+            negation=(int(data["negation"].get("min_words", 0)), re.compile(data["negation"]["source"]),
+                      re.compile(data["negation"]["target"]),
+                      re.compile(data["negation"].get("source_exempt") or r"(?!)")) if data.get("negation") else None,
+            meaning_checks=[MeaningCheck.from_dict(r) for r in data.get("meaning_checks", [])],
         )
 
     # -- source side -------------------------------------------------------
@@ -157,7 +211,7 @@ class Rules:
         ``number_map`` renames (999 -> 115) or removes (111) localised numbers.
         """
         required: set[str] = set()
-        for match in _NUMBER.finditer(_ORDINAL.sub(" ", source)):
+        for match in _NUMBER.finditer(_ORDINAL.sub(" ", _clock_24h(source))):
             number = source_value(match.group(0))
             mapped = self.number_map.get(number, number)
             if mapped is not None:
@@ -237,6 +291,8 @@ class Rules:
             token = match.group(0)
             if not re.search(r"[.,]", token):
                 return token
+            if match.start() and target[match.start() - 1].isalpha():
+                return token  # part of a code or identifier (WHA74.8), not a quantity
             readings = {source_value(token)} if token in source_tokens else number_values(token) & wanted
             if len(readings) != 1:
                 return token
@@ -251,6 +307,36 @@ class Rules:
 
     def forbidden_in(self, target: str) -> list[str]:
         return [label for label, pattern in self.forbidden if pattern.search(target)]
+
+    # -- meaning checks ----------------------------------------------------
+    def missing_units(self, source: str, target: str) -> list[str]:
+        """Units of the source line (mg, g, ml...) that the Vietnamese line lost: 5 mg -> 5 g changes a dose."""
+        return [label for label, src, tgt in self.units if src.search(source) and not tgt.search(target)]
+
+    def inverted_directions(self, source: str, target: str) -> list[str]:
+        """Limits whose direction flipped: 'under 5' written 'trên 5', 'over 65' written 'dưới 65'."""
+        numbers = {label: {next(g for g in m.groups() if g) for m in pattern.finditer(source)}
+                   for label, pattern, _ in self.direction_checks}
+        found = []
+        for label, _, opposite in self.direction_checks:
+            # 'aged 5 and over ... under 5': both directions of one number in a line cannot be told apart
+            other = set().union(*(n for key, n in numbers.items() if key != label))
+            for number in sorted(numbers[label] - other):
+                if re.search(opposite.replace("{n}", re.escape(number)), target):
+                    found.append(label.replace("N", number))
+        return found
+
+    def negation_lost(self, source: str, target: str) -> bool:
+        """The source line says no / not / never / without and the Vietnamese line has no negation at all."""
+        if self.negation is None:
+            return False
+        min_words, src, tgt, exempt = self.negation
+        return len(source.split()) >= min_words and bool(src.search(exempt.sub(" ", source))) and not tgt.search(target)
+
+    def meaning_problems(self, source: str, target: str) -> list[MeaningCheck]:
+        """Wording rules (``meaning_checks``) the Vietnamese line breaks."""
+        rewritten = self.rewrite_source(source)
+        return [rule for rule in self.meaning_checks if rule.broken(source, rewritten, target)]
 
     def discouraged_in(self, target: str) -> list[str]:
         return [label for label, pattern in self.discouraged if pattern.search(target)]
