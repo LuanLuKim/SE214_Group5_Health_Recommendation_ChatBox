@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import vn.edu.uit.se214.health.shared.web.ApiException;
 import vn.edu.uit.se214.health.shared.web.ApiResponse;
@@ -25,9 +26,15 @@ import vn.edu.uit.se214.health.system.ModuleRegistry;
 @RequestMapping("/api/v1/health")
 public class HealthController {
   private final Optional<HealthProfileService> profiles;
+  private final Optional<HealthMetricsService> metrics;
 
-  public HealthController(Optional<HealthProfileService> profiles) {
+  public HealthController(Optional<HealthProfileService> profiles, Optional<HealthMetricsService> metrics) {
     this.profiles = profiles;
+    this.metrics = metrics;
+  }
+
+  private HealthMetricsService metricsService() {
+    return metrics.orElseThrow(HealthErrors::unavailable);
   }
 
   private HealthProfileService profileService() {
@@ -60,18 +67,29 @@ public class HealthController {
   }
 
   @GetMapping("/metrics")
-  public Object metrics() {
-    throw ApiException.notImplemented();
+  public ApiResponse.Success<HealthMetricsView> metrics(
+      @AuthenticationPrincipal Jwt principal,
+      @RequestParam(name = "period", required = false) String period,
+      @RequestParam(name = "to", required = false) String to) {
+    HealthMetricsService service = metricsService();
+    return ApiResponse.of(service.range(CurrentUser.id(principal), period, to));
   }
 
   @PutMapping("/metrics/{date}")
-  public Object saveMetric(@PathVariable String date, @RequestBody(required = false) JsonNode body) {
-    throw ApiException.notImplemented();
+  public ApiResponse.Success<HealthMetricPoint> saveMetric(
+      @AuthenticationPrincipal Jwt principal,
+      @PathVariable String date,
+      @RequestBody(required = false) JsonNode body) {
+    HealthMetricsService service = metricsService();
+    return ApiResponse.of(service.save(CurrentUser.id(principal), date, body));
   }
 
   @DeleteMapping("/metrics/{date}")
-  public Object deleteMetric(@PathVariable String date) {
-    throw ApiException.notImplemented();
+  public ApiResponse.Success<Void> deleteMetric(
+      @AuthenticationPrincipal Jwt principal, @PathVariable String date) {
+    HealthMetricsService service = metricsService();
+    service.delete(CurrentUser.id(principal), date);
+    return ApiResponse.empty();
   }
 
   // GET /statistics (UC-19) is served by SystemStatisticsController.
