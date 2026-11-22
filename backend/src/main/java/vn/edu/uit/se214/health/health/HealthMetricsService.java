@@ -12,6 +12,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import org.springframework.dao.DataAccessException;
+import org.springframework.web.client.RestClientException;
 import vn.edu.uit.se214.health.accounts.api.ConsentQuery;
 import vn.edu.uit.se214.health.integrations.PythonServiceClient;
 import vn.edu.uit.se214.health.shared.web.ApiException;
@@ -82,8 +83,10 @@ public class HealthMetricsService {
         throw new IllegalStateException("STATS_BAD_RESPONSE");
       }
       return view(chosen, from, end, points, "OK", data.get("summary"), data.get("insights"), null);
-    } catch (Exception e) {
-      // A5: keep the chart working; the person can retry. Nothing about the data is logged.
+    } catch (RestClientException | IllegalStateException e) {
+      // A5: only a stats outage (Django down, timeout, 4xx/5xx, SERVICE_NOT_CONFIGURED, an unusable
+      // answer) becomes UNAVAILABLE; a programming error must surface, not hide behind it.
+      // The person can retry. Nothing about the data is logged.
       return view(
           chosen, from, end, points, "UNAVAILABLE", null, JsonNodeFactory.instance.arrayNode(),
           "Chưa tạo được nhận xét lúc này. Biểu đồ vẫn hiển thị, bạn có thể thử lại sau.");
@@ -123,7 +126,11 @@ public class HealthMetricsService {
     if (day == null) {
       throw HealthErrors.metricsInvalid("Ngày phải theo định dạng yyyy-MM-dd (ví dụ 2026-11-21).");
     }
-    repository.delete(userId, day);
+    try {
+      repository.delete(userId, day);
+    } catch (DataAccessException e) {
+      throw HealthErrors.metricsDeleteFailed();
+    }
   }
 
   private void requireConsent(UUID userId) {

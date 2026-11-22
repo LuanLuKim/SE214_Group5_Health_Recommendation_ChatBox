@@ -47,4 +47,12 @@ final class HealthErrors {
         "HEALTH_METRICS_READ_FAILED",
         "Không tải được chỉ số lúc này. Vui lòng thử lại.");
   }
+
+  /** UC-05 delete failed: a single DELETE, so the day keeps its values. */
+  static ApiException metricsDeleteFailed() {
+    return new ApiException(
+        HttpStatus.INTERNAL_SERVER_ERROR,
+        "HEALTH_METRICS_DELETE_FAILED",
+        "Không xóa được chỉ số. Dữ liệu vẫn được giữ nguyên, vui lòng thử lại.");
+  }
 }

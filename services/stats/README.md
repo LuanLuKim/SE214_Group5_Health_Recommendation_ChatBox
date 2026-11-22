@@ -21,7 +21,17 @@ Route: `GET /healthz`, `POST /v1/metrics/trends`, `GET /v1/system/statistics` (r
 
 Trả `{"data": {"status": "OK|NO_DATA", "summary": {"weight": {...}, "sleep": {...}}, "insights": [{"code", "severity", "symbol", "message"}], ...}}`. `period` là `week` (7 ngày) hoặc `month` (30 ngày), tối đa 31 ngày và 31 điểm. Lỗi: 400 `INVALID_JSON`, 400 `TRENDS_INVALID` (thông báo nêu tên trường, không lặp lại giá trị).
 
-Nhận xét theo ngưỡng cấu hình được qua biến môi trường `STATS_SLEEP_LOW_HOURS`, `STATS_SLEEP_LOW_DAYS`, `STATS_SLEEP_WINDOW_DAYS`, `STATS_WEIGHT_CHANGE_KG_WEEK`, `STATS_WEIGHT_CHANGE_KG_MONTH` (xem `.env.example`). Mặc định hiện tại (ngủ dưới 7 giờ ở 5/7 ngày, cân nặng đổi từ 2 kg/tuần hoặc 4 kg/tháng) chỉ là giá trị tạm thời để nhóm chốt. Nhận xét không phải chẩn đoán.
+Nhận xét theo ngưỡng cấu hình được qua biến môi trường (đơn vị và ý nghĩa từng biến ở `.env.example`). Nhận xét chỉ là thông tin tham khảo, không phải chẩn đoán.
+
+| Biến | Mặc định | Nguồn tham chiếu |
+| --- | --- | --- |
+| `STATS_SLEEP_LOW_HOURS` | 7 giờ | Khuyến nghị đồng thuận của AASM và SRS (2015): người trưởng thành 18–60 tuổi nên ngủ từ 7 giờ trở lên mỗi đêm một cách đều đặn. Watson NF và cộng sự, *Recommended Amount of Sleep for a Healthy Adult*, Sleep 2015;38(6):843–844, doi:10.5665/sleep.4716. |
+| `STATS_SLEEP_LOW_DAYS` | 5 ngày | Ngưỡng nhóm chọn (ví dụ "5/7 ngày" trong đặc tả UC-05). Khuyến nghị AASM/SRS nói "đều đặn" nhưng không nêu số ngày. |
+| `STATS_SLEEP_WINDOW_DAYS` | 7 ngày | Ngưỡng nhóm chọn, đi cùng ngưỡng 5 ngày ở trên. |
+| `STATS_WEIGHT_CHANGE_KG_WEEK` | 2 kg | Ngưỡng nhóm chọn. Để so sánh, CDC khuyến nghị giảm cân từ từ, khoảng 1–2 pound (0,45–0,9 kg) mỗi tuần; đây là hướng dẫn cho người chủ động giảm cân, không phải tiêu chuẩn chẩn đoán và không nói về tăng cân. |
+| `STATS_WEIGHT_CHANGE_KG_MONTH` | 4 kg | Ngưỡng nhóm chọn, bằng hai lần ngưỡng theo tuần. |
+
+Các ngưỡng "nhóm chọn" là một bộ số dùng chung cho báo cáo và kiểm thử; muốn đổi thì đổi biến môi trường rồi cập nhật bảng này.
 Route:
 
 - `GET /healthz`.
