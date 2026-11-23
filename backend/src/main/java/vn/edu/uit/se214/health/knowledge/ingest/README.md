@@ -54,6 +54,11 @@ Phụ trách: M7 (LuanLu). Bảng `knowledge.chunks` và hàng đợi duyệt th
   - nạp lại cùng file không thêm dòng (id sinh từ nội dung quyết định);
   - ghi quyết định **không** bật chunk: chunk chỉ vào RAG khi bài cha được duyệt qua UC-17.
 
+- `translation_model` lấy từ cấu hình `translation-model` (`KNOWLEDGE_INGEST_TRANSLATION_MODEL`), không lấy từ file:
+  - file dữ liệu dùng chung (Drive) không ghi bản dịch làm bằng gì; nếu file còn trường `model` thì loader bỏ qua;
+  - mọi chunk đã dịch nhận cùng giá trị cấu hình; để trống thì cột là NULL;
+  - chunk gốc tiếng Việt luôn NULL.
+
 - Log chỉ ghi số đếm, không ghi nội dung.
 
 ## Chạy
@@ -66,6 +71,7 @@ KNOWLEDGE_INGEST_NORMALIZED_DIR=<thư mục chuẩn hóa>
 KNOWLEDGE_INGEST_TRANSLATED_DIR=<thư mục bản dịch>
 KNOWLEDGE_INGEST_REVIEW_DECISIONS=<các file review_decisions.json, cách nhau dấu phẩy>   # tùy chọn
 KNOWLEDGE_INGEST_REVIEWER_ID=<id tài khoản CONTENT_EXPERT thật>                       # tùy chọn
+KNOWLEDGE_INGEST_TRANSLATION_MODEL=<tên ghi vào translation_model>                     # tùy chọn, trống = NULL
 ```
 
 Sau đó đặt `KNOWLEDGE_INGEST_ENABLED=false`.

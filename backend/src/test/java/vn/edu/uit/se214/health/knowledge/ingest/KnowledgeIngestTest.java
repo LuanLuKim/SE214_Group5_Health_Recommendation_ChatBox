@@ -41,9 +41,12 @@ class KnowledgeIngestTest {
   static final UUID REFERENCE_CHUNK = UUID.fromString("00000000-0000-4000-8000-0000000007c5");
   static final String FETCHED = "2026-11-03T08:17:52.274596+00:00";
   static final String FETCHED_NATIVE = "2026-11-10T11:58:13+00:00";
+  static final String MODEL = "[TEST] model from config";
+  static final String FILE_MODEL = "[TEST] model named in the file";
 
   final ObjectMapper json = new ObjectMapper();
   @TempDir Path dir;
+  DataSource dataSource;
   JdbcClient jdbc;
   KnowledgeIngest ingest;
   Path normalized;
@@ -53,13 +56,12 @@ class KnowledgeIngestTest {
 
   @BeforeEach
   void setUp() throws IOException {
-    DataSource dataSource = TestDatabase.fresh();
+    dataSource = TestDatabase.fresh();
     var schema = new ResourceDatabasePopulator(new ClassPathResource("knowledge-ingest/proposed_knowledge_chunks.sql"));
     schema.setSqlScriptEncoding("UTF-8");
     schema.execute(dataSource);
     jdbc = JdbcClient.create(dataSource);
-    ingest = new KnowledgeIngest(new IngestSource(json), new KnowledgeIngestRepository(jdbc),
-        new TransactionTemplate(new DataSourceTransactionManager(dataSource)));
+    ingest = ingestWith(MODEL);
     normalized = Files.createDirectories(dir.resolve("normalized/articles")).getParent();
     translated = Files.createDirectories(dir.resolve("translated"));
     articles = new ArrayList<>(List.of(
@@ -120,6 +122,27 @@ class KnowledgeIngestTest {
         SELECT count(*) FROM knowledge.chunks
         WHERE search @@ to_tsquery('simple', 'emollient | dưỡng') AND id = ?
         """, VERIFIED)).isEqualTo(1);
+  }
+
+  @Test
+  void theTranslationModelComesFromConfigurationNeverFromTheFiles() throws IOException {
+    ((ObjectNode) chunks.get(1).get("translation_metadata")).remove("model");
+    run();
+
+    assertThat(model(VERIFIED)).isEqualTo(MODEL);
+    assertThat(model(FLAGGED)).isEqualTo(MODEL);
+    assertThat(model(CORRECTED)).isEqualTo(MODEL);
+    assertThat(model(NATIVE)).isEqualTo("none");
+    assertThat(count("SELECT count(*) FROM knowledge.chunks WHERE translation_model = ?", FILE_MODEL)).isZero();
+  }
+
+  @Test
+  void withoutAConfiguredModelTheColumnStaysEmptyEvenWhenTheFilesNameOne() throws IOException {
+    ingest = ingestWith("  ");
+    run();
+
+    assertThat(count("SELECT count(*) FROM knowledge.chunks")).isEqualTo(4);
+    assertThat(count("SELECT count(*) FROM knowledge.chunks WHERE translation_model IS NOT NULL")).isZero();
   }
 
   @Test
@@ -387,8 +410,18 @@ class KnowledgeIngestTest {
     m.put("quality_status", quality);
     m.put("needs_human_review", needsReview);
     m.put("human_corrected_lines", corrected);
-    m.put("model", quality.equals(TranslationStatus.NATIVE) ? "passthrough" : "[TEST]-model");
+    m.put("model", quality.equals(TranslationStatus.NATIVE) ? "passthrough" : FILE_MODEL);
     return m;
+  }
+
+  KnowledgeIngest ingestWith(String translationModel) {
+    return new KnowledgeIngest(new IngestSource(json, translationModel), new KnowledgeIngestRepository(jdbc),
+        new TransactionTemplate(new DataSourceTransactionManager(dataSource)));
+  }
+
+  String model(UUID chunk) {
+    return jdbc.sql("SELECT coalesce(translation_model, 'none') FROM knowledge.chunks WHERE id = ?").param(chunk)
+        .query(String.class).single();
   }
 
   String status(UUID chunk) {

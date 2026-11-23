@@ -12,7 +12,10 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  * @param translatedDir folder with {@code chunks_vi.jsonl} and {@code db_rows_vi.json} from tools/translate
  * @param reviewDecisions review decision files of SCRUM-148 ({@code review_decisions.json}); optional
  * @param reviewerId the real CONTENT_EXPERT account the recorded decisions are written under; optional
+ * @param translationModel value written to {@code translation_model} of every translated chunk; the files
+ *     never decide it (the shared data does not say what translated it). Empty: NULL
  */
 @ConfigurationProperties(prefix = "app.knowledge.ingest")
 public record IngestProperties(
-    boolean enabled, String normalizedDir, String translatedDir, List<String> reviewDecisions, UUID reviewerId) {}
+    boolean enabled, String normalizedDir, String translatedDir, List<String> reviewDecisions, UUID reviewerId,
+    String translationModel) {}

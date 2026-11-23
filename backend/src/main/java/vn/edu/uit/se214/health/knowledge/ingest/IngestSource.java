@@ -68,9 +68,15 @@ final class IngestSource {
   private record Decisions(Map<UUID, Set<String>> approvedTexts, List<ReviewDecision> timed) {}
 
   private final ObjectMapper json;
+  private final String translationModel;
 
-  IngestSource(ObjectMapper json) {
+  /**
+   * @param translationModel {@code translation_model} of every translated chunk, from configuration;
+   *     blank or null leaves it NULL. Any model named in the files is ignored.
+   */
+  IngestSource(ObjectMapper json, String translationModel) {
     this.json = json;
+    this.translationModel = translationModel == null || translationModel.isBlank() ? null : translationModel.strip();
   }
 
   Batch read(Path normalizedDir, Path translatedDir, List<Path> decisionFiles) {
@@ -127,7 +133,7 @@ final class IngestSource {
           required(row, "source_url"),
           requiredTime(normalized, "fetched_at", id),
           text(normalized, "normalizer_version"),
-          status == null ? null : text(meta, "model"),
+          status == null ? null : translationModel,
           status));
     }
     Set<UUID> loaded = new HashSet<>();

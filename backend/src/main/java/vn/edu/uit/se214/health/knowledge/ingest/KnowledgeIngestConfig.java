@@ -25,9 +25,10 @@ class KnowledgeIngestConfig {
   private static final Logger log = LoggerFactory.getLogger(KnowledgeIngestConfig.class);
 
   @Bean
-  KnowledgeIngest knowledgeIngest(JdbcClient jdbc, ObjectMapper json, PlatformTransactionManager transactions) {
-    return new KnowledgeIngest(
-        new IngestSource(json), new KnowledgeIngestRepository(jdbc), new TransactionTemplate(transactions));
+  KnowledgeIngest knowledgeIngest(
+      JdbcClient jdbc, ObjectMapper json, PlatformTransactionManager transactions, IngestProperties properties) {
+    return new KnowledgeIngest(new IngestSource(json, properties.translationModel()),
+        new KnowledgeIngestRepository(jdbc), new TransactionTemplate(transactions));
   }
 
   @Bean

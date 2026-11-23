@@ -113,6 +113,9 @@ app:
       review-decisions: ${KNOWLEDGE_INGEST_REVIEW_DECISIONS:}
       # Tài khoản CONTENT_EXPERT thật đứng tên các quyết định; để trống thì không ghi quyết định nào.
       reviewer-id: ${KNOWLEDGE_INGEST_REVIEWER_ID:}
+      # Giá trị ghi vào translation_model của mọi chunk đã dịch. File dữ liệu không ghi model dịch nên
+      # loader không đọc từ file; để trống thì cột là NULL.
+      translation-model: ${KNOWLEDGE_INGEST_TRANSLATION_MODEL:}
   health:
     # UC-19 thống kê hệ thống và SCRUM-51 ghi sự kiện. Sự kiện chỉ có loại và thời điểm, không có
     # người dùng hay nội dung. Ngày thống kê tính theo múi giờ zone.
