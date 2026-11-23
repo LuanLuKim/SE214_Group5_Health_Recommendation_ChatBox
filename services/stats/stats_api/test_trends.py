@@ -1,5 +1,7 @@
 import json
+from pathlib import Path
 
+from django.conf import settings
 from django.test import SimpleTestCase, override_settings
 
 KEY = {"HTTP_X_SERVICE_KEY": "synthetic-service-key"}
@@ -148,3 +150,14 @@ class TrendsTest(SimpleTestCase):
             response = self.post(None, raw=raw)
             self.assertEqual(response.status_code, 400, raw)
             self.assertEqual(response.json()["error"]["code"], "INVALID_JSON")
+
+    # --- every threshold variable is documented where the README says ---
+    def test_every_threshold_variable_is_listed_in_env_example_and_readme(self):
+        names = [n for n in dir(settings) if n.startswith(("STATS_SLEEP_", "STATS_WEIGHT_"))]
+        self.assertEqual(len(names), 5)
+        base = Path(settings.BASE_DIR)
+        env = (base / ".env.example").read_text(encoding="utf-8")
+        readme = (base / "README.md").read_text(encoding="utf-8")
+        for name in names:
+            self.assertRegex(env, rf"(?m)^{name}=", name)
+            self.assertIn(f"`{name}`", readme, name)

@@ -178,7 +178,7 @@ Kết quả GET: `points` (chỉ các ngày có bản ghi, cũ trước), `units
 
 Backend đọc các ngày của chính người dùng rồi gửi `POST /v1/metrics/trends` sang `services/stats` (chỉ ngày, cân nặng, giờ ngủ; không gửi mã người dùng). Xem `services/stats/README.md`.
 
-Lỗi: 403 `HEALTH_CONSENT_REQUIRED`, 400 `HEALTH_METRICS_INVALID` (nêu tên trường sai, không lặp lại giá trị), 500 `HEALTH_METRICS_SAVE_FAILED` hoặc `HEALTH_METRICS_READ_FAILED` (thử lại được, dữ liệu cũ giữ nguyên), 503 `HEALTH_UNAVAILABLE` (chế độ không có cơ sở dữ liệu). Kiểu dữ liệu: `HealthMetricPoint`, `HealthMetricInput`, `HealthMetricsView` trong `packages/contracts`.
+Lỗi: 403 `HEALTH_CONSENT_REQUIRED`, 400 `HEALTH_METRICS_INVALID` (nêu tên trường sai, không lặp lại giá trị), 500 `HEALTH_METRICS_SAVE_FAILED`, `HEALTH_METRICS_READ_FAILED` hoặc `HEALTH_METRICS_DELETE_FAILED` (thử lại được, dữ liệu cũ giữ nguyên), 503 `HEALTH_UNAVAILABLE` (chế độ không có cơ sở dữ liệu). Kiểu dữ liệu: `HealthMetricPoint`, `HealthMetricInput`, `HealthMetricsView` trong `packages/contracts`.
 ### M3 – UC-19 Xem thống kê hệ thống
 
 | Route                     | Hành vi                                                                                                                                                                  |

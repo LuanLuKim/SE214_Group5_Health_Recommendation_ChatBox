@@ -42,8 +42,8 @@ def _decimal(name: str, default: str) -> Decimal:
         return Decimal(default)
 
 
-# UC-05 ngưỡng tham chiếu cho nhận xét xu hướng (cấu hình được, không phải chẩn đoán).
-# Mặc định tạm thời, nhóm cần chốt lại với nguồn tham chiếu trước khi phát hành.
+# UC-05 ngưỡng cho nhận xét xu hướng (cấu hình được, không phải chẩn đoán).
+# Nguồn tham chiếu và ngưỡng nhóm chọn: xem bảng trong services/stats/README.md.
 STATS_SLEEP_LOW_HOURS = _decimal("STATS_SLEEP_LOW_HOURS", "7")
 STATS_SLEEP_LOW_DAYS = int(_decimal("STATS_SLEEP_LOW_DAYS", "5"))
 STATS_SLEEP_WINDOW_DAYS = int(_decimal("STATS_SLEEP_WINDOW_DAYS", "7"))
