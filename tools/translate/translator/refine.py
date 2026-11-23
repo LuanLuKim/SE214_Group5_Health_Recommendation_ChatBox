@@ -26,8 +26,8 @@ from urllib.request import Request, urlopen
 
 from .glossary import Rules
 
-PROMPT_VERSION = "fusion-4"
-DIRECT_PROMPT_VERSION = "direct-3"
+PROMPT_VERSION = "fusion-5"
+DIRECT_PROMPT_VERSION = "direct-4"
 MODES = ("fusion", "direct")
 STOP_STATUS = {401, 402, 403, 429}  # auth, quota, rate limit: stop and keep what is done
 
@@ -149,7 +149,8 @@ khỏi nước")
    - route and form: oral is never "tiêm"; keep tablet / pessary / ring / cream / vaginal as in the source
    - names of products stay as written (Aqueous Cream)
 2. Keep every number, dose, unit, age, duration, temperature and percentage exactly as digits; do not convert units. \
-Codes and identifiers stay exactly as written (WHA74.8 keeps its dot; ICD-10, YLDs). Clock times use the 24-hour \
+Codes and identifiers stay exactly as written (WHA74.8 keeps its dot; ICD-10, YLDs; "Chapter 1.6", "SDG 3.4"), \
+a quantity takes the decimal comma ("2.0 million" -> "2,0 triệu"). Clock times use the 24-hour \
 Vietnamese form without changing the time (11am -> 11 giờ, 3pm -> 15 giờ).
 3. One output line per input line, same order. Never merge, split, reorder or skip lines. A heading stays a short \
 heading, a list item stays a list item (no bullet character, no full stop if the source has none).

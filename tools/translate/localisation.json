@@ -1,5 +1,5 @@
 {
-  "version": "vn-8",
+  "version": "vn-9",
   "comment": "UK -> Viet Nam localisation. Service numbers (999, 111) match only as whole numbers, never inside 1,999 or 9.99; GPs is case-sensitive (GPS is a device). source_rewrites turn UK-only services into neutral English BEFORE machine translation (first match wins per position, rules run in order). forbidden_in_target must never appear in the Vietnamese text; discouraged_in_target only flags the chunk for a human reviewer. The tables are also shown to the LLM post-editor.",
   "source_rewrites": [
     {"pattern": "\\bcall 111 or get help from 111 online\\b", "replace": "contact a doctor or the nearest health facility for advice"},
@@ -23,7 +23,9 @@
     {"pattern": "\\ba GP\\b", "replace": "a doctor"},
     {"pattern": "\\bGP\\b", "replace": "doctor"}
   ],
-  "number_format": {"comment": "how the Vietnamese text writes numbers; a copied English 1,500 or 1.5 is rewritten from its source value", "decimal": ",", "thousands": " "},
+  "number_format": {"comment": "how the Vietnamese text writes numbers; a copied English 1,500 or 1.5 is rewritten from its source value; vn-9 (SCRUM-148, final sample of run 5): a dotted number after identifier_before names an item and keeps its dot (Chapters 1.6 and 8.15, SDG 3.4, target 6.1, Gavi 6.0) unless quantity_after follows it (1.5 million, 2.5%)", "decimal": ",", "thousands": " ",
+    "identifier_before": "(?:\\b(?i:chapters?|sections?|articles?|annex(?:es)?|clauses?|paragraphs?|appendix|tables?|figures?|box(?:es)?|resolutions?|SDGs?|targets?|goals?|indicators?|versions?|editions?|guides?|codes?)|(?<=[a-z,;:)] )[A-Z][\\w-]*)\\s+$",
+    "quantity_after": "\\s*(?:%|‰|°|-?fold\\b|(?i:per\\b|percent|million|billion|thousand|trillion|times\\b|[µm]?g\\b|kg\\b|ml\\b|mmol|cm\\b|mm\\b|km\\b|kcal|years?\\b|months?\\b|weeks?\\b|days?\\b|hours?\\b|minutes?\\b|deaths?\\b|cases?\\b|people\\b|persons?\\b))"},
   "number_map": {"999": "115", "111": null},
   "number_words": {"one": "1", "two": "2", "three": "3", "four": "4", "five": "5", "six": "6", "seven": "7", "eight": "8", "nine": "9", "ten": "10", "eleven": "11", "twelve": "12", "once": "1", "twice": "2", "first": "1", "second": "2", "third": "3", "fourth": "4", "fifth": "5", "sixth": "6", "seventh": "7", "eighth": "8", "ninth": "9", "tenth": "10", "eleventh": "11", "twelfth": "12", "twenty": "20", "thirty": "30", "forty": "40", "fifty": "50", "sixty": "60", "seventy": "70", "eighty": "80", "ninety": "90", "twentieth": "20", "thirtieth": "30", "fortieth": "40", "fiftieth": "50", "sixtieth": "60", "seventieth": "70", "eightieth": "80", "ninetieth": "90"},
   "tolerated_by_source_comment": "numbers the Vietnamese line may add when the source matches: month names (case-sensitive), ages of age_table, fractions, \"a month\" -> 1 tháng; only silences the soft numbers_added warning",
@@ -53,7 +55,9 @@
   "target_replacements_comment": "fixed wording applied to the final Vietnamese line; a rule with source applies only when the English line matches it",
   "target_replacements": [
     {"comment": "heatstroke = sốc nhiệt (chốt 1 thuật ngữ); terminology giữ nguyên để không đổi prompt LLM", "source": "heat ?stroke", "pattern": "say nắng(?: / sốc nhiệt)?", "replace": "sốc nhiệt"},
-    {"source": "\\bwet (?:them|your|him|her)sel(?:f|ves)\\b", "pattern": "tự tiểu ướt", "replace": "tiểu ra quần"}
+    {"source": "\\bwet (?:them|your|him|her)sel(?:f|ves)\\b", "pattern": "tự tiểu ướt", "replace": "tiểu ra quần"},
+    {"comment": "vn-9: nurse = điều dưỡng (Quỳnh, final sample of run 5, line 1.13)", "source": "\\bnurses?\\b", "pattern": "\\by tá\\b", "replace": "điều dưỡng"},
+    {"comment": "vn-9: WHO response = Đáp ứng của WHO, one heading for every WHO fact sheet (line 32.1)", "source": "\\bWHO(?:'s|’s)? response\\b", "pattern": "(?:hoạt động ứng phó|hoạt động đáp ứng|ứng phó|hoạt động) của WHO", "replace": "đáp ứng của WHO"}
   ],
   "target_number_words": {"1": ["một"], "2": ["hai"], "3": ["ba"], "4": ["bốn"], "5": ["năm"], "6": ["sáu"], "7": ["bảy"], "8": ["tám"], "9": ["chín"], "10": ["mười"]},
   "ambiguous_target_number_words": {"năm": {"comment": "five / year: counts as 5 only before another word and not after these words", "not_after": ["mỗi", "hằng", "hàng", "cả", "nhiều", "vài", "các", "những", "một"]}},
@@ -95,7 +99,7 @@
     {"en": "children under X years / aged X to Y years / over X", "vi": "trẻ dưới X tuổi / trẻ từ X đến Y tuổi / trên X tuổi"},
     {"en": "one source group (babies, infants, children)", "vi": "một nhóm tiếng Việt: không tách thành hai nhóm ('trẻ sơ sinh và trẻ dưới 1 tuổi'), không thu hẹp hay mở rộng nhóm tuổi"}
   ],
-  "terminology_comment": "terms reviewers corrected in SCRUM-148 (79 emergency chunks, sample of 82, sample of 40 of run 3); also shown to the LLM post-editor",
+  "terminology_comment": "terms reviewers corrected in SCRUM-148 (79 emergency chunks, sample of 82, sample of 40 of run 3, final sample of 40 of run 5); also shown to the LLM post-editor",
   "terminology": [
     {"en": "anaphylaxis", "vi": "phản vệ / sốc phản vệ"},
     {"en": "adrenaline auto-injector", "vi": "bút tiêm adrenaline tự động (không dịch là 'vòi phun' hay 'thuốc tự tiêm')"},
@@ -152,7 +156,17 @@
     {"en": "heat (topic: heat and health, heatwaves)", "vi": "nắng nóng ('Heat and health' = 'Nắng nóng và sức khỏe')"},
     {"en": "acne: nodules and cysts", "vi": "mụn cục và mụn nang"},
     {"en": "ice-pick / boxcar scars", "vi": "sẹo rỗ đáy nhọn / sẹo rỗ đáy vuông"},
-    {"en": "World (Health) Assembly Resolution 74.8", "vi": "Nghị quyết WHA74.8 (mã nghị quyết viết WHA + số, giữ dấu chấm, không viết 74,8)"}
+    {"en": "World (Health) Assembly Resolution 74.8", "vi": "Nghị quyết WHA74.8 (mã nghị quyết viết WHA + số, giữ dấu chấm, không viết 74,8)"},
+    {"en": "numbered items and versions: Chapters 1.6 and 8.15, SDG 3.4, target 6.1, mhGAP 2.0, Gavi 6.0", "vi": "giữ dấu chấm như bản gốc (Chương 1.6 và 8.15, SDG 3.4, chỉ tiêu 6.1); số lượng thì dùng dấu phẩy thập phân (2,0 triệu ca, 1,0 triệu ca)"},
+    {"en": "nurse / specialist nurse / diabetes nurse", "vi": "điều dưỡng / điều dưỡng chuyên khoa / điều dưỡng chuyên về đái tháo đường (không viết 'y tá')"},
+    {"en": "WHO response (heading or phrase)", "vi": "Đáp ứng của WHO (không viết 'Ứng phó của WHO' hay 'Hoạt động của WHO')"},
+    {"en": "first treatment(s) / first-line treatment", "vi": "điều trị đầu tay (không viết 'điều trị đầu tiên')"},
+    {"en": "recommendations discouraging use of X", "vi": "khuyến nghị không khuyến khích sử dụng X ('discourage' khác 'hạn chế')"},
+    {"en": "protective clothing", "vi": "theo ngữ cảnh của bài: nắng, tia UV -> 'quần áo che chắn nắng'; muỗi, côn trùng, vết cắn -> 'quần áo dài che kín da'; 'quần áo bảo hộ' chỉ khi nói đồ bảo hộ lao động hoặc y tế (PPE)"},
+    {"en": "a devastating disease / devastating consequences", "vi": "bệnh có sức tàn phá lớn / hậu quả nặng nề (không làm nhẹ thành 'nghiêm trọng')"},
+    {"en": "increase / rise / improve dramatically", "vi": "tăng mạnh / giảm mạnh / cải thiện rõ rệt (mạnh hơn 'đáng kể', là từ dành cho significantly)"},
+    {"en": "drowsy as a warning sign in a symptom list", "vi": "buồn ngủ bất thường / lơ mơ (không viết 'buồn ngủ' trơn, người đọc dễ coi là bình thường); tác dụng phụ 'may make you drowsy' vẫn là 'gây buồn ngủ'"},
+    {"en": "X or Y that explains a word ('severe burns that are large or deep')", "vi": "giữ quan hệ giải thích: 'bỏng nặng (rộng hoặc sâu)', không biến thành 3 trường hợp ngang nhau"}
   ],
   "units_comment": "a unit of the source line must stay in the Vietnamese line (5 mg -> 5 g changes a dose); hard check; (?<![^\\W\\d_]) = not after a letter, so '2mg' counts",
   "units": [
@@ -217,6 +231,9 @@
     {"label": "recently pregnant", "source": "(?i)\\brecently pregnant\\b", "forbid": "(?i)mới mang thai", "hint": "'recently pregnant' là mới kết thúc thai kỳ"},
     {"label": "cut yourself", "source": "(?i)\\bcut yourself\\b", "unless_source": "(?i)hand|finger", "forbid": "(?i)đứt tay", "hint": "'cut yourself' là có vết cắt, không thu hẹp thành 'đứt tay'"},
     {"label": "a lump", "source": "(?i)\\ba lump\\b", "forbid": "(?i)cảm giác có khối", "hint": "'a lump' là khối bất thường thực sự, không phải 'cảm giác có khối u'"},
+    {"label": "first-line treatment", "source": "(?i)\\bfirst(?:-line)? treatments?\\b", "forbid": "(?i)điều trị đầu tiên", "hint": "'first treatments / first-line treatment' là điều trị đầu tay, không phải 'điều trị đầu tiên'"},
+    {"label": "discouraging use", "source": "(?i)\\bdiscourag\\w*\\s+(?:the\\s+)?(?:use|consumption|intake)\\b", "forbid": "(?i)hạn chế", "hint": "'discouraging use of X' là không khuyến khích sử dụng X, khác 'hạn chế'"},
+    {"label": "dramatically", "source": "(?i)\\bdramatic(?:al)?(?:ly)?\\b", "unless_source": "(?i)significant|considerabl|substantial|marked", "forbid": "(?i)đáng kể", "hint": "'dramatically' mạnh hơn 'đáng kể': viết 'tăng mạnh', 'giảm mạnh', 'cải thiện rõ rệt'"},
     {"label": "NHS kept", "on": "rewritten", "source": "\\bNHS\\b", "require": "NHS|(?i:tại Anh|ở Anh|Vương quốc Anh)", "hint": "dòng gốc nói về NHS: giữ 'NHS (tại Anh)' hoặc ghi rõ 'tại Anh', không bỏ chủ thể dịch vụ"}
   ]
 }

@@ -367,6 +367,22 @@ class TestTargetReplacements(unittest.TestCase):
         self.assertEqual(RULES.replace_target("wet the bed or wet themselves", "đái dầm hoặc tự tiểu ướt"),
                          "đái dầm hoặc tiểu ra quần")
 
+    def test_nurse_is_điều_dưỡng(self):
+        # vn-9 (final sample of run 5, line 1.13)
+        self.assertEqual(RULES.replace_target("A doctor, nurse or pharmacist will show you",
+                                              "Bác sĩ, y tá hoặc dược sĩ sẽ hướng dẫn bạn"),
+                         "Bác sĩ, điều dưỡng hoặc dược sĩ sẽ hướng dẫn bạn")
+        self.assertEqual(RULES.replace_target("a doctor will check", "y tá"), "y tá")  # only when the source says nurse
+
+    def test_who_response_heading(self):
+        # vn-9 (final sample of run 5, line 32.1): one heading for every WHO fact sheet
+        for written in ("Bệnh ghẻ › Hoạt động của WHO", "Bệnh ghẻ › Ứng phó của WHO", "Bệnh ghẻ › Hoạt động ứng phó của WHO"):
+            with self.subTest(written=written):
+                self.assertEqual(RULES.replace_target("Scabies › WHO response", written), "Bệnh ghẻ › Đáp ứng của WHO")
+        self.assertEqual(RULES.replace_target("A primer on the WHO response was published",
+                                              "Một bài về hoạt động ứng phó của WHO đã được công bố"),
+                         "Một bài về đáp ứng của WHO đã được công bố")
+
 
 class TestLocaliseNumbers(unittest.TestCase):
     """English number styles copied into the Vietnamese line are rewritten from the source value."""
@@ -397,6 +413,31 @@ class TestLocaliseNumbers(unittest.TestCase):
                                   "• WHA74.8: Tiêu chuẩn sức khỏe cao nhất có thể đạt được"),
                          "• WHA74.8: Tiêu chuẩn sức khỏe cao nhất có thể đạt được")
         self.assertEqual(self.fix("1.5 mg", "1.5 mg"), "1,5 mg")
+
+    def test_numbered_items_keep_their_dot(self):
+        # REGRESSION (SCRUM-148, final sample of run 5, line 31.8): 'Chapters 1.6 and 8.15' became 'Chương 1,6 và 8,15'
+        self.assertEqual(self.fix("in compliance with Chapters 1.6 and 8.15 of the Terrestrial Code",
+                                  "tuân thủ Chương 1.6 và 8.15 của Bộ luật Trên cạn"),
+                         "tuân thủ Chương 1.6 và 8.15 của Bộ luật Trên cạn")
+        self.assertEqual(self.fix("aligned with the SDG target 3.3 of ending the HIV epidemic",
+                                  "phù hợp với mục tiêu SDG 3,3 là chấm dứt dịch HIV"),
+                         "phù hợp với mục tiêu SDG 3.3 là chấm dứt dịch HIV")
+        self.assertEqual(self.fix("SDGs targets 3.8 on quality of care, and 3.1 and 3.2 by improving mortality",
+                                  "chỉ tiêu 3.8 về chất lượng chăm sóc và các chỉ tiêu 3.1 và 3.2"),
+                         "chỉ tiêu 3.8 về chất lượng chăm sóc và các chỉ tiêu 3.1 và 3.2")
+        self.assertEqual(self.fix("The current Gavi 6.0 funding guidelines", "Hướng dẫn tài trợ Gavi 6.0 hiện tại"),
+                         "Hướng dẫn tài trợ Gavi 6.0 hiện tại")
+
+    def test_quantities_beside_numbered_items_still_take_the_comma(self):
+        self.assertEqual(self.fix("(SDG 3.4). About 1.5 million people die", "(SDG 3.4). Khoảng 1.5 triệu người tử vong"),
+                         "(SDG 3.4). Khoảng 1,5 triệu người tử vong")
+        self.assertEqual(self.fix("In 2.5% of cases", "Trong 2.5% số ca"), "Trong 2,5% số ca")
+
+    def test_decimal_with_a_zero_fraction(self):
+        # REGRESSION (final sample of run 5, lines 13.5 and 13.8): '2.0 triệu ca' kept the English dot
+        self.assertEqual(self.fix("• colon and rectum (2.0 million cases)", "• đại tràng và trực tràng (2.0 triệu ca)"),
+                         "• đại tràng và trực tràng (2,0 triệu ca)")
+        self.assertEqual(self.fix("1.3 to 4.0 million cases", "từ 1,3 đến 4.0 triệu ca"), "từ 1,3 đến 4,0 triệu ca")
 
     def test_ambiguous_token_is_left_alone(self):
         # source has 1.5 and 1500; '1.500' was not copied from it, so its reading is unknown
@@ -1802,6 +1843,17 @@ class TestMeaningChecks(unittest.TestCase):
          "Theo yêu cầu trong Nghị quyết 74,8 của Đại hội đồng Y tế Thế giới, WHO sẽ công bố báo cáo.",
          "Theo yêu cầu trong Nghị quyết WHA74.8 của Đại hội đồng Y tế Thế giới, WHO sẽ công bố báo cáo.",
          "WHA resolution"),
+        # vn-9: final sample of 40 of run 5
+        ("Psychological treatments are the first treatments for depression.",
+         "Điều trị tâm lý là phương pháp điều trị đầu tiên cho bệnh trầm cảm.",
+         "Điều trị tâm lý là phương pháp điều trị đầu tay cho bệnh trầm cảm.", "first-line treatment"),
+        ("including recommendations discouraging use of kerosene and recommending against use of unprocessed coal",
+         "bao gồm các khuyến nghị hạn chế sử dụng dầu hỏa và khuyến cáo không sử dụng than chưa qua xử lý",
+         "bao gồm các khuyến nghị không khuyến khích sử dụng dầu hỏa và khuyến cáo không sử dụng than chưa qua xử lý",
+         "discouraging use"),
+        ("the price of some antivenom products have dramatically increased in the last 20 years",
+         "giá của một số sản phẩm huyết thanh kháng nọc độc đã tăng đáng kể trong 20 năm qua",
+         "giá của một số sản phẩm huyết thanh kháng nọc độc đã tăng mạnh trong 20 năm qua", "dramatically"),
     ]
 
     def test_malnutrition_from_poor_sanitation_may_be_suy_dinh_dưỡng(self):

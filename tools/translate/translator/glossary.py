@@ -92,6 +92,11 @@ def source_value(token: str) -> str:
 
 
 _SENTENCE_START = re.compile(r"(?:^|[.!?]\s+)$")
+_DOTTED = re.compile(r"\d+\.\d+")  # one dot: an English decimal, or a numbered item (Chapter 1.6)
+
+
+def _optional(pattern: str | None) -> re.Pattern | None:
+    return re.compile(pattern) if pattern else None
 
 
 def _keep_case(match: re.Match, replacement: str) -> str:
@@ -150,6 +155,10 @@ class Rules:
     ambiguous_number_words: dict[str, frozenset[str]] = field(default_factory=dict)
     tables: dict[str, list[dict[str, str]]] = field(default_factory=dict)
     number_format: dict[str, str] = field(default_factory=dict)
+    # a dotted number that names something (Chapter 1.6, SDG 3.4, Gavi 6.0) keeps its dot: the word before it,
+    # and what after it makes it a quantity again (1.5 million, 2.5%)
+    identifier_before: re.Pattern | None = None
+    quantity_after: re.Pattern | None = None
     # (pattern on the source, numbers the Vietnamese line may add): 'In May' -> 'tháng 5', 'infant' -> 'dưới 1 tuổi'
     tolerated_by_source: list[tuple[re.Pattern, frozenset[str]]] = field(default_factory=list)
     # (pattern on the source or None, pattern on the target, replacement): fixed wording after the final line is chosen
@@ -182,6 +191,8 @@ class Rules:
                                     for w, r in data.get("ambiguous_target_number_words", {}).items()},
             tables={k: data.get(k, []) for k in ("service_table", "age_table", "terminology")},
             number_format={k: v for k, v in data.get("number_format", {}).items() if k in ("decimal", "thousands")},
+            identifier_before=_optional(data.get("number_format", {}).get("identifier_before")),
+            quantity_after=_optional(data.get("number_format", {}).get("quantity_after")),
             tolerated_by_source=[(re.compile(r["pattern"]), frozenset(r["numbers"]))
                                  for r in data.get("tolerated_by_source", [])],
             target_replacements=[(re.compile(r["source"], re.I) if r.get("source") else None,
@@ -279,13 +290,15 @@ class Rules:
         Machine translation and the LLM often copy '1.5' and '1,500' from the English source: a
         Vietnamese reader takes '1,500 µg' for 1,5 µg. A token is read the English way when the source
         has the same token (the model copied it), otherwise by the one reading that is a source value;
-        a token that matches no source value or two of them is left as written.
+        a token that matches no source value or two of them is left as written. A numbered item of the
+        source (:meth:`identifier_numbers`: Chapter 1.6, SDG 3.4) is written exactly as in the source.
         """
         decimal, thousands = self.number_format.get("decimal"), self.number_format.get("thousands")
         if not decimal or thousands is None:
             return target
         source_tokens = {m.group(0) for m in _NUMBER.finditer(source)}
         wanted = {source_value(t) for t in source_tokens}
+        identifiers = self.identifier_numbers(source)
 
         def rewrite(match: re.Match) -> str:
             token = match.group(0)
@@ -293,10 +306,15 @@ class Rules:
                 return token
             if match.start() and target[match.start() - 1].isalpha():
                 return token  # part of a code or identifier (WHA74.8), not a quantity
+            named = [identifiers[v] for v in number_values(token) if v in identifiers]
+            if len(named) == 1:
+                return named[0]  # 'Chương 1,6' -> 'Chương 1.6'
             readings = {source_value(token)} if token in source_tokens else number_values(token) & wanted
             if len(readings) != 1:
                 return token
             groups = re.split(r"[.,]", token)
+            if token in source_tokens and _DOTTED.fullmatch(token):
+                return decimal.join(groups)  # an English decimal, also '2.0 million' whose value is 2
             if "." in readings.pop():
                 return decimal.join(groups) if len(groups) == 2 else token
             if 1 <= len(groups[0]) <= 3 and all(len(g) == 3 for g in groups[1:]):
@@ -304,6 +322,22 @@ class Rules:
             return token
 
         return _NUMBER.sub(rewrite, target)
+
+    def identifier_numbers(self, source: str) -> dict[str, str]:
+        """Dotted numbers of the source line that name an item, not a quantity: value -> source token.
+
+        One is named when the word before it is in ``number_format.identifier_before`` (Chapters 1.6,
+        SDG 3.4, Gavi 6.0) and the text after it is not a quantity (``quantity_after``: 1.5 million,
+        2.5%). Then the other dotted numbers of the line that are not quantities are items of the same
+        list ('Chapters 1.6 and 8.15', 'targets 3.8 ... and 3.1 and 3.2').
+        """
+        if self.identifier_before is None:
+            return {}
+        dotted = [m for m in _NUMBER.finditer(source) if _DOTTED.fullmatch(m.group(0))]
+        items = [m for m in dotted if not (self.quantity_after and self.quantity_after.match(source, m.end()))]
+        if not any(self.identifier_before.search(source[:m.start()]) for m in items):
+            return {}
+        return {source_value(m.group(0)): m.group(0) for m in items}
 
     def forbidden_in(self, target: str) -> list[str]:
         return [label for label, pattern in self.forbidden if pattern.search(target)]
