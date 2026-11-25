@@ -11,6 +11,11 @@ public interface KnowledgeSearch {
 
   List<FacilitySummary> facilities(String query);
 
+  /** Verified catalogue matches only. Synthetic implementations must not recommend facilities. */
+  default List<FacilitySummary> facilitiesBySpecialties(List<String> specialties) {
+    return List.of();
+  }
+
   /** SYNTHETIC_DATA or DATABASE_RESULTS, shown to the UI so test data is never mistaken for real. */
   String dataStatus();
 }

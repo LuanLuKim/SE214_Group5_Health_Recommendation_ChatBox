@@ -250,7 +250,7 @@ def orchestrate_chat(
     # 3. Safety Gate evaluation (UC-07)
     decision: SafetyDecision
     if req.rules and all_facts:
-        decision = evaluate_facts(all_facts, req.rules)
+        decision = evaluate_facts(all_facts, req.rules, settings.safety_care_level_priority)
     else:
         decision = unavailable()
 

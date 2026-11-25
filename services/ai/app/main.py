@@ -84,7 +84,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     @app.post("/v1/safety/evaluate", dependencies=[Depends(require_service_key)])
     def evaluate(body: EvaluateRequest):
-        return {"data": safety.evaluate_facts(set(body.facts), body.rules).model_dump()}
+        return {
+            "data": safety.evaluate_facts(
+                set(body.facts), body.rules, settings.safety_care_level_priority
+            ).model_dump()
+        }
 
     @app.post("/v1/chat/answer", dependencies=[Depends(require_service_key)])
     def answer(body: chat.ChatAnswerRequest):

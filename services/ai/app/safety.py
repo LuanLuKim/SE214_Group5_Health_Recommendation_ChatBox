@@ -6,6 +6,8 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
+from .config import DEFAULT_SAFETY_PRIORITY, validate_safety_priority
+
 CareLevel = Literal[
     "EMERGENCY_NOW",
     "SEEK_CARE_SOON",
@@ -50,15 +52,6 @@ class WarningRule(BaseModel):
     active: bool
 
 
-_PRIORITY = {
-    "EMERGENCY_NOW": 0,
-    "SEEK_CARE_SOON": 1,
-    "ROUTINE_CONSULT": 2,
-    "GENERAL_SELF_CARE_INFO": 3,
-    "INSUFFICIENT_INFO": 4,
-}
-
-
 def _unique(values: list[str]) -> list[str]:
     return list(dict.fromkeys(values))
 
@@ -75,8 +68,13 @@ def _decision(rules: list[WarningRule]) -> SafetyDecision:
     )
 
 
-def evaluate_facts(facts: set[str], rules: list[WarningRule]) -> SafetyDecision:
+def evaluate_facts(
+    facts: set[str],
+    rules: list[WarningRule],
+    priority: tuple[str, ...] = DEFAULT_SAFETY_PRIORITY,
+) -> SafetyDecision:
     """Use positive, explicitly observed facts only; absent facts remain unknown."""
+    ranks = {level: rank for rank, level in enumerate(validate_safety_priority(priority))}
     candidates = [
         rule
         for rule in rules
@@ -94,10 +92,10 @@ def evaluate_facts(facts: set[str], rules: list[WarningRule]) -> SafetyDecision:
 
     complete = [rule for rule in candidates if set(rule.requiredFields).issubset(facts)]
     incomplete = [rule for rule in candidates if rule not in complete]
-    best_complete = min(complete, key=lambda rule: _PRIORITY[rule.careLevel], default=None)
-    best_complete_priority = _PRIORITY[best_complete.careLevel] if best_complete else len(_PRIORITY)
+    best_complete = min(complete, key=lambda rule: ranks[rule.careLevel], default=None)
+    best_complete_priority = ranks[best_complete.careLevel] if best_complete else len(ranks)
     higher_incomplete = [
-        rule for rule in incomplete if _PRIORITY[rule.careLevel] < best_complete_priority
+        rule for rule in incomplete if ranks[rule.careLevel] < best_complete_priority
     ]
     if higher_incomplete:
         missing = _unique(

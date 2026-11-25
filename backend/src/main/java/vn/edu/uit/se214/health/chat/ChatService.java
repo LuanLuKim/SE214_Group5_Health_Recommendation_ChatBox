@@ -2,6 +2,7 @@ package vn.edu.uit.se214.health.chat;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -14,6 +15,7 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import vn.edu.uit.se214.health.integrations.PythonServiceClient;
+import vn.edu.uit.se214.health.knowledge.api.KnowledgeSearch;
 import vn.edu.uit.se214.health.safety.ApprovedSafetyRule;
 import vn.edu.uit.se214.health.safety.RuleRepository;
 import vn.edu.uit.se214.health.shared.web.ApiException;
@@ -27,6 +29,12 @@ public class ChatService {
   private final PythonServiceClient ai;
   private final ObjectProvider<RuleRepository> ruleRepositoryProvider;
   private final ObjectMapper json;
+  private KnowledgeSearch knowledge;
+
+  @org.springframework.beans.factory.annotation.Autowired
+  public void setKnowledgeSearch(KnowledgeSearch knowledge) {
+    this.knowledge = knowledge;
+  }
 
   public ChatService(
       ChatRepository repository,
@@ -95,6 +103,7 @@ public class ChatService {
       return emitter;
     }
 
+    List<ApprovedSafetyRule> evaluableRules = rules;
     CompletableFuture.runAsync(
         () -> {
           StringBuilder assistantResponse = new StringBuilder();
@@ -106,8 +115,37 @@ public class ChatService {
                   if (line.startsWith("data: ")) {
                     String jsonStr = line.substring(6).trim();
                     try {
-                      emitter.send(SseEmitter.event().data(jsonStr));
                       JsonNode eventNode = json.readTree(jsonStr);
+                      if ("safety".equals(eventNode.path("type").asText())
+                          && eventNode.path("data") instanceof ObjectNode data) {
+                        data.set("facilities", json.valueToTree(List.of()));
+                        try {
+                          if (knowledge != null
+                              && "DATABASE_RESULTS".equals(knowledge.dataStatus())
+                              && "EVALUATED".equals(data.path("status").asText())
+                              && !data.path("careLevel").isNull()
+                              && !"INSUFFICIENT_INFO".equals(data.path("careLevel").asText())) {
+                            java.util.Set<String> matchedIds = new java.util.HashSet<>();
+                            data.path("matchedRuleIds").forEach(node -> matchedIds.add(node.asText()));
+                            java.util.Set<String> allowed =
+                                evaluableRules.stream()
+                                    .filter(rule -> matchedIds.contains(rule.id())
+                                        && rule.careLevel().name().equals(data.path("careLevel").asText()))
+                                    .flatMap(rule -> rule.specialtyIds().stream())
+                                    .collect(java.util.stream.Collectors.toSet());
+                            List<String> specialties = new java.util.ArrayList<>();
+                            data.path("specialtyIds").forEach(
+                                node -> {
+                                  if (allowed.contains(node.asText())) specialties.add(node.asText());
+                                });
+                            data.set("facilities",
+                                json.valueToTree(knowledge.facilitiesBySpecialties(specialties)));
+                          }
+                        } catch (Exception ignored) {
+                          // Catalogue failure must not suppress emergency guidance or careLevel.
+                        }
+                      }
+                      emitter.send(SseEmitter.event().data(json.writeValueAsString(eventNode)));
                       if ("token".equals(eventNode.path("type").asText())) {
                         assistantResponse.append(eventNode.path("data").asText());
                       }
