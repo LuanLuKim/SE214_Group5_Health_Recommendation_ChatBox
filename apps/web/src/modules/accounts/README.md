@@ -5,7 +5,7 @@ Use cases: **UC-01, UC-02, UC-03, UC-18**. Owner: Võ Ngọc Tài (`vongoctaijk-
 ## Navigation
 
 - Frontend: `apps/web/src/modules/accounts/`
-- Backend: `backend/src/main/java/vn/edu/uit/se214/health/accounts/`
+- Backend: `backend/src/main/accounts/`
 - Database: `database/migrations/V005__accounts.sql`
 - Shared contracts: `packages/contracts/src/index.ts`
 - Routes and access expectations: `docs/API.md`

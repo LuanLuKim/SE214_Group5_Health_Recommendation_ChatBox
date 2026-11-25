@@ -22,7 +22,7 @@ apps/web/src/modules/<module>/
   components/      Thêm khi cần
   hooks/           Thêm khi cần
 
-backend/src/main/java/vn/edu/uit/se214/health/<module>/
+backend/src/main/<module>/
   README.md             Phạm vi, phụ thuộc, cách mở rộng
   <Module>Controller    HTTP: đọc request, trả ApiResponse; Spring Security bảo vệ route riêng tư
   <...>Service          Nghiệp vụ

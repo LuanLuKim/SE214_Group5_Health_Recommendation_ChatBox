@@ -1,6 +1,6 @@
 # tools/translate — dịch chunk y tế Anh → Việt
 
-Công cụ ngoại tuyến, chạy bằng CLI, đọc `.data/normalized/chunks.jsonl` và ghi bản tiếng Việt vào `.data/translated/`. Không import mã backend/frontend. Thiết kế đầy đủ: [docs/TRANSLATION_MODULE_DESIGN.md](../../docs/TRANSLATION_MODULE_DESIGN.md).
+Công cụ ngoại tuyến, chạy bằng CLI, đọc `.data/normalize/rag/chunks.jsonl` và ghi bản tiếng Việt vào `.data/translate/`. Không import mã backend/frontend. Thiết kế đầy đủ: [docs/TRANSLATION_MODULE_DESIGN.md](../../docs/TRANSLATION_MODULE_DESIGN.md).
 
 ## Cách hoạt động
 
@@ -55,7 +55,7 @@ python -B tools/translate/run.py --mode fusion --refiner consensus   # không d�
 python -B tools/translate/run.py --mode fusion            # 3 model dịch nháp + LLM biên tập
 python -B tools/translate/run.py                          # toàn bộ theo llm.mode (fusion); tự chạy tiếp từ cache
 python -B tools/translate/run.py --status                 # tóm tắt lần chạy gần nhất
-python -B tools/translate/test_translate.py               # kiểm thử (không cần model, không cần mạng)
+python -B tests/tools/translate/test_translate.py               # kiểm thử (không cần model, không cần mạng)
 ```
 
 Mã thoát: `0` mọi chunk qua cổng, `1` có chunk không qua, `2` lỗi cấu hình, `3` LLM dừng giữa chừng (hết lượt/giới hạn tốc độ) — chạy lại để tiếp tục.
@@ -65,10 +65,10 @@ Mã thoát: `0` mọi chunk qua cổng, `1` có chunk không qua, `2` lỗi cấ
 Dùng chung quy ước với các script rà soát của `tools/normalize`: một endpoint tương thích OpenAI **do bạn tự cấu hình**, không có giá trị mặc định, khóa không bao giờ ghi vào tệp hay commit.
 
 ```powershell
-$env:LLM_BASE_URL = "http://localhost:8000/v1"
-$env:LLM_MODEL = "your-model-name"
-$env:LLM_API_KEY = "your-key"
-$env:LLM_REASONING = "low"        # tùy chọn, gửi làm reasoning_effort
+$env:TRANSLATE_LLM_BASE_URL = "http://localhost:8000/v1"
+$env:TRANSLATE_LLM_MODEL = "your-model-name"
+$env:TRANSLATE_LLM_API_KEY = "your-key"
+$env:TRANSLATE_LLM_REASONING = "low"        # tùy chọn, gửi làm reasoning_effort
 ```
 
 Có đủ ba biến thì `--refiner auto` (mặc định) dùng LLM; thiếu thì tự chuyển sang đồng thuận. Kết quả LLM được cache theo nội dung gửi đi, nên chạy lại không gọi lại.
@@ -85,7 +85,7 @@ Prompt của LLM có thêm chính sách duyệt (`reviewer_policy.md`) và mọi
 
 Tên thuốc không nằm trong mã: đọc từ trang chỉ mục thuốc đã crawl (cùng nguồn với normalizer). Tên thuốc mà đa số model giữ nguyên thì bản cuối cũng phải giữ; tên nhóm thuốc (antibiotics → thuốc kháng sinh) được dịch.
 
-## Đầu ra (`.data/translated/`)
+## Đầu ra (`.data/translate/`)
 
 | Tệp | Nội dung |
 | --- | --- |
@@ -111,7 +111,7 @@ Nghi đổi nghĩa (qua cổng nhưng không bao giờ `auto_verified`: trạng 
 
 Cảnh báo (qua cổng nhưng cần người rà): có số không nằm trong bản gốc, còn nhắc `NHS` hay số điện thoại của Anh, tên thuốc quốc tế bị đổi, độ dài một dòng bất thường, dòng cuối không giống bản nháp nào (`low_support` — dấu hiệu thêm nội dung).
 
-So một lần chạy với kết quả duyệt: `python -B tools/translate/review_compare.py docs/reviews/scrum148/mau_82` (xem bên dưới).
+So một lần chạy với kết quả duyệt: `python -B tests/eval/review_compare.py docs/reviews/scrum148/mau_82` (xem bên dưới).
 
 ## Giấy phép model
 

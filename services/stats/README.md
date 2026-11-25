@@ -5,9 +5,9 @@ Phần thống kê của M3: xu hướng chỉ số tuần/tháng (UC-05) và th
 ```powershell
 cd services/stats
 python -m pip install -r requirements.txt
-Copy-Item .env.example .env      # điền STATS_SERVICE_KEY giống backend/.env
+if (-not (Test-Path ../../.env)) { Copy-Item ../../.env.example ../../.env }
 python manage.py runserver 127.0.0.1:8002
-python manage.py test
+python manage.py test ../../tests/services/stats
 ```
 
 Route: `GET /healthz`, `POST /v1/metrics/trends`, `GET /v1/system/statistics` (route cuối đang trả 501).

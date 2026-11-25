@@ -2,15 +2,15 @@ services:
   db:
     image: postgres:17-alpine
     environment:
-      POSTGRES_USER: health_dev
-      POSTGRES_PASSWORD: local_dev_only
+      POSTGRES_USER: ${DATABASE_USER:-health_dev}
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD:-local_dev_only}
       POSTGRES_DB: health_assistant
     ports:
       - '127.0.0.1:5432:5432'
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U health_dev -d health_assistant']
+      test: ['CMD-SHELL', 'pg_isready -U "$${POSTGRES_USER}" -d health_assistant']
       interval: 5s
       timeout: 5s
       retries: 10
@@ -26,16 +26,16 @@ services:
       DATA_MODE: postgres
       SEED_SYNTHETIC: 'true'
       DATABASE_URL: jdbc:postgresql://db:5432/health_assistant
-      DATABASE_USER: health_dev
-      DATABASE_PASSWORD: local_dev_only
+      DATABASE_USER: ${DATABASE_USER:-health_dev}
+      DATABASE_PASSWORD: ${DATABASE_PASSWORD:-local_dev_only}
       WEB_ORIGIN: http://localhost:5173
       AI_SERVICE_URL: http://ai:8001
-      AI_SERVICE_KEY: local_dev_only_key
+      AI_SERVICE_KEY: ${AI_SERVICE_KEY:-local_dev_only_key}
       STATS_SERVICE_URL: http://stats:8002
-      STATS_SERVICE_KEY: local_dev_only_key
+      STATS_SERVICE_KEY: ${STATS_SERVICE_KEY:-local_dev_only_key}
       # Chỉ dùng trên máy phát triển, đủ 32 byte. Không dùng lại trên server.
-      AUTH_TOKEN_SECRET: local_dev_only_auth_token_secret_32b
-      EMAIL_OTP_HASH_SECRET: local_dev_only_email_otp_secret_32b
+      AUTH_TOKEN_SECRET: ${AUTH_TOKEN_SECRET:-local_dev_only_auth_token_secret_32b}
+      EMAIL_OTP_HASH_SECRET: ${EMAIL_OTP_HASH_SECRET:-local_dev_only_email_otp_secret_32b}
       ADMIN_BOOTSTRAP_ENABLED: ${ADMIN_BOOTSTRAP_ENABLED:-false}
       ADMIN_EMAIL: ${ADMIN_EMAIL:-}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
@@ -55,8 +55,12 @@ services:
       context: .
       dockerfile: services/ai/Dockerfile
     environment:
-      AI_SERVICE_KEY: local_dev_only_key
-      LLM_ENABLED: 'false'
+      AI_SERVICE_KEY: ${AI_SERVICE_KEY:-local_dev_only_key}
+      AI_LLM_ENABLED: ${AI_LLM_ENABLED:-false}
+      AI_LLM_BASE_URL: ${AI_LLM_BASE_URL:-}
+      AI_LLM_MODEL: ${AI_LLM_MODEL:-}
+      AI_LLM_API_KEY: ${AI_LLM_API_KEY:-}
+      AI_LLM_TIMEOUT_MS: ${AI_LLM_TIMEOUT_MS:-20000}
 
   stats:
     profiles: [full]
@@ -64,7 +68,7 @@ services:
       context: .
       dockerfile: services/stats/Dockerfile
     environment:
-      STATS_SERVICE_KEY: local_dev_only_key
+      STATS_SERVICE_KEY: ${STATS_SERVICE_KEY:-local_dev_only_key}
       DJANGO_ALLOWED_HOSTS: stats,localhost,127.0.0.1
 
 volumes:

@@ -5,7 +5,7 @@ Usage (from repo root, inside conda env):
     python -B tools/normalize/run.py --all-extracted  # every extracted document (e.g. the example)
     python -B tools/normalize/run.py --status         # show current output summary
     python -B tools/normalize/run.py --corpus expert_reference
-        # docs/urls_reference.txt -> .data/normalized_reference; never RAG
+        # docs/urls_reference.txt -> .data/normalize/expert_reference; never RAG
 
 Corpora: ``rag`` is the chatbot knowledge base (still DRAFT until reviewed).
 ``expert_reference`` holds medicine pages that content experts consult while
@@ -31,16 +31,19 @@ from hashlib import sha256
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-COLLECTION_DIR = ROOT / ".data" / "collection"
+sys.path.insert(0, str(ROOT / "tools"))
+from project_config import data_path  # noqa: E402
+
+COLLECTION_DIR = data_path("collection")
 EXTRACTED_DIR = COLLECTION_DIR / "extracted"
-OUTPUT_DIR = ROOT / ".data" / "normalized"
+OUTPUT_DIR = data_path("normalized")
 # Offline LLM review of food-medicine sentences (review_interactions.py). Read as data only.
-VERDICTS = ROOT / ".data" / "review" / "interaction_verdicts.json"
-CHUNK_VERDICTS = ROOT / ".data" / "review" / "chunk_verdicts.json"  # review_chunks.py
+VERDICTS = data_path("review") / "interaction_verdicts.json"
+CHUNK_VERDICTS = data_path("review") / "chunk_verdicts.json"  # review_chunks.py
 # corpus -> (URL lists read together, output directory). Each list is its own crawl group.
 CORPORA = {
-    "rag": ((ROOT / "docs" / "urls.txt", ROOT / "docs" / "urls_lifestyle.txt", ROOT / "docs" / "urls_who.txt"), OUTPUT_DIR),
-    "expert_reference": ((ROOT / "docs" / "urls_reference.txt",), ROOT / ".data" / "normalized_reference"),
+    "rag": ((data_path("urls"), data_path("urls_lifestyle"), data_path("urls_who")), OUTPUT_DIR),
+    "expert_reference": ((data_path("urls_reference"),), data_path("normalized_reference")),
 }
 
 
@@ -153,7 +156,7 @@ def main(argv: list[str] | None = None) -> int:
                         help="rag (default) or expert_reference (medicine pages, never RAG)")
     parser.add_argument("--urls", type=Path, nargs="+",
                         help="URL list(s) with topic mappings (default depends on --corpus)")
-    parser.add_argument("--index-urls", type=Path, default=ROOT / "docs" / "urls_discovery.txt",
+    parser.add_argument("--index-urls", type=Path, default=data_path("medicine_index_urls"),
                         help="index pages; those with topic 'medication_index' supply medicine names")
     parser.add_argument("--all-extracted", action="store_true", help="ignore urls.txt; newest extraction of every URL")
     parser.add_argument("--collection", type=Path, default=COLLECTION_DIR, help=argparse.SUPPRESS)

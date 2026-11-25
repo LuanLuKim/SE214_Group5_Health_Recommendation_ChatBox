@@ -27,15 +27,15 @@ Môi trường được Conda quản lý ngoài repo; `environment.yml` cố đ�
 & tools/crawl/start-background.ps1 -Refresh -InspectMetadata
 ```
 
-Launcher dùng Python của môi trường đang activate; có thể truyền `-Python "C:/duong-dan-env/python.exe"` nếu cần chọn rõ interpreter. Lệnh trả PID, run ID và đường dẫn receipt ngay; tiến trình chạy cửa sổ ẩn, stdout/stderr vào `.data/collection/runs/<run-id>.*.log`. Receipt đúng run ID có `state=FINISHED`, `exit_code`, counts và từng URL khi xong; `RUNNING` không có nghĩa thành công. Nếu process đã mất nhưng receipt vẫn RUNNING hoặc chưa có receipt, kiểm tra stderr: có thể bị ngắt/không khởi động được. Không dùng receipt của lần cũ để kết luận lần mới. Launcher không tạo lịch kiểm tra LLM định kỳ; người dùng/agent đọc receipt khi job hoàn tất.
+Launcher dùng Python của môi trường đang activate; có thể truyền `-Python "C:/duong-dan-env/python.exe"` nếu cần chọn rõ interpreter. Lệnh trả PID, run ID và đường dẫn receipt ngay; tiến trình chạy cửa sổ ẩn, stdout/stderr vào `.data/crawl/collection/runs/<run-id>.*.log`. Receipt đúng run ID có `state=FINISHED`, `exit_code`, counts và từng URL khi xong; `RUNNING` không có nghĩa thành công. Nếu process đã mất nhưng receipt vẫn RUNNING hoặc chưa có receipt, kiểm tra stderr: có thể bị ngắt/không khởi động được. Không dùng receipt của lần cũ để kết luận lần mới. Launcher không tạo lịch kiểm tra LLM định kỳ; người dùng/agent đọc receipt khi job hoàn tất.
 
 ## Đầu ra
 
-- `.data/collection/raw/<sha256>.html`: byte gốc theo hash.
+- `.data/crawl/collection/raw/<sha256>.html`: byte gốc theo hash.
 - `fetches/`: metadata từng lần tải, URL gốc/cuối, redirect, thời điểm UTC và quyền sử dụng.
 - `extracted/`: phiên bản cấu trúc với adapter/template/config version, title, metadata nguồn và blocks có DOM path, link, list depth, vị trí bảng.
 - `pages/`: con trỏ cache theo hash toàn URL (query được giữ); `runs/`: log/receipt từng lượt; `latest.json`: tổng kết gần nhất.
-- `.data/crawl/state.json`, `lock.sqlite`, `events.jsonl`: ngân sách (tổng và `groups.<nhóm>`), khóa và chặn host dùng chung với công cụ duyệt lô cũ. Mỗi dòng `request` trong `events.jsonl` ghi `group` và `group_number`. Không xóa checkpoint để chạy lại.
+- `.data/crawl/checkpoint/state.json`, `lock.sqlite`, `events.jsonl`: ngân sách (tổng và `groups.<nhóm>`), khóa và chặn host dùng chung với công cụ duyệt lô cũ. Mỗi dòng `request` trong `events.jsonl` ghi `group` và `group_number`. Không xóa checkpoint để chạy lại.
 
 `review.py` dùng parser lịch sử trong `review_legacy.py` để duyệt ba bản nháp pilot cũ.
 
@@ -48,7 +48,7 @@ python -B tools/normalize/run.py
 python -B tools/normalize/run.py --status
 ```
 
-Bộ chuẩn hóa (`normalize-v2`) đọc bản trích xuất **hiện hành** của từng URL đang bật trong các danh sách của corpus (`rag`: `urls.txt` + `urls_lifestyle.txt`; `expert_reference`: `urls_reference.txt`; `--urls a.txt b.txt` ghi đè) qua con trỏ `pages/<sha256(url)>.json`; các phiên bản trích xuất cũ vẫn nằm trong `extracted/` nhưng bị bỏ qua. Đầu ra trong `.data/normalized/`:
+Bộ chuẩn hóa (`normalize-v2`) đọc bản trích xuất **hiện hành** của từng URL đang bật trong các danh sách của corpus (`rag`: `urls.txt` + `urls_lifestyle.txt`; `expert_reference`: `urls_reference.txt`; `--urls a.txt b.txt` ghi đè) qua con trỏ `pages/<sha256(url)>.json`; các phiên bản trích xuất cũ vẫn nằm trong `extracted/` nhưng bị bỏ qua. Đầu ra trong `.data/normalize/rag/`:
 
 - `articles/<id>.json`: bài đã chuẩn hóa, section có `heading_path`, `dropped_sections` (mục điều hướng bị bỏ, có lý do), chunk và `db_row`.
 - `chunks.jsonl`: chunk cho RAG — id là uuid5 tất định, `chunk_key`, `article_uuid`, `heading_path`, dòng đầu văn bản là `Tiêu đề › mục › mục con`, cờ `scope_tags` tính trên từng chunk, `stale_source` khi nguồn quá hạn rà soát.
@@ -87,8 +87,8 @@ python -B tools/normalize/run.py; python -B tools/normalize/run.py --corpus expe
 Trên bản clone mới, chạy các lệnh sau để thử ngoại tuyến với [mẫu tổng hợp](../normalize/examples/extracted.example.json).
 
 ```powershell
-New-Item -ItemType Directory -Force .data/collection/extracted | Out-Null
-Copy-Item tools/normalize/examples/extracted.example.json .data/collection/extracted/extracted.example.json
+New-Item -ItemType Directory -Force .data/crawl/collection/extracted | Out-Null
+Copy-Item tools/normalize/examples/extracted.example.json .data/crawl/collection/extracted/extracted.example.json
 python -B tools/normalize/run.py --all-extracted
 python -B tools/normalize/run.py --status
 ```
@@ -119,8 +119,8 @@ Chế độ thu thập được cấu hình theo nguồn trong `source_policies.
 ## Kiểm tra
 
 ```powershell
-python -B -m unittest discover -s tools/crawl -p "test_*.py"
-python -B tools/normalize/test_normalize.py
+python -B -m unittest discover -s tests/tools/crawl -p "test_*.py"
+python -B tests/tools/normalize/test_normalize.py
 ```
 
 Bộ thử crawler dùng HTML tổng hợp và mạng giả. Bộ thử chuẩn hóa bỏ qua các bài tích hợp khi chưa có bộ dữ liệu thật.

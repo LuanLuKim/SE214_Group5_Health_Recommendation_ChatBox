@@ -69,8 +69,8 @@ class Store:
         return record
 
     def check_space(self, required):
-        from .http import Limit, MIB
-        used = sum(path.stat().st_size for name in ('crawl', 'collection', 'review')
-                   for path in (self.root.parent / name).rglob('*') if path.is_file())
-        if used + required > 250 * MIB:
+        from .http import Limit, MAX_DISK, disk_folders
+        used = sum(path.stat().st_size for folder in disk_folders(self.root, 'collection')
+                   for path in folder.rglob('*') if path.is_file())
+        if used + required > MAX_DISK:
             raise Limit('DISK_LIMIT')

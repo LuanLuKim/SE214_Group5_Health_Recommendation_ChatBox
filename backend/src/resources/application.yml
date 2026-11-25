@@ -1,0 +1,133 @@
+# Cấu hình mặc định: DATA_MODE=mock, không cần PostgreSQL.
+# Giá trị lấy từ biến môi trường hoặc .env ở gốc repo (KEY=VALUE, Git bỏ qua).
+spring:
+  application:
+    name: health-assistant-backend
+  config:
+    import: optional:file:../.env[.properties],optional:file:./.env[.properties]
+  profiles:
+    active: ${DATA_MODE:mock}
+  # Chế độ mock không có cơ sở dữ liệu: tắt tự cấu hình DataSource và Flyway.
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration
+      - org.springframework.boot.autoconfigure.flyway.FlywayAutoConfiguration
+  jackson:
+    deserialization:
+      fail-on-unknown-properties: true
+  mvc:
+    problemdetails:
+      enabled: false
+  web:
+    resources:
+      add-mappings: false
+  main:
+    banner-mode: off
+  mail:
+    host: ${SMTP_HOST:}
+    port: ${SMTP_PORT:587}
+    username: ${SMTP_USERNAME:}
+    password: ${SMTP_PASSWORD:}
+    properties:
+      mail.smtp.auth: ${SMTP_AUTH:true}
+      mail.smtp.starttls.enable: ${SMTP_STARTTLS:true}
+      mail.smtp.connectiontimeout: 5000
+      mail.smtp.timeout: 5000
+      mail.smtp.writetimeout: 5000
+springdoc:
+  api-docs:
+    enabled: ${SWAGGER_ENABLED:true}
+  swagger-ui:
+    enabled: ${SWAGGER_ENABLED:true}
+    path: /swagger-ui.html
+
+server:
+  address: ${HOST:127.0.0.1}
+  port: ${PORT:4000}
+  # Sau reverse proxy đặt FORWARD_HEADERS=native: IP người dùng lấy từ X-Forwarded-For (chỉ tin proxy
+  # ở dải địa chỉ nội bộ), nếu không giới hạn tần suất sẽ tính chung mọi người vào IP của proxy.
+  forward-headers-strategy: ${FORWARD_HEADERS:none}
+  error:
+    whitelabel:
+      enabled: false
+  servlet:
+    encoding:
+      charset: UTF-8
+      force: true
+
+app:
+  data-mode: ${DATA_MODE:mock}
+  web-origin: ${WEB_ORIGIN:http://localhost:5173}
+  max-body-bytes: 32768
+  rate-limit-per-minute: 120
+  accounts:
+    terms-version: ${TERMS_VERSION:v1}
+    admin:
+      bootstrap-enabled: ${ADMIN_BOOTSTRAP_ENABLED:false}
+      email: ${ADMIN_EMAIL:}
+      password: ${ADMIN_PASSWORD:}
+    google-client-id: ${GOOGLE_CLIENT_ID:}
+    facebook-app-id: ${FACEBOOK_APP_ID:}
+    facebook-app-secret: ${FACEBOOK_APP_SECRET:}
+    email-otp:
+      hash-secret: ${EMAIL_OTP_HASH_SECRET:}
+      from-address: ${MAIL_FROM:}
+    auth-token:
+      secret: ${AUTH_TOKEN_SECRET:}
+  lifestyle:
+    # Múi giờ quyết định "hôm nay" khi ghi nhận thói quen (UC-13): qua nửa đêm giờ này là sang ngày mới.
+    zone: ${LIFESTYLE_ZONE:Asia/Ho_Chi_Minh}
+    # Số lộ trình đã kết thúc tối đa mà GET /lifestyle/plans/history trả về (mới nhất trước).
+    history-limit: ${LIFESTYLE_HISTORY_LIMIT:100}
+    # UC-14: worker gửi nhắc nhở qua email (SMTP_* và MAIL_FROM như M5). REMINDERS_ENABLED=false
+    # chỉ dừng việc gửi, route nhắc nhở vẫn chạy.
+    reminders:
+      enabled: ${REMINDERS_ENABLED:true}
+      poll: ${REMINDERS_POLL:PT1M}
+      # Nhắc trễ quá khoảng này (backend dừng, mất kết nối) thì bỏ qua, không gửi bù hàng loạt.
+      window: ${REMINDERS_WINDOW:PT10M}
+      max-attempts: ${REMINDERS_MAX_ATTEMPTS:3}
+      max-per-user: ${REMINDERS_MAX_PER_USER:20}
+      from-address: ${MAIL_FROM:}
+    # Dọn dữ liệu M6 mỗi ngày (SCRUM-164). Thời hạn theo ISO-8601 (P90D = 90 ngày); cron theo múi giờ zone.
+    # Nhắc do người dùng tự tắt không bao giờ bị job xóa.
+    retention:
+      enabled: ${LIFESTYLE_RETENTION_ENABLED:true}
+      cron: ${LIFESTYLE_RETENTION_CRON:0 30 3 * * *}
+      sent-deliveries: ${LIFESTYLE_RETENTION_SENT_DELIVERIES:P90D}
+      failed-deliveries: ${LIFESTYLE_RETENTION_FAILED_DELIVERIES:P30D}
+      ended-plan-completions: ${LIFESTYLE_RETENTION_ENDED_PLAN_COMPLETIONS:P365D}
+      paused-reminders: ${LIFESTYLE_RETENTION_PAUSED_REMINDERS:P90D}
+      batch-size: ${LIFESTYLE_RETENTION_BATCH_SIZE:1000}
+  health:
+    # UC-19 thống kê hệ thống và SCRUM-51 ghi sự kiện. Sự kiện chỉ có loại và thời điểm, không có
+    # người dùng hay nội dung. Ngày thống kê tính theo múi giờ zone.
+    statistics:
+      zone: ${HEALTH_STATS_ZONE:Asia/Ho_Chi_Minh}
+      default-days: ${HEALTH_STATS_DEFAULT_DAYS:30}
+      max-days: ${HEALTH_STATS_MAX_DAYS:366}
+      record-events: ${HEALTH_STATS_RECORD_EVENTS:true}
+      # Mỗi phản hồi thành công của route dưới đây tính là một sự kiện. Đăng ký qua OAuth (Google,
+      # Facebook) chỉ tính là lượt truy cập vì route không phân biệt tài khoản mới; M5 có thể gọi
+      # UsageEventRecorder.record(REGISTRATION) khi tạo tài khoản OAuth.
+      event-routes:
+        - { method: POST, path: /api/v1/accounts/register/verify, status: 201, type: REGISTRATION }
+        - { method: POST, path: /api/v1/accounts/login, status: 200, type: VISIT }
+        - { method: POST, path: /api/v1/accounts/oauth, status: 200, type: VISIT }
+        - { method: POST, path: /api/v1/chat/messages, status: 200, type: CHAT_INTERACTION }
+  # Chạy dữ liệu tổng hợp trong database/seeds sau migration (chỉ máy phát triển).
+  seed-synthetic: ${SEED_SYNTHETIC:false}
+  database-dir: ${DATABASE_DIR:../database}
+  # Dịch vụ Python. Chỉ Spring Boot gọi tới, kèm khóa dịch vụ.
+  ai-service:
+    base-url: ${AI_SERVICE_URL:http://127.0.0.1:8001}
+    key: ${AI_SERVICE_KEY:}
+    timeout-ms: ${AI_SERVICE_TIMEOUT_MS:20000}
+  stats-service:
+    base-url: ${STATS_SERVICE_URL:http://127.0.0.1:8002}
+    key: ${STATS_SERVICE_KEY:}
+    timeout-ms: ${STATS_SERVICE_TIMEOUT_MS:10000}
+
+logging:
+  level:
+    root: INFO

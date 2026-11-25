@@ -17,9 +17,9 @@
 | `mvn spring-boot:run`                        | `backend/`        | Chạy backend (port 4000)                                  |
 | `mvn verify`                                 | `backend/`        | Test (gồm PostgreSQL nhúng) và đóng gói jar               |
 | `python -m uvicorn app.main:app --port 8001` | `services/ai/`    | Chạy dịch vụ AI                                           |
-| `python -m pytest`                           | `services/ai/`    | Test dịch vụ AI                                           |
+| `python -m pytest -c ../../tests/services/ai/pytest.ini ../../tests/services/ai`                           | `services/ai/`    | Test dịch vụ AI                                           |
 | `python manage.py runserver 127.0.0.1:8002`  | `services/stats/` | Chạy dịch vụ thống kê                                     |
-| `python manage.py test`                      | `services/stats/` | Test dịch vụ thống kê                                     |
+| `python manage.py test ../../tests/services/stats`                      | `services/stats/` | Test dịch vụ thống kê                                     |
 | `npm run db:up` / `npm run db:down`          | thư mục gốc       | Bật/tắt PostgreSQL local bằng Docker (giữ volume dữ liệu) |
 | `npm run format`                             | thư mục gốc       | Định dạng mã frontend và tài liệu                         |
 
@@ -29,22 +29,26 @@ Swagger UI mở tại `http://127.0.0.1:4000/swagger-ui.html`; OpenAPI JSON ở 
 
 ## Cấu hình
 
-Mỗi service đọc biến môi trường, hoặc file `.env` cục bộ trong thư mục của nó (Git bỏ qua). Chép từ `.env.example` một lần rồi điền giá trị của bạn.
+Dùng một `.env` ở gốc repo cho local. Biến môi trường tiến trình thắng file.
+Chỉ dùng `KEY=VALUE` không có dấu nháy hay comment cuối dòng để tương thích các loader.
+Không commit `.env`; không ghi key vào `VITE_*` (biến công khai trong bundle).
 
-| File                  | Biến chính                                                                                                                                                                                                                                                                                                                                         |
-| --------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `backend/.env`        | `DATA_MODE` (`mock`/`postgres`), `DATABASE_URL` (dạng `jdbc:postgresql://…`), `DATABASE_USER`, `DATABASE_PASSWORD`, `SEED_SYNTHETIC`, `TERMS_VERSION`, `ADMIN_BOOTSTRAP_ENABLED`, `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `GOOGLE_CLIENT_ID`, `FACEBOOK_APP_ID`, `FACEBOOK_APP_SECRET`, `SMTP_*`, `EMAIL_OTP_HASH_SECRET`, `AUTH_TOKEN_SECRET`, `WEB_ORIGIN`, `AI_SERVICE_URL`, `AI_SERVICE_KEY`, `STATS_SERVICE_URL`, `STATS_SERVICE_KEY` |
+| Vai trò | Prefix |
+| --- | --- |
+| Chatbot AI | `AI_LLM_*` |
+| Dịch offline | `TRANSLATE_LLM_*` |
+| Review corpus offline | `REVIEW_LLM_*` |
 
-`AUTH_TOKEN_SECRET` và `EMAIL_OTP_HASH_SECRET` cần ít nhất 32 byte ngẫu nhiên, khác nhau, được tạo riêng cho từng môi trường và không commit. Có thể tạo từng giá trị cục bộ bằng `node -e "console.log(require('node:crypto').randomBytes(48).toString('base64'))"`.
+Chuyển giá trị từ file `.env` cũ sang root, đổi tên theo đúng vai trò trước khi xóa file cũ.
+Không tự động dùng chung key giữa các vai trò. Deploy vẫn có `deploy/.env` riêng.
+Docker chỉ truyền các biến cần thiết cho từng service, không đưa toàn bộ `.env` vào container.
 
-Bootstrap admin mặc định tắt. Chỉ khi đặt `ADMIN_BOOTSTRAP_ENABLED=true` ở `DATA_MODE=postgres`, backend mới cần `ADMIN_EMAIL` và `ADMIN_PASSWORD` (12–72 byte UTF-8) để khởi tạo tài khoản quản trị sau migration. Không dùng chung mật khẩu giữa các môi trường; nếu email đã tồn tại nhưng không phải admin đang hoạt động, backend dừng khởi động thay vì tự nâng quyền tài khoản đó.
-| `services/ai/.env`    | `AI_SERVICE_KEY`, `LLM_ENABLED`, `LLM_BASE_URL`, `LLM_API_KEY`, `LLM_MODEL`, `LLM_TIMEOUT_MS`                                                                                                                                                                                                                                                      |
-| `services/stats/.env` | `STATS_SERVICE_KEY`, `DJANGO_SECRET_KEY`, `DJANGO_DEBUG`, `DJANGO_ALLOWED_HOSTS`                                                                                                                                                                                                                                                                   |
-| `apps/web/.env`       | `VITE_API_ORIGIN` (thường để trống)                                                                                                                                                                                                                                                                                                                |
+`config/paths.yaml` dùng cú pháp JSON hợp lệ trong YAML 1.2 để Python đọc bằng thư viện chuẩn,
+không thêm dependency. Giữ dấu ngoặc và dấu nháy khi sửa; không dùng cú pháp YAML mở rộng.
+Đường dẫn tương đối trong file này luôn tính từ gốc repo; CLI vẫn hỗ trợ đường dẫn riêng.
+Model và ngưỡng chất lượng dịch vẫn ở `tools/translate/config.json`; không trộn bí mật vào đó.
+Đường dẫn source/resource, migration Java và cấu hình framework không chuyển vào YAML offline.
 
-`AI_SERVICE_KEY` và `STATS_SERVICE_KEY` phải giống nhau giữa backend và service tương ứng. Service Python để trống khóa thì mọi route `/v1` trả 503, không mở cho ai gọi.
-
-Nếu bạn còn file `apps/api/.env` từ khung Express cũ: chuyển `DATA_MODE`, `HOST`, `PORT`, `WEB_ORIGIN` sang `backend/.env` (đổi `DATABASE_URL` sang dạng JDBC, user và mật khẩu tách riêng), chuyển các biến `LLM_*` sang `services/ai/.env`, rồi xóa thư mục `apps/api`.
 
 ## PostgreSQL
 
@@ -56,17 +60,17 @@ Docker phải chạy trước `npm run db:up`; đợi trạng thái healthy bằ
 
 ## LLM
 
-Adapter tương thích OpenAI nằm ở `services/ai/app/llm.py`. Điền trong `services/ai/.env`:
+Adapter tương thích OpenAI nằm ở `services/ai/app/llm.py`. Điền trong `.env`:
 
 ```dotenv
-LLM_ENABLED=false
-LLM_BASE_URL=https://api.openai.com/v1
-LLM_API_KEY=
-LLM_MODEL=
-LLM_TIMEOUT_MS=20000
+AI_LLM_ENABLED=false
+AI_LLM_BASE_URL=https://api.openai.com/v1
+AI_LLM_API_KEY=
+AI_LLM_MODEL=
+AI_LLM_TIMEOUT_MS=20000
 ```
 
-Adapter gọi `POST /chat/completions` với Bearer authentication, theo [OpenAI API reference](https://developers.openai.com/api/reference/resources/chat/subresources/completions/methods/create). Model không bị hardcode. Để dùng Gemini qua giao thức tương thích OpenAI, đổi `LLM_BASE_URL=https://generativelanguage.googleapis.com/v1beta/openai` và dùng key/model Gemini, theo [Google OpenAI compatibility documentation](https://ai.google.dev/gemini-api/docs/openai/). URL phải là `https`, không chứa user/mật khẩu, query hay fragment.
+Adapter gọi `POST /chat/completions` với Bearer authentication, theo [OpenAI API reference](https://developers.openai.com/api/reference/resources/chat/subresources/completions/methods/create). Model không bị hardcode. Để dùng Gemini qua giao thức tương thích OpenAI, đổi `AI_LLM_BASE_URL=https://generativelanguage.googleapis.com/v1beta/openai` và dùng key/model Gemini, theo [Google OpenAI compatibility documentation](https://ai.google.dev/gemini-api/docs/openai/). URL phải là `https`, không chứa user/mật khẩu, query hay fragment.
 
 Adapter từ chối redirect và không đưa lỗi hay body từ nhà cung cấp ra ngoài (`LLM_REQUEST_FAILED`). Chưa có route HTTP nào gọi trực tiếp adapter: M4 phải tích hợp Safety Gate (M1), nguồn đã duyệt (M2), tối thiểu hóa dữ liệu và kiểm tra đầu ra trước khi bật chat. Test dùng transport giả, không gọi mạng và không tốn tiền. Không gửi key thật qua chat, commit hoặc ticket.
 

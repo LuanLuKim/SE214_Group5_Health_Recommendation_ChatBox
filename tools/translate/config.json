@@ -1,10 +1,5 @@
 {
   "paths": {
-    "input_chunks": ".data/normalized/chunks.jsonl",
-    "input_db_rows": ".data/normalized/db_rows.json",
-    "output_dir": ".data/translated",
-    "medicine_index_urls": "docs/urls_discovery.txt",
-    "collection_dir": ".data/collection",
     "reviewer_policy": "tools/translate/reviewer_policy.md",
     "human_corrections": [
       "docs/reviews/scrum148/corrections_applied.json",
