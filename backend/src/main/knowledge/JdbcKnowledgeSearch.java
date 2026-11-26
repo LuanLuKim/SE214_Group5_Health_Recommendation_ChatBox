@@ -130,6 +130,45 @@ public class JdbcKnowledgeSearch implements KnowledgeSearch {
   }
 
   @Override
+  public List<FacilitySummary> facilitiesBySpecialties(List<String> specialties) {
+    if (specialties == null || specialties.isEmpty()) return List.of();
+    List<String> terms =
+        specialties.stream().filter(s -> s != null && !s.isBlank()).distinct().toList();
+    if (terms.isEmpty()) return List.of();
+    String placeholders = String.join(",", java.util.Collections.nCopies(terms.size(), "?"));
+    return jdbc.sql(
+            """
+            SELECT id, name, specialties, province, address, official_url,
+                   source_name, source_url, verified_at
+            FROM knowledge.facilities
+            WHERE verified_at IS NOT NULL AND is_synthetic = false
+              AND source_name IS NOT NULL AND btrim(source_name) <> ''
+              AND source_url ~ '^https?://[^/[:space:]]+'
+              AND EXISTS (
+                SELECT 1 FROM unnest(specialties) AS specialty
+                WHERE specialty IN (
+            """ + placeholders + ")) ORDER BY name, id LIMIT 20")
+        .params(terms.toArray())
+        .query(
+            (rs, row) -> {
+              String id = rs.getString("id");
+              return new FacilitySummary(
+                  id,
+                  rs.getString("name"),
+                  strings(rs.getArray("specialties")),
+                  rs.getString("province"),
+                  rs.getString("address"),
+                  rs.getString("official_url"),
+                  new SourceReference(
+                      id,
+                      rs.getString("source_name"),
+                      rs.getString("source_url"),
+                      Instants.iso(rs.getObject("verified_at", OffsetDateTime.class))));
+            })
+        .list();
+  }
+
+  @Override
   public String dataStatus() {
     return "DATABASE_RESULTS";
   }

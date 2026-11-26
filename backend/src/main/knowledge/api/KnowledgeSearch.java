@@ -34,6 +34,11 @@ public interface KnowledgeSearch {
   /** UC-11 detail: the facility, only when it has a source and a verification date. */
   Optional<FacilitySummary> facility(UUID id);
 
+  /** Verified catalogue matches only. Synthetic implementations must not recommend facilities. */
+  default List<FacilitySummary> facilitiesBySpecialties(List<String> specialties) {
+    return List.of();
+  }
+
   /** SYNTHETIC_DATA or DATABASE_RESULTS, shown to the UI so test data is never mistaken for real. */
   String dataStatus();
 

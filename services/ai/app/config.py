@@ -9,6 +9,25 @@ from typing import Mapping
 from urllib.parse import urlsplit
 
 
+DEFAULT_SAFETY_PRIORITY = (
+    "EMERGENCY_NOW",
+    "SEEK_CARE_SOON",
+    "ROUTINE_CONSULT",
+    "GENERAL_SELF_CARE_INFO",
+    "INSUFFICIENT_INFO",
+)
+
+
+def validate_safety_priority(priority: tuple[str, ...]) -> tuple[str, ...]:
+    if (
+        len(priority) != len(DEFAULT_SAFETY_PRIORITY)
+        or set(priority) != set(DEFAULT_SAFETY_PRIORITY)
+        or priority[0] != "EMERGENCY_NOW"
+    ):
+        raise ConfigError("Invalid SAFETY_CARE_LEVEL_PRIORITY configuration.")
+    return priority
+
+
 class ConfigError(ValueError):
     pass
 
@@ -21,6 +40,10 @@ class Settings:
     llm_api_key: str = ""
     llm_model: str = ""
     llm_timeout_ms: int = 20000
+    safety_care_level_priority: tuple[str, ...] = DEFAULT_SAFETY_PRIORITY
+
+    def __post_init__(self):
+        validate_safety_priority(self.safety_care_level_priority)
 
 
 def is_local_llm_url(value: str) -> bool:
@@ -71,6 +94,14 @@ def load_settings(env: Mapping[str, str] | None = None) -> Settings:
         llm_api_key=env.get("AI_LLM_API_KEY", ""),
         llm_model=env.get("AI_LLM_MODEL", ""),
         llm_timeout_ms=timeout,
+        safety_care_level_priority=validate_safety_priority(
+            tuple(
+                item.strip()
+                for item in env.get(
+                    "SAFETY_CARE_LEVEL_PRIORITY", ",".join(DEFAULT_SAFETY_PRIORITY)
+                ).split(",")
+            )
+        ),
     )
 
 
