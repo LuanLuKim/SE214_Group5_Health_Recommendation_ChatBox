@@ -7,10 +7,14 @@ import static org.springframework.test.web.client.match.MockRestRequestMatchers.
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 
+import com.sun.net.httpserver.HttpServer;
+import java.net.InetSocketAddress;
+import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.test.web.client.MockRestServiceServer;
 import org.springframework.web.client.RestClient;
 import vn.edu.uit.se214.health.shared.AppProperties;
@@ -54,6 +58,45 @@ class PythonServiceClientTest {
     client.postStream("/v1/chat/answer", Map.of("message", "hi"), lines::add);
     assertThat(lines).contains("data: {\"type\":\"token\",\"data\":\"Hello\"}", "data: {\"type\":\"done\"}");
     server.verify();
+  }
+
+  /** Django reads a chunked body as empty: the real HTTP request must carry Content-Length. */
+  @Test
+  void sendsJsonBodyWithContentLengthNotChunked() throws Exception {
+    var seen = new java.util.concurrent.atomic.AtomicReference<String>();
+    HttpServer server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+    server.createContext(
+        "/v1/system/statistics",
+        exchange -> {
+          byte[] received = exchange.getRequestBody().readAllBytes();
+          seen.set(
+              exchange.getRequestHeaders().getFirst("Content-Length")
+                  + "|"
+                  + exchange.getRequestHeaders().getFirst("Transfer-Encoding")
+                  + "|"
+                  + received.length);
+          byte[] reply = "{\"ok\":true}".getBytes(StandardCharsets.UTF_8);
+          exchange.getResponseHeaders().add("Content-Type", "application/json");
+          exchange.sendResponseHeaders(200, reply.length);
+          exchange.getResponseBody().write(reply);
+          exchange.close();
+        });
+    server.start();
+    try {
+      var factory = new SimpleClientHttpRequestFactory();
+      var client =
+          new PythonServiceClient(
+              new AppProperties.PythonService(
+                  "http://127.0.0.1:" + server.getAddress().getPort(), "synthetic-key", 2000),
+              RestClient.builder().requestFactory(factory));
+      client.post("/v1/system/statistics", Map.of("from", "2026-01-01", "days", java.util.List.of()), Map.class);
+      String[] parts = seen.get().split("\\|");
+      assertThat(parts[1]).isEqualTo("null");
+      assertThat(parts[0]).isEqualTo(parts[2]);
+      assertThat(Integer.parseInt(parts[2])).isPositive();
+    } finally {
+      server.stop(0);
+    }
   }
 
   @Test

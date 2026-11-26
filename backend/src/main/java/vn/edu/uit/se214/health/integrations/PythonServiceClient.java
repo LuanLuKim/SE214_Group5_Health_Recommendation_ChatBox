@@ -4,6 +4,7 @@ import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import org.springframework.http.MediaType;
+import org.springframework.http.client.ClientHttpRequestInterceptor;
 import org.springframework.web.client.RestClient;
 import vn.edu.uit.se214.health.shared.AppProperties;
 
@@ -19,6 +20,17 @@ public class PythonServiceClient {
     void onLine(String line) throws Exception;
   }
 
+  /**
+   * Sends every request body with Content-Length instead of chunked transfer encoding. Django
+   * (runserver and gunicorn) reads a chunked body as empty, so UC-05 trends and UC-19 statistics
+   * failed with INVALID_JSON. Only the request is buffered; responses (chat SSE) still stream.
+   */
+  private static final ClientHttpRequestInterceptor FIXED_LENGTH_BODY =
+      (request, body, execution) -> {
+        request.getHeaders().setContentLength(body.length);
+        return execution.execute(request, body);
+      };
+
   private final RestClient http;
   private final boolean configured;
 
@@ -27,6 +39,7 @@ public class PythonServiceClient {
     this.configured = service != null && service.configured();
     this.http =
         builder
+            .requestInterceptor(FIXED_LENGTH_BODY)
             .baseUrl(configured ? service.baseUrl() : "http://127.0.0.1")
             .defaultHeader(KEY_HEADER, configured ? service.key() : "")
             .defaultHeader("Accept", MediaType.APPLICATION_JSON_VALUE)
