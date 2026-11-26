@@ -34,3 +34,25 @@ Các trường trong biên bản phản ánh thời điểm xác nhận qua hộ
 - SHA256 của hai tài liệu bàn giao khớp biên bản; cấu trúc ZIP của XLSX hợp lệ.
 
 Gói này hoàn tất phần duyệt của bộ 79 chunk đã cung cấp. Chưa cập nhật corpus hoặc DB, chưa bật RAG và chưa hoàn tất toàn bộ SCRUM-148. Vì vậy PR chỉ tham chiếu `Refs #130`.
+
+## Mẫu ngẫu nhiên 82 chunk (`mau_82/`)
+
+Mẫu 10% gồm 82 trong số 822 chunk `auto_verified` nằm ngoài hàng chờ (NHS 34, WHO 48, seed 20261116), lấy từ bản dịch ngày 15/11 (vn-5, prompt fusion-1). Quỳnh đối chiếu từng dòng với bản gốc.
+
+| Tệp | Nội dung |
+| --- | --- |
+| [Excel đã duyệt](mau_82/duyet_mau_82_chunk.xlsx) | Bản Quỳnh trả về: sheet `Duyệt chunk` có quyết định từng chunk, sheet `Đối chiếu từng dòng` có loại lỗi, câu đề xuất và nguồn kiểm tra. |
+| [Quyết định JSON](mau_82/review_decisions.json) | 82 quyết định (59 APPROVED, 23 RETURNED), 43 dòng có ghi chú và SHA256 của Excel. |
+| [Câu sửa JSON](mau_82/corrections.json) | 40 câu Quỳnh đề xuất, gồm `chunk_id`, số dòng, câu gốc, câu bị trả lại và câu sửa. M7 nạp tệp này qua `paths.human_corrections`. |
+
+Cả 23 chunk bị trả lại đều đã qua cổng cũ. Từ hai đợt duyệt, M7 rút ra các luật kiểm nghĩa của `localisation.json` (vn-6) và lượt LLM đọc lại nghĩa (SCRUM-155 / #145).
+
+## Điều chỉnh từ chỉ độ tuổi (`dieu_chinh_do_tuoi.json`)
+
+Ngày 18/11/2026, LuanLu quyết định:
+- Không dùng "nhũ nhi".
+- "baby/babies/infant" dịch theo ngữ cảnh: "trẻ dưới 1 tuổi" khi độ tuổi quyết định lời khuyên, "em bé"/"trẻ nhỏ" trong câu thông thường.
+- "newborn" dịch là "trẻ dưới 28 ngày tuổi".
+- "a high temperature" dịch là "sốt".
+
+Tệp này sửa 12 câu đã duyệt của hai bộ trên cho khớp quyết định đó. Mỗi câu ghi lý do; chỉ đổi từ chỉ độ tuổi hoặc sốt, phần còn lại giữ nguyên câu người duyệt đã chốt. Tệp nạp sau cùng nên thay câu cùng dòng. Hai tệp sửa gốc không bị sửa.

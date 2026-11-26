@@ -13,10 +13,10 @@ normalizer only reads the file, so its output stays deterministic.
 Bring your own OpenAI-compatible endpoint; nothing is preset (the values below are
 placeholders, the key is never committed):
 
-    set LLM_BASE_URL=http://localhost:8000/v1
-    set LLM_MODEL=your-model-name
-    set LLM_API_KEY=your-key
-    set LLM_REASONING=medium        (optional, sent as reasoning_effort)
+    set REVIEW_LLM_BASE_URL=http://localhost:8000/v1
+    set REVIEW_LLM_MODEL=your-model-name
+    set REVIEW_LLM_API_KEY=your-key
+    set REVIEW_LLM_REASONING=medium        (optional, sent as reasoning_effort)
 
     python -B tools/normalize/review_chunks.py --dry-run
     python -B tools/normalize/review_chunks.py          # until done or out of quota
@@ -30,7 +30,6 @@ from __future__ import annotations
 import argparse
 from datetime import datetime, timezone
 import json
-import os
 from pathlib import Path
 import sys
 
@@ -40,6 +39,7 @@ sys.path.insert(0, str(HERE))
 from normalizer.tags import ORDER, REVIEW_FLAGS  # noqa: E402
 from review_interactions import CORPUS_OUTPUTS, Stop, chat, load_store, save_store  # noqa: E402
 from run import CHUNK_VERDICTS  # noqa: E402
+from project_config import read_env  # noqa: E402
 
 PROJECT_NOTE = """Context: a student project building a Vietnamese health-information chatbot (RAG). These chunks come
 from public NHS (UK) and WHO pages, as DRAFT data that content experts will review. The chatbot gives general
@@ -132,9 +132,9 @@ def main(argv=None) -> int:
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args(argv)
 
-    base = os.environ.get("LLM_BASE_URL", "")
-    model = os.environ.get("LLM_MODEL", "")
-    effort = os.environ.get("LLM_REASONING", "medium")
+    base = read_env().get("REVIEW_LLM_BASE_URL", "")
+    model = read_env().get("REVIEW_LLM_MODEL", "")
+    effort = read_env().get("REVIEW_LLM_REASONING", "medium")
     chunks = load_chunks()
     store = load_store(args.verdicts)
     verdicts = store["verdicts"]
@@ -151,8 +151,8 @@ def main(argv=None) -> int:
           f"to_resolve={len(open_disputes())} model={model} effort={effort}")
     if args.dry_run:
         return 0
-    key = os.environ.get("LLM_API_KEY")
-    missing = [name for name, value in (("LLM_BASE_URL", base), ("LLM_MODEL", model), ("LLM_API_KEY", key)) if not value]
+    key = read_env().get("REVIEW_LLM_API_KEY")
+    missing = [name for name, value in (("REVIEW_LLM_BASE_URL", base), ("REVIEW_LLM_MODEL", model), ("REVIEW_LLM_API_KEY", key)) if not value]
     if missing:
         print(f"set your own endpoint first: {', '.join(missing)} (see the module docstring)", file=sys.stderr)
         return 2

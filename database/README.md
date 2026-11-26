@@ -41,9 +41,9 @@ Không sửa migration đã được team áp dụng vào database chung. Thêm 
 
 Đặt `SEED_SYNTHETIC=true` khi chạy backend để nạp seed ngay sau migration (`system/SyntheticSeedRunner`). File seed dùng UUID cố định, `ON CONFLICT DO NOTHING`, không xóa hay cập nhật dữ liệu sẵn có. Chạy lại không nhân đôi bản ghi. Runner từ chối khi `APP_ENV=production`.
 
-Tài khoản synthetic `@example.invalid` không có mật khẩu, không đăng nhập được. Admin bootstrap lấy từ `ADMIN_EMAIL`/`ADMIN_PASSWORD`, không nằm trong synthetic seed. URL `example.invalid` và địa chỉ cơ sở là hư cấu. Quy tắc y tế seed (`002_safety_rules.sql`) chỉ ở trạng thái nháp, chờ duyệt hoặc bị trả lại, không bao giờ `APPROVED`. Bộ quy tắc mẫu có `APPROVED` để kiểm thử UC-16 chỉ nằm trong `backend/src/test/resources/safety/sample-rules.sql`. Nhắc nhở seed đang tắt. Không có dữ liệu bệnh nhân thật hoặc yêu cầu gửi tới dịch vụ ngoài.
+Tài khoản synthetic `@example.invalid` không có mật khẩu, không đăng nhập được. Admin bootstrap lấy từ `ADMIN_EMAIL`/`ADMIN_PASSWORD`, không nằm trong synthetic seed. URL `example.invalid` và địa chỉ cơ sở là hư cấu. Quy tắc y tế seed (`002_safety_rules.sql`) chỉ ở trạng thái nháp, chờ duyệt hoặc bị trả lại, không bao giờ `APPROVED`. Bộ quy tắc mẫu có `APPROVED` để kiểm thử UC-16 chỉ nằm trong `tests/backend/resources/safety/sample-rules.sql`. Nhắc nhở seed đang tắt. Không có dữ liệu bệnh nhân thật hoặc yêu cầu gửi tới dịch vụ ngoài.
 
-Mặc định mock mode dùng public fixture tại `backend/src/main/java/vn/edu/uit/se214/health/knowledge/SyntheticKnowledgeSearch.java`, cùng ID với SQL seed. Private fixtures trong database không có public API để xem. Chọn `DATA_MODE=postgres` để thử read-only API với database đã seed.
+Mặc định mock mode dùng public fixture tại `backend/src/main/knowledge/SyntheticKnowledgeSearch.java`, cùng ID với SQL seed. Private fixtures trong database không có public API để xem. Chọn `DATA_MODE=postgres` để thử read-only API với database đã seed.
 
 ## Verification
 

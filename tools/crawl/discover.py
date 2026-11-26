@@ -30,16 +30,11 @@ import re
 import sys
 from urllib.parse import urlsplit, urlunsplit
 
-from crawler.config import ROOT, load_sources
+from crawler.config import data_path, load_sources, url_lists
 
 # Service finders, accounts, feedback forms and media are never health content.
 SKIP_PATH_PARTS = ("/service-search/", "/nhs-services/", "/our-policies/", "/contact-us", "/login",
                    "/accessibility", "/about-us", "/news/", "/media-centre/", "/campaigns/")
-
-
-def url_lists(docs=ROOT / "docs"):
-    """Every URL list (docs/urls*.txt); each one is a crawl group."""
-    return sorted(Path(docs).glob("urls*.txt"))
 
 
 def canonical(href):
@@ -153,7 +148,7 @@ def main(argv=None):
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--urls", type=Path, default=ROOT / "docs" / "urls.txt", help="pages whose links are read")
+    parser.add_argument("--urls", type=Path, default=data_path("urls"), help="pages whose links are read")
     parser.add_argument("--known", type=Path, action="append",
                         help="URL list whose entries are not suggested again (repeatable; "
                              "default: every docs/urls*.txt)")
@@ -162,7 +157,7 @@ def main(argv=None):
     parser.add_argument("--link-text", action="append", metavar="PHRASE",
                         help="keep only links whose text starts with PHRASE (repeatable)")
     parser.add_argument("--format", choices=("table", "urls"), default="table")
-    parser.add_argument("--collection", type=Path, default=ROOT / ".data" / "collection", help=argparse.SUPPRESS)
+    parser.add_argument("--collection", type=Path, default=data_path("collection"), help=argparse.SUPPRESS)
     args = parser.parse_args(argv)
     sources = load_sources()
     hosts = {h for s in sources.values() if s["policy"]["mode"] == "collect_text" for h in s["hosts"]}

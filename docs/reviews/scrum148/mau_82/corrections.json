@@ -1,0 +1,405 @@
+{
+  "scope": "line corrections proposed by the reviewer in the sample of 82 (SCRUM-148); line = 1-based line of the chunk text",
+  "corrections": [
+    {
+      "chunk_id": "89ce02fb-5007-5378-9f2c-2dea4d3d8f85",
+      "line": 8,
+      "en": "keep nails short and put anti-scratch mittens on babies to help prevent damage to the skin from scratching",
+      "old_vi": "giữ móng tay ngắn và cho trẻ sơ sinh đeo găng tay chống gãi để giúp ngăn ngừa tổn thương da do gãi",
+      "new_vi": "giữ móng tay ngắn và cho trẻ nhũ nhi đeo găng tay chống gãi để giúp ngăn ngừa tổn thương da do gãi",
+      "error_type": "Tuổi / thời gian",
+      "reason": "Babies bao gồm trẻ nhũ nhi.\nhttps://www.nhs.uk/conditions/atopic-eczema/",
+      "reviewer": "SCRUM-148 (Quỳnh)"
+    },
+    {
+      "chunk_id": "89ce02fb-5007-5378-9f2c-2dea4d3d8f85",
+      "line": 13,
+      "en": "do not use aqueous cream as it can irritate the skin and make eczema worse",
+      "old_vi": "không dùng kem dạng nước vì kem này có thể gây kích ứng da và khiến chàm nặng hơn",
+      "new_vi": "không dùng kem Aqueous Cream vì kem này có thể gây kích ứng da và khiến chàm nặng hơn",
+      "error_type": "Thuật ngữ",
+      "reason": "Aqueous Cream là tên một chế phẩm.\nhttps://www.nhs.uk/conditions/atopic-eczema/",
+      "reviewer": "SCRUM-148 (Quỳnh)"
+    },
+    {
+      "chunk_id": "89ce02fb-5007-5378-9f2c-2dea4d3d8f85",
+      "line": 15,
+      "en": "do not smoke or go near naked flames if you use an emollient – emollients are not flammable on the skin, but when they get on fabrics such as dressings, clothing and bedding they can catch fire more easily",
+      "old_vi": "không hút thuốc hoặc đến gần ngọn lửa trần nếu bạn dùng chất làm mềm da – chất làm mềm da không dễ bắt lửa khi ở trên da, nhưng khi dính vào các loại vải như băng gạc, quần áo và ga trải giường, chúng có thể dễ bắt lửa hơn",
+      "new_vi": "Không hút thuốc hoặc đến gần ngọn lửa trần nếu bạn dùng chất làm mềm da. Chất làm mềm da không bắt lửa khi ở trên da, nhưng các loại vải như băng gạc, quần áo và ga trải giường dễ bắt lửa hơn khi dính chất này.",
+      "error_type": "Diễn đạt",
+      "reason": "Cần nói rõ vải dính chất làm mềm da dễ bắt lửa hơn.\nhttps://www.nhs.uk/conditions/atopic-eczema/",
+      "reviewer": "SCRUM-148 (Quỳnh)"
+    },
+    {
+      "chunk_id": "4b232d73-1b10-5e23-8393-ad4e00975128",
+      "line": 6,
+      "en": "• a high temperature",
+      "old_vi": "• sốt cao",
+      "new_vi": "• sốt",
+      "error_type": "Triệu chứng / mức độ",
+      "reason": "NHS dùng a high temperature để chỉ sốt nói chung.\nhttps://www.nhs.uk/conditions/chickenpox/",
+      "reviewer": "SCRUM-148 (Quỳnh)"
+    },
+    {
+      "chunk_id": "8296ecc3-6d04-5a78-b93a-40bf2215bb7d",
+      "line": 3,
+      "en": "• a high temperature – you may feel hot, cold or shivery, or your skin is hot to touch on your chest or back (you do not need to measure your temperature)",
+      "old_vi": "• sốt cao – bạn có thể cảm thấy nóng, lạnh hoặc run rẩy, hoặc da ở ngực hay lưng nóng khi chạm vào (bạn không cần đo nhiệt độ)",
+      "new_vi": "• sốt – bạn có thể cảm thấy nóng, lạnh hoặc run rẩy, hoặc da ở ngực hay lưng nóng khi chạm vào (bạn không cần đo nhiệt độ)",
+      "error_type": "Triệu chứng / mức độ",
+      "reason": "NHS dùng a high temperature để chỉ sốt nói chung.\nhttps://www.nhs.uk/conditions/covid-19/covid-19-symptoms-and-what-to-do/",
+      "reviewer": "SCRUM-148 (Quỳnh)"
+    },
+    {
+      "chunk_id": "c4663015-222d-50d5-81ef-2a5d2c387a77",
+      "line": 9,
+      "en": "Try to stay at home and avoid contact with other people if you have a high temperature, feel hot, cold or shivery, or do not feel well enough to do your normal activities.",
+      "old_vi": "Cố gắng ở nhà và tránh tiếp xúc với người khác nếu bạn bị sốt cao, cảm thấy nóng, lạnh hoặc run rẩy, hoặc không đủ khỏe để sinh hoạt bình thường.",
+      "new_vi": "Cố gắng ở nhà và tránh tiếp xúc với người khác nếu bạn bị sốt, cảm thấy nóng, lạnh hoặc run rẩy, hoặc không đủ khỏe để sinh hoạt bình thường.",
+      "error_type": "Triệu chứng / mức độ",
+      "reason": "NHS dùng a high temperature để chỉ sốt nói chung.\nhttps://www.nhs.uk/conditions/flu/",
+      "reviewer": "SCRUM-148 (Quỳnh)"
+    },
+    {
+      "chunk_id": "c4663015-222d-50d5-81ef-2a5d2c387a77",
+      "line": 12,
+      "en": "It's offered on the NHS every year in autumn or early winter to some adults and children at higher risk of getting seriously ill from flu.",
+      "old_vi": "Vắc-xin này được cung cấp hằng năm vào mùa thu hoặc đầu mùa đông cho một số người lớn và trẻ em có nguy cơ cao bị bệnh nặng do cúm.",
+      "new_vi": "Vắc-xin này được NHS cung cấp hằng năm vào mùa thu hoặc đầu mùa đông cho một số người lớn và trẻ em có nguy cơ cao bị bệnh nặng do cúm.",
+      "error_type": "Phạm vi áp dụng",
+      "reason": "Thiếu chi tiết vắc-xin được cung cấp qua NHS.\nhttps://www.nhs.uk/conditions/flu/",
+      "reviewer": "SCRUM-148 (Quỳnh)"
+    },
+    {
+      "chunk_id": "9cf0d212-13cd-51db-b181-1633f515e3ea",
+      "line": 15,
+      "en": "do not nap during the day",
+      "old_vi": "không ngủ trưa vào ban ngày",
+      "new_vi": "không chợp mắt vào ban ngày",
+      "error_type": "Phạm vi áp dụng",
+      "reason": "During the day chỉ toàn bộ ban ngày.\nhttps://www.nhs.uk/conditions/insomnia/",
+      "reviewer": "SCRUM-148 (Quỳnh)"
+    },
+    {
+      "chunk_id": "38c052c5-c488-5cf1-8242-41b4a004a4c7",
+      "line": 3,
+      "en": "• pneumococcal vaccine – recommended for babies, adults over 65 and people at higher risk of pneumococcal infections",
+      "old_vi": "• vắc-xin phế cầu khuẩn – được khuyến cáo cho trẻ sơ sinh, người lớn trên 65 tuổi và những người có nguy cơ nhiễm phế cầu khuẩn cao hơn",
+      "new_vi": "• vắc-xin phế cầu khuẩn – được khuyến cáo cho trẻ nhũ nhi, người lớn trên 65 tuổi và những người có nguy cơ nhiễm phế cầu khuẩn cao hơn",
+      "error_type": "Tuổi / thời gian",
+      "reason": "Babies là trẻ nhũ nhi. Bài gốc ghi trên 65 tuổi. Trang riêng về vắc-xin phế cầu ghi từ 65 tuổi trở lên.\nhttps://www.nhs.uk/vaccinations/pneumococcal-vaccine/\nhttps://www.nhs.uk/conditions/pneumonia/",
+      "reviewer": "SCRUM-148 (Quỳnh)"
+    },
+    {
+      "chunk_id": "38c052c5-c488-5cf1-8242-41b4a004a4c7",
+      "line": 6,
+      "en": "• COVID-19 vaccine – a seasonal vaccine that's recommended for people at increased risk from COVID-19",
+      "old_vi": "• vắc-xin COVID-19 – vắc-xin theo mùa được khuyến cáo cho những người có nguy cơ cao mắc COVID-19",
+      "new_vi": "• vắc-xin COVID-19 – vắc-xin theo mùa được khuyến cáo cho những người có nguy cơ cao bị bệnh nặng do COVID-19",
+      "error_type": "Phạm vi áp dụng",
+      "reason": "Đối tượng được xác định theo nguy cơ bị ảnh hưởng nghiêm trọng do COVID-19.\nhttps://www.nhs.uk/conditions/pneumonia/",
+      "reviewer": "SCRUM-148 (Quỳnh)"
+    },
+    {
+      "chunk_id": "9f79741d-5d33-5c67-a9f9-41886bd5dbc8",
+      "line": 11,
+      "en": "• prescribe a vaginal cream, gel, tablet, pessary or ring containing oestrogen, if you are in perimenopause or have gone through the menopause",
+      "old_vi": "• kê đơn kem, gel, viên nén, vòng đặt âm đạo hoặc vòng chứa oestrogen nếu bạn đang trong giai đoạn tiền mãn kinh hoặc đã mãn kinh",
+      "new_vi": "• kê đơn estrogen dùng qua đường âm đạo dưới dạng kem, gel, viên nén đặt, viên đặt âm đạo hoặc vòng đặt âm đạo nếu bạn đang trong giai đoạn tiền mãn kinh hoặc đã mãn kinh",
+      "error_type": "Đường dùng",
+      "reason": "Cả năm dạng đều chứa estrogen và dùng qua đường âm đạo. Cần phân biệt pessary và ring.\nhttps://www.nhs.uk/conditions/urinary-tract-infections-utis/",
+      "reviewer": "SCRUM-148 (Quỳnh)"
+    },
+    {
+      "chunk_id": "92632ae5-0a48-5145-b786-856bf53b7563",
+      "line": 24,
+      "en": "Taking 40mg or less a day of riboflavin supplements is unlikely to cause any harm.",
+      "old_vi": "Dùng 40mg riboflavin trở xuống mỗi ngày qua thực phẩm bổ sung không có khả năng gây hại.",
+      "new_vi": "Dùng không quá 40 mg riboflavin mỗi ngày qua thực phẩm bổ sung ít có khả năng gây hại.",
+      "error_type": "Phủ định / điều kiện",
+      "reason": "Unlikely diễn tả khả năng thấp.\nhttps://www.nhs.uk/conditions/vitamins-and-minerals/vitamin-b/",
+      "reviewer": "SCRUM-148 (Quỳnh)"
+    },
+    {
+      "chunk_id": "8dfaa20c-ff92-506e-b257-009b6595ab7d",
+      "line": 3,
+      "en": "Eating too much salt can cause high blood pressure, which increases the risk of heart attacks and strokes.",
+      "old_vi": "Ăn quá nhiều muối có thể gây tăng huyết áp, làm tăng nguy cơ đau tim và đột quỵ.",
+      "new_vi": "Ăn quá nhiều muối có thể gây tăng huyết áp, làm tăng nguy cơ nhồi máu cơ tim và đột quỵ.",
+      "error_type": "Thuật ngữ",
+      "reason": "Heart attack chỉ nhồi máu cơ tim.\nhttps://www.nhs.uk/live-well/eat-well/food-types/salt-in-your-diet/",
+      "reviewer": "SCRUM-148 (Quỳnh)"
+    },
+    {
+      "chunk_id": "8dfaa20c-ff92-506e-b257-009b6595ab7d",
+      "line": 15,
+      "en": "Babies should not have much salt, because their kidneys are not fully developed and cannot process it.",
+      "old_vi": "Trẻ sơ sinh (dưới 28 ngày tuổi) và trẻ dưới 1 tuổi không nên ăn nhiều muối vì thận của trẻ chưa phát triển đầy đủ và không thể xử lý muối.",
+      "new_vi": "Trẻ nhũ nhi không nên ăn nhiều muối vì thận của trẻ chưa phát triển đầy đủ và không thể xử lý muối.",
+      "error_type": "Tuổi / thời gian",
+      "reason": "Câu gốc dùng babies và bảng phía trên đã nêu nhóm dưới 1 tuổi.\nhttps://www.nhs.uk/live-well/eat-well/food-types/salt-in-your-diet/",
+      "reviewer": "SCRUM-148 (Quỳnh)"
+    },
+    {
+      "chunk_id": "adb902dd-1db4-57d4-a24f-dfe08e6b9a0b",
+      "line": 12,
+      "en": "If you add sugar to your cereal, you could try adding less. Or you could eat a smaller portion and add some chopped fruit, such as a pear or banana, which is an easy way of getting some of your 5 A Day.",
+      "old_vi": "Nếu bạn thêm đường vào ngũ cốc, hãy thử giảm lượng đường. Hoặc bạn có thể ăn một phần nhỏ hơn và thêm trái cây cắt nhỏ, chẳng hạn như lê hoặc chuối. Đây là cách dễ dàng để ăn được một phần trong 5 A Day.",
+      "new_vi": "Nếu bạn thêm đường vào ngũ cốc, hãy thử giảm lượng đường. Hoặc bạn có thể ăn một phần nhỏ hơn và thêm trái cây cắt nhỏ, chẳng hạn như lê hoặc chuối. Đây là cách đơn giản để góp phần đạt mục tiêu ăn ít nhất 5 khẩu phần rau củ và trái cây mỗi ngày.",
+      "error_type": "Thêm / thiếu ý",
+      "reason": "Giải nghĩa 5 A Day cho người đọc tiếng Việt.\nhttps://www.nhs.uk/live-well/eat-well/5-a-day/portion-sizes/\nhttps://www.nhs.uk/live-well/eat-well/how-to-eat-a-balanced-diet/how-to-cut-down-on-sugar-in-your-diet/",
+      "reviewer": "SCRUM-148 (Quỳnh)"
+    },
+    {
+      "chunk_id": "a1ac8123-3dbd-5f83-a94a-07a1749886f7",
+      "line": 8,
+      "en": "Babies and young children with a disability",
+      "old_vi": "Trẻ sơ sinh và trẻ nhỏ bị khuyết tật",
+      "new_vi": "Trẻ nhũ nhi và trẻ nhỏ bị khuyết tật",
+      "error_type": "Tuổi / thời gian",
+      "reason": "Babies bao gồm trẻ nhũ nhi.\nhttps://www.nhs.uk/live-well/exercise/physical-activity-guidelines-children-under-five-years/",
+      "reviewer": "SCRUM-148 (Quỳnh)"
+    },
+    {
+      "chunk_id": "a1ac8123-3dbd-5f83-a94a-07a1749886f7",
+      "line": 9,
+      "en": "Babies and young children with a long-term condition or disability should be active, unless their healthcare team give you different advice.",
+      "old_vi": "Trẻ sơ sinh và trẻ nhỏ mắc bệnh lý lâu dài hoặc bị khuyết tật nên vận động, trừ khi đội ngũ chăm sóc sức khỏe đưa ra lời khuyên khác.",
+      "new_vi": "Trẻ nhũ nhi và trẻ nhỏ mắc bệnh lý lâu dài hoặc bị khuyết tật nên vận động, trừ khi đội ngũ chăm sóc sức khỏe đưa ra lời khuyên khác.",
+      "error_type": "Tuổi / thời gian",
+      "reason": "Babies bao gồm trẻ nhũ nhi.\nhttps://www.nhs.uk/live-well/exercise/physical-activity-guidelines-children-under-five-years/",
+      "reviewer": "SCRUM-148 (Quỳnh)"
+    },
+    {
+      "chunk_id": "a1ac8123-3dbd-5f83-a94a-07a1749886f7",
+      "line": 14,
+      "en": "• tummy time",
+      "old_vi": "• cho trẻ nằm sấp",
+      "new_vi": "• cho trẻ tập nằm sấp khi thức và có người trông",
+      "error_type": "Phủ định / điều kiện",
+      "reason": "Tummy time là hoạt động khi trẻ thức và có người trông.\nhttps://www.nhs.uk/baby/babys-development/play-and-learning/keep-baby-or-toddler-active/\nhttps://www.nhs.uk/live-well/exercise/physical-activity-guidelines-children-under-five-years/",
+      "reviewer": "SCRUM-148 (Quỳnh)"
+    },
+    {
+      "chunk_id": "1954d322-12d9-5887-b5db-b2394728a38f",
+      "line": 11,
+      "en": "This includes applying it straight after you have been in water, even if it's \"water resistant\", and after towel drying, sweating or when it may have rubbed off.",
+      "old_vi": "Bạn cần bôi lại kem ngay sau khi xuống nước, ngay cả khi kem có khả năng \"chống nước\", và sau khi lau khô bằng khăn, đổ mồ hôi hoặc khi kem có thể đã bị cọ trôi.",
+      "new_vi": "Bạn cần bôi lại kem ngay sau khi lên khỏi nước, ngay cả khi kem có khả năng \"chống nước\", và sau khi lau khô bằng khăn, đổ mồ hôi hoặc khi kem có thể đã bị cọ trôi.",
+      "error_type": "Tuổi / thời gian",
+      "reason": "NHS nói bôi lại ngay sau khi đã ở dưới nước.\nhttps://www.nhs.uk/live-well/seasonal-health/sunscreen-and-sun-safety/",
+      "reviewer": "SCRUM-148 (Quỳnh)"
+    },
+    {
+      "chunk_id": "1954d322-12d9-5887-b5db-b2394728a38f",
+      "line": 16,
+      "en": "Sunscreen should be reapplied straight after you have been in water, even if it's \"water resistant\", and after towel drying, sweating or when it may have rubbed off.",
+      "old_vi": "Nên bôi lại kem chống nắng ngay sau khi xuống nước, ngay cả khi kem có khả năng \"chống nước\", và sau khi lau khô bằng khăn, đổ mồ hôi hoặc khi kem có thể đã bị cọ trôi.",
+      "new_vi": "Nên bôi lại kem chống nắng ngay sau khi lên khỏi nước, ngay cả khi kem có khả năng \"chống nước\", và sau khi lau khô bằng khăn, đổ mồ hôi hoặc khi kem có thể đã bị cọ trôi.",
+      "error_type": "Tuổi / thời gian",
+      "reason": "NHS nói bôi lại ngay sau khi đã ở dưới nước.\nhttps://www.nhs.uk/live-well/seasonal-health/sunscreen-and-sun-safety/",
+      "reviewer": "SCRUM-148 (Quỳnh)"
+    },
+    {
+      "chunk_id": "25891162-7d4f-5cb4-b28c-a3cdd20b9742",
+      "line": 4,
+      "en": "Cancers that do not express ER or PR are “hormone receptor negative” and need to be treated with chemotherapy unless the cancer is very small. The chemotherapy regimens available today are very effective in reducing the chances of cancer spread or recurrence and are generally given as outpatient therapy, not requiring hospital admission in the absence of complications.",
+      "old_vi": "Ung thư không biểu hiện ER hoặc PR là “âm tính với thụ thể nội tiết” và cần được điều trị bằng hóa trị, trừ khi ung thư rất nhỏ. Các phác đồ hóa trị hiện có rất hiệu quả trong việc giảm nguy cơ ung thư lan rộng hoặc tái phát và thường được thực hiện dưới dạng điều trị ngoại trú, không cần nhập viện nếu không có biến chứng.",
+      "new_vi": "Ung thư vú có kết quả âm tính với cả thụ thể estrogen (ER) lẫn thụ thể progesterone (PR) là “âm tính với thụ thể nội tiết” và cần được điều trị bằng hóa trị, trừ khi ung thư rất nhỏ. Các phác đồ hóa trị hiện có rất hiệu quả trong việc giảm nguy cơ ung thư lan rộng hoặc tái phát và thường được thực hiện dưới dạng điều trị ngoại trú, không cần nhập viện nếu không có biến chứng.",
+      "error_type": "Phủ định / điều kiện",
+      "reason": "Cần ghi rõ cả ER và PR đều âm tính.\nhttps://www.cancer.gov/publications/dictionaries/cancer-terms/def/hormone-receptor-negative\nhttps://www.who.int/news-room/fact-sheets/detail/breast-cancer",
+      "reviewer": "SCRUM-148 (Quỳnh)"
+    },
+    {
+      "chunk_id": "aefdf6d7-a5e1-5817-86ee-aaca699e2abd",
+      "line": 9,
+      "en": "• avoiding ultraviolet radiation exposure (which primarily results from exposure to the sun and artificial tanning devices) and/or using sun protection measures;",
+      "old_vi": "• tránh tiếp xúc với tia cực tím (chủ yếu do tiếp xúc với ánh nắng mặt trời và các thiết bị nhuộm da nhân tạo) và/hoặc sử dụng các biện pháp chống nắng;",
+      "new_vi": "• tránh tiếp xúc với tia cực tím (chủ yếu do tiếp xúc với ánh nắng mặt trời và các thiết bị làm rám da bằng tia UV) và/hoặc sử dụng các biện pháp chống nắng;",
+      "error_type": "Thuật ngữ",
+      "reason": "Câu gốc nói đến thiết bị làm rám da phát tia UV.\nhttps://www.who.int/news-room/fact-sheets/detail/cancer",
+      "reviewer": "SCRUM-148 (Quỳnh)"
+    },
+    {
+      "chunk_id": "43a53e82-7d0a-5b10-becc-d12f536cad7e",
+      "line": 6,
+      "en": "Preventing and controlling cholera involves a combination of strengthening surveillance, improving water, sanitation and hygiene, increasing risk communication and community engagement, improving access to quality treatment and implementing oral cholera vaccine campaigns.",
+      "old_vi": "Phòng ngừa và kiểm soát bệnh tả bao gồm kết hợp tăng cường giám sát, cải thiện nước, vệ sinh và môi trường, tăng cường truyền thông về nguy cơ và sự tham gia của cộng đồng, cải thiện khả năng tiếp cận điều trị chất lượng và triển khai các chiến dịch tiêm vắc-xin tả đường uống.",
+      "new_vi": "Phòng ngừa và kiểm soát bệnh tả đòi hỏi kết hợp tăng cường giám sát, cải thiện khả năng tiếp cận nước an toàn, cải thiện điều kiện và thực hành vệ sinh, tăng cường truyền thông về nguy cơ và sự tham gia của cộng đồng, mở rộng khả năng tiếp cận điều trị có chất lượng và triển khai các chiến dịch sử dụng vắc-xin phòng bệnh tả đường uống.",
+      "error_type": "Đường dùng",
+      "reason": "Vắc-xin phòng tả dùng đường uống. Cần phân biệt nước an toàn, điều kiện vệ sinh và thực hành vệ sinh.\nhttps://www.who.int/news-room/fact-sheets/detail/cholera",
+      "reviewer": "SCRUM-148 (Quỳnh)"
+    },
+    {
+      "chunk_id": "014bb7bc-6328-577d-b3df-88d6aab22c54",
+      "line": 5,
+      "en": "• mosquito nets, ideally sprayed with insect repellent, if sleeping during the day;",
+      "old_vi": "• lưới chống muỗi, lý tưởng nhất là được phun thuốc xua côn trùng, nếu ngủ vào ban ngày;",
+      "new_vi": "• màn chống muỗi, lý tưởng nhất là được phun thuốc xua côn trùng, nếu ngủ vào ban ngày;",
+      "error_type": "Thuật ngữ",
+      "reason": "Mosquito nets trong ngữ cảnh lúc ngủ là màn chống muỗi.\nhttps://www.who.int/news-room/fact-sheets/detail/dengue-and-severe-dengue",
+      "reviewer": "SCRUM-148 (Quỳnh)"
+    },
+    {
+      "chunk_id": "014bb7bc-6328-577d-b3df-88d6aab22c54",
+      "line": 8,
+      "en": "• coils and vaporizers.",
+      "old_vi": "• nhang muỗi và máy xông tinh dầu đuổi muỗi.",
+      "new_vi": "• nhang muỗi và thiết bị xông thuốc đuổi muỗi.",
+      "error_type": "Thuật ngữ",
+      "reason": "Vaporizers chỉ thiết bị xông thuốc đuổi muỗi.\nhttps://www.who.int/news-room/fact-sheets/detail/dengue-and-severe-dengue",
+      "reviewer": "SCRUM-148 (Quỳnh)"
+    },
+    {
+      "chunk_id": "014bb7bc-6328-577d-b3df-88d6aab22c54",
+      "line": 19,
+      "en": "• watch for severe symptoms and contact your doctor as soon as possible if you notice any.",
+      "old_vi": "• theo dõi các triệu chứng nghiêm trọng và liên hệ với bác sĩ càng sớm càng tốt nếu bạn nhận thấy bất kỳ triệu chứng nào.",
+      "new_vi": "• theo dõi các dấu hiệu nặng và liên hệ với bác sĩ càng sớm càng tốt nếu nhận thấy bất kỳ dấu hiệu nào trong số đó.",
+      "error_type": "Phủ định / điều kiện",
+      "reason": "Any dẫn chiếu đến các dấu hiệu nặng vừa được nhắc đến.\nhttps://www.who.int/news-room/fact-sheets/detail/dengue-and-severe-dengue",
+      "reviewer": "SCRUM-148 (Quỳnh)"
+    },
+    {
+      "chunk_id": "859823da-c48f-570b-9fa8-4cf9d44b5f28",
+      "line": 1,
+      "en": "Fragility fractures › Strategies for primary prevention",
+      "old_vi": "Gãy xương do loãng xương › Chiến lược phòng ngừa ban đầu",
+      "new_vi": "Gãy xương do chấn thương nhẹ › Chiến lược phòng ngừa ban đầu",
+      "error_type": "Thuật ngữ",
+      "reason": "WHO định nghĩa theo chấn thương nhẹ. Gãy xương dạng này có thể xảy ra khi không bị loãng xương.\nhttps://www.who.int/news-room/fact-sheets/detail/fragility-fractures",
+      "reviewer": "SCRUM-148 (Quỳnh)"
+    },
+    {
+      "chunk_id": "859823da-c48f-570b-9fa8-4cf9d44b5f28",
+      "line": 3,
+      "en": "Primary prevention strategies for fragility fractures mainly aim at promoting or maintaining bone density and strength. These include:",
+      "old_vi": "Các chiến lược phòng ngừa ban đầu gãy xương do loãng xương chủ yếu nhằm thúc đẩy hoặc duy trì mật độ và độ chắc khỏe của xương. Những chiến lược này bao gồm:",
+      "new_vi": "Các chiến lược phòng ngừa ban đầu đối với gãy xương do chấn thương nhẹ chủ yếu nhằm thúc đẩy hoặc duy trì mật độ và độ chắc khỏe của xương. Những chiến lược này bao gồm:",
+      "error_type": "Thuật ngữ",
+      "reason": "WHO định nghĩa theo chấn thương nhẹ. Gãy xương dạng này có thể xảy ra khi không bị loãng xương.\nhttps://www.who.int/news-room/fact-sheets/detail/fragility-fractures",
+      "reviewer": "SCRUM-148 (Quỳnh)"
+    },
+    {
+      "chunk_id": "859823da-c48f-570b-9fa8-4cf9d44b5f28",
+      "line": 10,
+      "en": "Whereas there is some consensus on basic principles for primary prevention of fragility fractures (for example, nutrition/healthy diet, physical activity), controversies still exist over the effectiveness of some specific interventions, as well as treatment duration.",
+      "old_vi": "Mặc dù có một số đồng thuận về các nguyên tắc cơ bản để phòng ngừa ban đầu gãy xương do loãng xương (ví dụ: dinh dưỡng/chế độ ăn lành mạnh, hoạt động thể chất), vẫn còn tranh cãi về hiệu quả của một số biện pháp can thiệp cụ thể, cũng như thời gian điều trị.",
+      "new_vi": "Mặc dù có một số đồng thuận về các nguyên tắc cơ bản để phòng ngừa ban đầu đối với gãy xương do chấn thương nhẹ (ví dụ: dinh dưỡng/chế độ ăn lành mạnh, hoạt động thể chất), vẫn còn tranh cãi về hiệu quả của một số biện pháp can thiệp cụ thể, cũng như thời gian điều trị.",
+      "error_type": "Thuật ngữ",
+      "reason": "WHO định nghĩa theo chấn thương nhẹ. Gãy xương dạng này có thể xảy ra khi không bị loãng xương.\nhttps://www.who.int/news-room/fact-sheets/detail/fragility-fractures",
+      "reviewer": "SCRUM-148 (Quỳnh)"
+    },
+    {
+      "chunk_id": "b4a87184-af6d-510e-b7ff-97b8fc9b7e8d",
+      "line": 2,
+      "en": "Fat is an essential nutrient for proper functioning of cells in the body, and two fatty acids – linoleic acid and α-linolenic acid – can only be obtained from the diet. Therefore, in adults, a minimum of 15% of the energy consumed per day should be from fat, up to 30% of total daily calories or more as described below.",
+      "old_vi": "Chất béo là chất dinh dưỡng thiết yếu giúp các tế bào trong cơ thể hoạt động bình thường. Cơ thể chỉ có thể nhận được 2 axit béo – axit linoleic và axit α-linolenic – từ chế độ ăn. Vì vậy, ở người lớn, ít nhất 15% năng lượng tiêu thụ mỗi ngày nên đến từ chất béo, và có thể lên tới 30% tổng lượng calo hàng ngày hoặc hơn như mô tả dưới đây.",
+      "new_vi": "Chất béo là chất dinh dưỡng thiết yếu giúp các tế bào trong cơ thể hoạt động bình thường. Hai axit béo này, axit linoleic và axit α-linolenic, chỉ có thể được cung cấp qua chế độ ăn. Vì vậy, ở người lớn, ít nhất 15% năng lượng tiêu thụ mỗi ngày nên đến từ chất béo, và có thể lên tới 30% tổng lượng calo hàng ngày hoặc hơn như mô tả dưới đây.",
+      "error_type": "Diễn đạt",
+      "reason": "Từ “chỉ” giới hạn nguồn cung của hai axit béo được nêu.\nhttps://www.who.int/news-room/fact-sheets/detail/healthy-diet",
+      "reviewer": "SCRUM-148 (Quỳnh)"
+    },
+    {
+      "chunk_id": "2253107e-6d5e-5e35-b978-774f6fb8c4de",
+      "line": 1,
+      "en": "Heart attack › WHO response",
+      "old_vi": "Đau tim › Ứng phó của WHO",
+      "new_vi": "Nhồi máu cơ tim › Ứng phó của WHO",
+      "error_type": "Thuật ngữ",
+      "reason": "WHO dùng heart attack theo nghĩa nhồi máu cơ tim.\nhttps://www.who.int/news-room/fact-sheets/detail/heart-attack",
+      "reviewer": "SCRUM-148 (Quỳnh)"
+    },
+    {
+      "chunk_id": "2253107e-6d5e-5e35-b978-774f6fb8c4de",
+      "line": 4,
+      "en": "To reduce the overall 10-year risk of cardiovascular disease, WHO promotes implementation of its Best Buys and other recommended interventions for NCD prevention and control. These include drug therapy, such as antihypertensive medicines and statins, combined with counselling for individuals who have experienced a heart attack or stroke, and for people at high risk (≥20%) of a fatal or non-fatal cardiovascular event within the next 10 years, based on the WHO cardiovascular risk prediction charts.",
+      "old_vi": "Để giảm nguy cơ mắc bệnh tim mạch trong 10 năm, WHO thúc đẩy thực hiện các biện pháp can thiệp hiệu quả nhất (Best Buys) và các biện pháp được khuyến nghị khác nhằm phòng ngừa và kiểm soát bệnh không lây nhiễm. Những biện pháp này bao gồm điều trị bằng thuốc, chẳng hạn như thuốc hạ huyết áp và statin, kết hợp với tư vấn cho những người đã bị đau tim hoặc đột quỵ, cũng như những người có nguy cơ cao (≥20%) gặp biến cố tim mạch gây tử vong hoặc không gây tử vong trong 10 năm tới, dựa trên biểu đồ dự đoán nguy cơ tim mạch của WHO.",
+      "new_vi": "Để giảm nguy cơ mắc bệnh tim mạch trong 10 năm, WHO thúc đẩy thực hiện các biện pháp can thiệp hiệu quả nhất (Best Buys) và các biện pháp được khuyến nghị khác nhằm phòng ngừa và kiểm soát bệnh không lây nhiễm. Những biện pháp này bao gồm điều trị bằng thuốc, chẳng hạn như thuốc hạ huyết áp và statin, kết hợp với tư vấn cho những người đã bị nhồi máu cơ tim hoặc đột quỵ, cũng như những người có nguy cơ cao (≥20%) gặp biến cố tim mạch gây tử vong hoặc không gây tử vong trong 10 năm tới, dựa trên biểu đồ dự đoán nguy cơ tim mạch của WHO.",
+      "error_type": "Thuật ngữ",
+      "reason": "WHO dùng heart attack theo nghĩa nhồi máu cơ tim.\nhttps://www.who.int/news-room/fact-sheets/detail/heart-attack",
+      "reviewer": "SCRUM-148 (Quỳnh)"
+    },
+    {
+      "chunk_id": "2253107e-6d5e-5e35-b978-774f6fb8c4de",
+      "line": 6,
+      "en": "Core medicines used in the prevention and treatment of heart attack, including aspirin, beta-blockers, angiotensin-converting enzyme inhibitors and statins, are included on the WHO Model List of Essential Medicines.",
+      "old_vi": "Các thuốc chính được sử dụng để phòng ngừa và điều trị đau tim, bao gồm aspirin, thuốc chẹn beta, thuốc ức chế men chuyển angiotensin và statin, có trong Danh mục thuốc thiết yếu của WHO.",
+      "new_vi": "Các thuốc chính được sử dụng để phòng ngừa và điều trị nhồi máu cơ tim, bao gồm aspirin, thuốc chẹn beta, thuốc ức chế men chuyển angiotensin và statin, có trong Danh mục thuốc thiết yếu của WHO.",
+      "error_type": "Thuật ngữ",
+      "reason": "WHO dùng heart attack theo nghĩa nhồi máu cơ tim.\nhttps://www.who.int/news-room/fact-sheets/detail/heart-attack",
+      "reviewer": "SCRUM-148 (Quỳnh)"
+    },
+    {
+      "chunk_id": "2253107e-6d5e-5e35-b978-774f6fb8c4de",
+      "line": 7,
+      "en": "Under the Global action plan for the prevention and control of noncommunicable diseases 2013–2020, WHO Member States agreed to reduce the global prevalence of raised blood pressure by 25% between 2010 and 2025, and to ensure that at least 50% of eligible people receive drug therapy and counselling to prevent heart attack and stroke by 2025. WHO also monitors global and country-level trends in ischaemic heart disease mortality through its Global Health Estimates programme, which underpins the figures reported here.",
+      "old_vi": "Theo Kế hoạch hành động toàn cầu về phòng ngừa và kiểm soát các bệnh không lây nhiễm giai đoạn 2013–2020, các quốc gia thành viên WHO đã đồng ý giảm 25% tỷ lệ tăng huyết áp trên toàn cầu từ năm 2010 đến năm 2025, đồng thời đảm bảo ít nhất 50% người đủ điều kiện được điều trị bằng thuốc và tư vấn để phòng ngừa đau tim và đột quỵ vào năm 2025. WHO cũng theo dõi xu hướng tử vong do bệnh tim thiếu máu cục bộ trên toàn cầu và ở từng quốc gia thông qua chương trình Ước tính Y tế Toàn cầu, làm cơ sở cho các số liệu được báo cáo ở đây.",
+      "new_vi": "Theo Kế hoạch hành động toàn cầu về phòng ngừa và kiểm soát các bệnh không lây nhiễm giai đoạn 2013–2020, các quốc gia thành viên WHO đã đồng ý giảm 25% tỷ lệ tăng huyết áp trên toàn cầu từ năm 2010 đến năm 2025, đồng thời đảm bảo ít nhất 50% người đủ điều kiện được điều trị bằng thuốc và tư vấn để phòng ngừa nhồi máu cơ tim và đột quỵ vào năm 2025. WHO cũng theo dõi xu hướng tử vong do bệnh tim thiếu máu cục bộ trên toàn cầu và ở từng quốc gia thông qua chương trình Ước tính Y tế Toàn cầu, làm cơ sở cho các số liệu được báo cáo ở đây.",
+      "error_type": "Thuật ngữ",
+      "reason": "WHO dùng heart attack theo nghĩa nhồi máu cơ tim.\nhttps://www.who.int/news-room/fact-sheets/detail/heart-attack",
+      "reviewer": "SCRUM-148 (Quỳnh)"
+    },
+    {
+      "chunk_id": "04c3c87e-93c1-55ee-b7cd-24a335ced72c",
+      "line": 1,
+      "en": "Malnutrition › Various forms of malnutrition › Undernutrition",
+      "old_vi": "Suy dinh dưỡng › Các dạng suy dinh dưỡng › Thiếu dinh dưỡng",
+      "new_vi": "Rối loạn dinh dưỡng › Các dạng rối loạn dinh dưỡng › Thiếu dinh dưỡng",
+      "error_type": "Thuật ngữ",
+      "reason": "Malnutrition là khái niệm rộng, bao gồm cả thiếu dinh dưỡng, thừa cân và béo phì.\nhttps://www.who.int/news-room/fact-sheets/detail/malnutrition",
+      "reviewer": "SCRUM-148 (Quỳnh)"
+    },
+    {
+      "chunk_id": "9fdf2ec5-8393-50a1-a278-95078dc5a669",
+      "line": 6,
+      "en": "In December 2025, WHO published the guideline on the use of glucagon-like peptide-1 (GLP-1) therapies for the treatment of obesity in adults. It supports their safe, equitable and appropriate inclusion as one component of multimodal chronic obesity care, alongside behavioural, nutritional, psychological and other evidence-based interventions.",
+      "old_vi": "Vào tháng 12 năm 2025, WHO đã công bố hướng dẫn về việc sử dụng các liệu pháp peptide-1 giống glucagon (GLP-1) để điều trị béo phì ở người lớn. Hướng dẫn này ủng hộ việc đưa các liệu pháp này vào một cách an toàn, công bằng và phù hợp như một thành phần của dịch vụ chăm sóc mạn tính đa phương thức cho bệnh béo phì, cùng với các can thiệp về hành vi, dinh dưỡng, tâm lý và những can thiệp khác dựa trên bằng chứng.",
+      "new_vi": "Vào tháng 12 năm 2025, WHO đã công bố hướng dẫn về việc sử dụng các liệu pháp dùng thuốc tác động lên thụ thể GLP-1 để điều trị béo phì ở người lớn. Hướng dẫn này ủng hộ việc đưa các liệu pháp này vào một cách an toàn, công bằng và phù hợp như một thành phần của dịch vụ chăm sóc mạn tính đa phương thức cho bệnh béo phì, cùng với các can thiệp về hành vi, dinh dưỡng, tâm lý và những can thiệp khác dựa trên bằng chứng.",
+      "error_type": "Thuật ngữ",
+      "reason": "WHO nói đến các liệu pháp dùng thuốc tác động lên thụ thể GLP-1.\nhttps://www.who.int/news-room/questions-and-answers/item/obesity-glp-1-therapies\nhttps://www.who.int/news-room/fact-sheets/detail/obesity-and-overweight",
+      "reviewer": "SCRUM-148 (Quỳnh)"
+    },
+    {
+      "chunk_id": "7a1e2a28-e89d-501b-9c3c-b02e4ebbfc3f",
+      "line": 5,
+      "en": "• There are three licensed immunization products for prevention of RSV disease in young infants: two long-acting monoclonal antibodies administered to infants soon after birth and a maternal vaccine given to pregnant women and persons in the latter part of pregnancy.",
+      "old_vi": "• Có 3 sản phẩm miễn dịch được cấp phép để phòng bệnh do RSV ở trẻ nhỏ: 2 kháng thể đơn dòng tác dụng kéo dài được dùng cho trẻ ngay sau khi sinh và 1 vắc xin dành cho bà mẹ, được tiêm cho phụ nữ mang thai và người ở giai đoạn cuối thai kỳ.",
+      "new_vi": "• Có 3 sản phẩm tạo miễn dịch được cấp phép để phòng bệnh do RSV ở trẻ nhũ nhi: 2 kháng thể đơn dòng tác dụng kéo dài dùng cho trẻ ngay sau khi sinh và 1 vắc-xin tiêm cho người mang thai ở giai đoạn cuối thai kỳ.",
+      "error_type": "Tuổi / thời gian",
+      "reason": "Mốc cuối thai kỳ áp dụng cho toàn bộ nhóm người mang thai.\nhttps://www.who.int/news-room/fact-sheets/detail/respiratory-syncytial-virus-(rsv)",
+      "reviewer": "SCRUM-148 (Quỳnh)"
+    },
+    {
+      "chunk_id": "9550137d-9382-5062-8abc-cf6ad196b390",
+      "line": 3,
+      "en": "The Maternal and Neonatal Tetanus Elimination (MNTE) Initiative was launched by UNICEF, WHO and the United Nations Population Fund (UNFPA) in 1999, revitalizing the goal of MNTE as a public health problem.",
+      "old_vi": "Sáng kiến Loại trừ Uốn ván ở Mẹ và Trẻ sơ sinh (MNTE) được UNICEF, WHO và Quỹ Dân số Liên Hợp Quốc (UNFPA) khởi động năm 1999, khơi dậy mục tiêu loại trừ MNTE như một vấn đề sức khỏe cộng đồng.",
+      "new_vi": "Sáng kiến Loại trừ Uốn ván ở Mẹ và Trẻ sơ sinh (MNTE) được UNICEF, WHO và Quỹ Dân số Liên Hợp Quốc (UNFPA) khởi động năm 1999, qua đó thúc đẩy lại mục tiêu loại trừ uốn ván ở mẹ và trẻ sơ sinh với tư cách là một vấn đề sức khỏe cộng đồng.",
+      "error_type": "Thuật ngữ",
+      "reason": "Mục tiêu là loại trừ bệnh uốn ván ở mẹ và trẻ sơ sinh.\nhttps://www.who.int/news-room/fact-sheets/detail/tetanus",
+      "reviewer": "SCRUM-148 (Quỳnh)"
+    },
+    {
+      "chunk_id": "9550137d-9382-5062-8abc-cf6ad196b390",
+      "line": 5,
+      "en": "Once MNTE has been achieved, maintaining elimination will require continued strengthening of routine immunization activities for both pregnant women and children, maintaining and increasing access to clean deliveries, reliable neonatal tetanus surveillance, and introduction and/or strengthening of school-based immunization, where feasible.",
+      "old_vi": "Sau khi đạt được MNTE, để duy trì việc loại trừ cần tiếp tục tăng cường các hoạt động tiêm chủng thường quy cho cả phụ nữ mang thai và trẻ em, duy trì và tăng cường khả năng tiếp cận dịch vụ sinh sạch, giám sát uốn ván sơ sinh đáng tin cậy, đồng thời triển khai và/hoặc tăng cường tiêm chủng tại trường học nếu có thể.",
+      "new_vi": "Sau khi đạt được MNTE, để duy trì việc loại trừ cần tiếp tục tăng cường các hoạt động tiêm chủng thường quy cho cả phụ nữ mang thai và trẻ em, duy trì và tăng cường khả năng tiếp cận dịch vụ đỡ đẻ bảo đảm vệ sinh, giám sát uốn ván sơ sinh đáng tin cậy, đồng thời triển khai và/hoặc tăng cường tiêm chủng tại trường học nếu có thể.",
+      "error_type": "Thuật ngữ",
+      "reason": "Clean deliveries nói đến đỡ đẻ bảo đảm vệ sinh.\nhttps://www.who.int/news-room/fact-sheets/detail/tetanus",
+      "reviewer": "SCRUM-148 (Quỳnh)"
+    },
+    {
+      "chunk_id": "9550137d-9382-5062-8abc-cf6ad196b390",
+      "line": 6,
+      "en": "To sustain MNTE and protect all persons from tetanus, WHO recommends that 6 doses of TTCV be given to all persons from childhood to adolescence.",
+      "old_vi": "Để duy trì MNTE và bảo vệ tất cả mọi người khỏi uốn ván, WHO khuyến nghị tiêm 6 liều TTCV cho tất cả mọi người từ thời thơ ấu đến tuổi vị thành niên.",
+      "new_vi": "Để duy trì thành quả loại trừ uốn ván ở mẹ và trẻ sơ sinh và bảo vệ tất cả mọi người khỏi uốn ván, WHO khuyến nghị tiêm 6 liều TTCV cho tất cả mọi người từ thời thơ ấu đến tuổi vị thành niên.",
+      "error_type": "Thuật ngữ",
+      "reason": "Sustain MNTE chỉ duy trì thành quả loại trừ bệnh.\nhttps://www.who.int/news-room/fact-sheets/detail/tetanus",
+      "reviewer": "SCRUM-148 (Quỳnh)"
+    }
+  ]
+}

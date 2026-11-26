@@ -2,8 +2,11 @@
 
   1. ``build_units``       chunks (and loose strings: titles, headings) become units of aligned lines
   2. ``machine_translate`` every engine translates the unique segments once (cached, resumable)
-  3. ``refine``            the LLM writes the final line from the drafts (optional, cached)
-  4. ``finalise``          gate per line; a failing LLM line falls back to the engines' consensus
+  3. ``refine``            the LLM writes the final line from the drafts (mode ``fusion``) or translates
+                           the English line itself (mode ``direct``, no engines needed); optional, cached
+     ``verify``            the LLM, as a reviewer, lists meaning changes; one repair, one re-check
+  4. ``finalise``          gate per line; a failing LLM line falls back to the engines' consensus;
+                           lines a human reviewer corrected replace the machine line
 
 Everything that needs a model is passed in (engines, LLM client), so the
 pipeline runs in tests with fakes.
@@ -24,9 +27,10 @@ from typing import Any, Callable, Iterable
 from .cache import JsonlCache, digest
 from .consensus import pick, support
 from .glossary import Rules, find_names, name_kept
-from .quality import QualityReport, check_line, check_quality
-from .refine import PROMPT_VERSION, LLMClient, Stop, build_item, parse_answer, system_prompt
+from .quality import Issue, QualityReport, check_line, check_quality
+from .refine import LLMClient, Stop, build_item, parse_answer, prompt_version, system_prompt
 from .segments import harmonise, split_marker, split_sentences
+from .verify import VERIFY_VERSION, build_check_item, parse_findings, verify_prompt
 
 Log = Callable[[str], None]
 _HAS_LETTER = re.compile(r"[^\W\d_]")
@@ -61,10 +65,11 @@ class Unit:
 class UnitResult:
     unit: Unit
     bodies: list[str]
-    methods: list[str]              # per line: llm | consensus | consensus_fallback | copy
+    methods: list[str]              # per line: llm | consensus | consensus_fallback | copy | human
     picks: list[str]                # per line: engine chosen by consensus ("" when none)
     consensus: list[str]
     report: QualityReport
+    machine_bodies: list[str] = field(default_factory=list)  # lines before human corrections
 
     @property
     def lines(self) -> list[str]:
@@ -137,7 +142,9 @@ def machine_translate(units: list[Unit], engines: list[Any], cache_dir: Path, ru
         stats[engine.key] = {"model_id": engine.model_id, "segments": len(unique), "translated_now": len(todo),
                              "seconds": round(time.perf_counter() - started, 1)}
     for unit in units:
-        if unit.drafts:
+        if not engines:
+            unit.kept_names = list(unit.hint_names)  # no drafts to vote: keep every index name
+        elif unit.drafts:
             needed = len(unit.drafts) / 2
             unit.kept_names = [name for name in unit.hint_names
                                if sum(name_kept(name, "\n".join(d)) for d in unit.drafts.values()) > needed]
@@ -164,76 +171,107 @@ def consensus_lines(unit: Unit, rules: Rules, settings: dict[str, Any] | None = 
 # -- 3. LLM fusion ----------------------------------------------------------
 
 def _problems(unit: Unit, bodies: list[str], rules: Rules, settings: dict[str, Any] | None) -> list[str]:
+    """What the post-editor must fix: hard issues and likely meaning changes of the gate."""
     found = []
     for i, (src, tgt) in enumerate(zip(unit.bodies, bodies)):
         for issue in check_line(src, tgt, rules, settings):
-            if issue.hard:
+            if issue.hard or issue.review:
                 found.append(f"line {i + 1}: {issue.detail}")
     return found
 
 
+def _hard_count(unit: Unit, bodies: list[str], rules: Rules, settings: dict[str, Any] | None) -> int:
+    return sum(issue.hard for src, tgt in zip(unit.bodies, bodies) for issue in check_line(src, tgt, rules, settings))
+
+
+def _run_batches(jobs: list[tuple[Unit, dict[str, Any]]], cache: JsonlCache,
+                 ask: Callable[[list[dict[str, Any]], list[Unit]], dict[str, Any]],
+                 valid: Callable[[Unit, Any], bool], settings: dict[str, Any], stats: dict[str, Any],
+                 log: Log, label: str, max_requests: int = 0) -> dict[str, Any]:
+    """Answers per unit id: cached items from disk, the rest sent in batches of ``units_per_request``.
+
+    ``stats`` counts requests and cached units; a :class:`Stop` (rate limit, quota) cancels what is
+    queued and sets ``stats['stopped']``: what was answered is cached for the next run.
+    """
+    per_request = max(1, int(settings.get("units_per_request", 4)))
+    workers = max(1, int(settings.get("workers", 1)))
+    got: dict[str, Any] = {}
+    pending: list[tuple[Unit, dict[str, Any], str]] = []
+    for unit, item in jobs:
+        key = json.dumps(item, ensure_ascii=False, sort_keys=True)
+        cached = cache.get(key)
+        if valid(unit, cached):
+            got[unit.id] = cached
+            stats["cached_units"] += 1
+        else:
+            pending.append((unit, item, key))
+    batches = [pending[i:i + per_request] for i in range(0, len(pending), per_request)]
+    if max_requests:
+        batches = batches[:max(0, max_requests - stats["requests"])]
+    if not batches or stats.get("stopped"):
+        return got
+    log(f"  [llm] {label}: {len(pending)} units in {len(batches)} requests ({len(got)} from cache)")
+    done = 0
+    with ThreadPoolExecutor(max_workers=workers) as pool:
+        futures = {pool.submit(ask, [item for _, item, _ in batch], [unit for unit, _, _ in batch]): batch
+                   for batch in batches}
+        for future in as_completed(futures):
+            if future.cancelled():
+                continue  # queued when the LLM stopped: picked up by the next run
+            batch = futures[future]
+            stats["requests"] += 1
+            try:
+                answers = future.result()
+            except Stop as exc:
+                stats["stopped"] = str(exc)
+                for other in futures:
+                    other.cancel()
+                continue
+            cache.put_many({key: answers[unit.id] for unit, _, key in batch if unit.id in answers})
+            got.update(answers)
+            done += 1
+            if done % 5 == 0 or done == len(batches):
+                log(f"  [llm] {label}: {done}/{len(batches)} requests")
+    return got
+
+
+def _fusion_cache(client: LLMClient, rules: Rules, cache_dir: Path, mode: str = "fusion") -> tuple[str, JsonlCache]:
+    system = system_prompt(rules, mode)
+    name = "llm_direct.jsonl" if mode == "direct" else "llm.jsonl"
+    return system, JsonlCache(Path(cache_dir) / name, digest(client.model, client.effort, prompt_version(mode), system))
+
+
+def _fusion_ask(client: LLMClient, system: str) -> Callable[[list[dict[str, Any]], list[Unit]], dict[str, list[str]]]:
+    def ask(items: list[dict[str, Any]], batch: list[Unit]) -> dict[str, list[str]]:
+        return parse_answer(client.chat(system, json.dumps(items, ensure_ascii=False)),
+                            {u.id: len(u.bodies) for u in batch})
+    return ask
+
+
+def _lines_valid(unit: Unit, cached: Any) -> bool:
+    return isinstance(cached, list) and len(cached) == len(unit.bodies)
+
+
 def refine(units: list[Unit], client: LLMClient, rules: Rules, cache_dir: Path, llm_settings: dict[str, Any],
            quality_settings: dict[str, Any] | None = None, log: Log = print,
-           max_requests: int = 0) -> tuple[dict[str, list[str]], dict[str, Any]]:
+           max_requests: int = 0, mode: str = "fusion") -> tuple[dict[str, list[str]], dict[str, Any]]:
     """LLM lines per unit id (only units that were answered well) and statistics.
+
+    ``mode`` ``fusion`` post-edits the engines' drafts; ``direct`` translates from the source only.
 
     Stops quietly on rate limit / quota: what is done is cached, the rest is
     left to the consensus and picked up by the next run.
     """
-    system = system_prompt(rules)
-    cache = JsonlCache(Path(cache_dir) / "llm.jsonl", digest(client.model, client.effort, PROMPT_VERSION, system))
-    per_request = max(1, int(llm_settings.get("units_per_request", 4)))
-    workers = max(1, int(llm_settings.get("workers", 1)))
-    stats: dict[str, Any] = {"model": client.model, "requests": 0, "cached_units": 0, "answered_units": 0,
-                             "repaired_units": 0, "stopped": ""}
-    results: dict[str, list[str]] = {}
-
-    def ask(items: list[dict[str, Any]], batch: list[Unit]) -> dict[str, list[str]]:
-        answer = client.chat(system, json.dumps(items, ensure_ascii=False))
-        return parse_answer(answer, {u.id: len(u.bodies) for u in batch})
+    system, cache = _fusion_cache(client, rules, cache_dir, mode)
+    ask = _fusion_ask(client, system)
+    stats: dict[str, Any] = {"model": client.model, "mode": mode, "prompt_version": prompt_version(mode),
+                             "requests": 0, "cached_units": 0, "answered_units": 0, "repaired_units": 0,
+                             "stopped": ""}
 
     def run_round(jobs: list[tuple[Unit, dict[str, Any]]], label: str) -> dict[str, list[str]]:
-        """jobs: (unit, item). Cached items are answered from disk, the rest sent in batches."""
-        got: dict[str, list[str]] = {}
-        pending: list[tuple[Unit, dict[str, Any], str]] = []
-        for unit, item in jobs:
-            key = json.dumps(item, ensure_ascii=False, sort_keys=True)
-            cached = cache.get(key)
-            if isinstance(cached, list) and len(cached) == len(unit.bodies):
-                got[unit.id] = cached
-                stats["cached_units"] += 1
-            else:
-                pending.append((unit, item, key))
-        batches = [pending[i:i + per_request] for i in range(0, len(pending), per_request)]
-        if max_requests:
-            batches = batches[:max(0, max_requests - stats["requests"])]
-        if not batches:
-            return got
-        log(f"  [llm] {label}: {len(pending)} units in {len(batches)} requests ({len(got)} from cache)")
-        done = 0
-        with ThreadPoolExecutor(max_workers=workers) as pool:
-            futures = {pool.submit(ask, [item for _, item, _ in batch], [unit for unit, _, _ in batch]): batch
-                       for batch in batches}
-            for future in as_completed(futures):
-                if future.cancelled():
-                    continue  # queued when the LLM stopped: picked up by the next run
-                batch = futures[future]
-                stats["requests"] += 1
-                try:
-                    answers = future.result()
-                except Stop as exc:
-                    stats["stopped"] = str(exc)
-                    for other in futures:
-                        other.cancel()
-                    continue
-                cache.put_many({key: answers[unit.id] for unit, _, key in batch if unit.id in answers})
-                got.update(answers)
-                done += 1
-                if done % 5 == 0 or done == len(batches):
-                    log(f"  [llm] {label}: {done}/{len(batches)} requests")
-        return got
+        return _run_batches(jobs, cache, ask, _lines_valid, llm_settings, stats, log, label, max_requests)
 
-    results.update(run_round([(u, build_item(u)) for u in units], "fusion"))
+    results: dict[str, list[str]] = dict(run_round([(u, build_item(u, mode=mode)) for u in units], mode))
     stats["answered_units"] = len(results)
 
     by_id = {u.id: u for u in units}
@@ -244,7 +282,8 @@ def refine(units: list[Unit], client: LLMClient, rules: Rules, cache_dir: Path, 
         for unit_id, bodies in results.items():
             problems = _problems(by_id[unit_id], bodies, rules, quality_settings)
             if problems:
-                jobs.append((by_id[unit_id], build_item(by_id[unit_id], previous=bodies, problems=problems)))
+                jobs.append((by_id[unit_id], build_item(by_id[unit_id], previous=bodies, problems=problems,
+                                                        mode=mode)))
         if not jobs:
             break
         repaired = run_round(jobs, "repair")
@@ -258,10 +297,76 @@ def refine(units: list[Unit], client: LLMClient, rules: Rules, cache_dir: Path, 
     return results, stats
 
 
+def verify(units: list[Unit], results: dict[str, list[str]], client: LLMClient, rules: Rules, cache_dir: Path,
+           llm_settings: dict[str, Any], quality_settings: dict[str, Any] | None = None, log: Log = print,
+           max_requests: int = 0, mode: str = "fusion"
+           ) -> tuple[dict[str, list[str]], dict[str, list[Issue]], dict[str, Any]]:
+    """LLM meaning check of the post-edited lines, one repair, a second check of what was repaired.
+
+    Returns the lines (repaired where the repair kept the hard checks as good as before), the
+    ``meaning_check`` issues still found per unit id (the chunk then goes to a reviewer) and statistics.
+    A unit the checker could not answer (stop, bad answer) gets no issue: it was not checked.
+    """
+    check_system = verify_prompt(rules)
+    check_cache = JsonlCache(Path(cache_dir) / "llm_verify.jsonl",
+                             digest(client.model, client.effort, VERIFY_VERSION, check_system))
+    fusion_system, fusion_cache = _fusion_cache(client, rules, cache_dir, mode)
+    stats: dict[str, Any] = {"model": client.model, "version": VERIFY_VERSION, "requests": 0, "cached_units": 0,
+                             "checked_units": 0, "units_with_problems": 0, "problems": 0, "repaired_units": 0,
+                             "flagged_units": 0, "stopped": ""}
+
+    def check_ask(items: list[dict[str, Any]], batch: list[Unit]) -> dict[str, list[dict[str, Any]]]:
+        return parse_findings(client.chat(check_system, json.dumps(items, ensure_ascii=False)),
+                              {u.id: len(u.bodies) for u in batch})
+
+    def check(todo: list[Unit], lines: dict[str, list[str]], label: str) -> dict[str, list[dict[str, Any]]]:
+        return _run_batches([(u, build_check_item(u, lines[u.id])) for u in todo], check_cache, check_ask,
+                            lambda u, cached: isinstance(cached, list), llm_settings, stats, log, label, max_requests)
+
+    by_id = {u.id: u for u in units}
+    out = dict(results)
+    findings = check([u for u in units if u.id in results], out, "meaning check")
+    stats["checked_units"] = len(findings)
+    found = {uid: problems for uid, problems in findings.items() if problems}
+    stats["units_with_problems"] = len(found)
+    stats["problems"] = sum(len(p) for p in found.values())
+
+    def described(problems: list[dict[str, Any]]) -> list[str]:
+        return [f"line {p['line']}: {p['type']}: {p['detail']}" for p in problems]
+
+    jobs = [(by_id[uid], build_item(by_id[uid], previous=out[uid],
+                                    problems=described(problems) + _problems(by_id[uid], out[uid], rules,
+                                                                             quality_settings), mode=mode))
+            for uid, problems in found.items()]
+    repaired = _run_batches(jobs, fusion_cache, _fusion_ask(client, fusion_system), _lines_valid, llm_settings, stats,
+                            log, "meaning repair", max_requests) if jobs else {}
+    accepted = [uid for uid, bodies in repaired.items()
+                if _hard_count(by_id[uid], bodies, rules, quality_settings)
+                <= _hard_count(by_id[uid], out[uid], rules, quality_settings)]
+    for uid in accepted:
+        out[uid] = repaired[uid]
+    stats["repaired_units"] = len(accepted)
+    rechecked = check([by_id[uid] for uid in accepted], out, "meaning re-check") if accepted else {}
+    remaining = {uid: rechecked.get(uid, problems) if uid in accepted else problems for uid, problems in found.items()}
+    flags = {uid: [Issue("meaning_check", False, f"{p['type']}: {p['detail']}", p["line"] - 1) for p in problems]
+             for uid, problems in remaining.items() if problems}
+    stats["flagged_units"] = len(flags)
+    if stats["stopped"]:
+        log(f"  [llm] meaning check stopped ({stats['stopped']}); run again later for the rest")
+    return out, flags, stats
+
+
 # -- 4. final text + gate ---------------------------------------------------
 
 def finalise(unit: Unit, llm_bodies: list[str] | None, rules: Rules,
-             quality_settings: dict[str, Any] | None = None) -> UnitResult:
+             quality_settings: dict[str, Any] | None = None, flags: list[Issue] | None = None,
+             corrections: dict[int, str] | None = None) -> UnitResult:
+    """Final lines of a unit and its gate report.
+
+    ``flags`` are meaning issues found outside the gate (the LLM checker); ``corrections`` are
+    lines a human reviewer approved (0-based index -> Vietnamese line): they replace the machine
+    line as written, and a flag on such a line is dropped.
+    """
     consensus, picks = consensus_lines(unit, rules, quality_settings)
     bodies, methods = [], []
     for i, body in enumerate(unit.bodies):
@@ -281,11 +386,18 @@ def finalise(unit: Unit, llm_bodies: list[str] | None, rules: Rules,
                 chosen, method = llm_line, "llm"
         bodies.append(rules.localise_numbers(body, rules.replace_target(body, chosen)))
         methods.append(method)
+    machine = list(bodies)
+    for i, line in (corrections or {}).items():
+        if 0 <= i < len(bodies):
+            bodies[i] = split_marker(line)[1]
+            methods[i] = "human"
+    extra = [issue for issue in (flags or []) if issue.line not in (corrections or {})]
     drafts = [[d[i] for d in unit.drafts.values()] for i in range(len(unit.bodies))] if unit.drafts else None
     text = "\n".join(marker + body for marker, body in zip(unit.markers, bodies))
     report = check_quality(unit.id, unit.source_text, text, rules=rules, settings=quality_settings, drafts=drafts,
-                           names=unit.kept_names, tags=unit.tags)
-    return UnitResult(unit=unit, bodies=bodies, methods=methods, picks=picks, consensus=consensus, report=report)
+                           names=unit.kept_names, tags=unit.tags, extra_issues=extra)
+    return UnitResult(unit=unit, bodies=bodies, methods=methods, picks=picks, consensus=consensus, report=report,
+                      machine_bodies=machine)
 
 
 def engine_statistics(results: list[UnitResult], rules: Rules,

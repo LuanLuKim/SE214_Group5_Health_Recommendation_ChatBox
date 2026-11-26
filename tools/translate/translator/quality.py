@@ -6,6 +6,7 @@ and point at the exact line a reviewer has to look at.
 Hard checks (the chunk fails the gate):
   non_empty, line_count, bullet_count, length_ratio, min_words   structure
   numbers_preserved   every dose, age, duration, temperature of the source line is in the Vietnamese line
+  units_preserved     every unit of a dose of the source line (mg, g, ml, µg...) is in the Vietnamese line
   no_uk_services      999 / 111 / GP / A&E must have been localised
   no_artifacts        model control tokens, placeholders, broken characters
   no_untranslated     a line left in English
@@ -15,6 +16,13 @@ Hard checks (the chunk fails the gate):
 Soft checks (the chunk passes but is flagged for a human reviewer):
   numbers_added, uk_reference_left, medicine_name_changed, line_length, low_support
   (``low_support``: no machine draft resembles the final line: possible invention).
+
+Meaning checks (the chunk passes the gate but is never ``auto_verified``; status ``flagged_for_review``).
+The LLM repair round gets them too; a line is never swapped for the machine consensus because of them:
+  direction_kept      'under 5' did not become 'trên 5' ('direction_checks' of localisation.json)
+  negation_kept       a source line with not / never / without has a negation in Vietnamese
+  wording             a wording reviewers returned ('meaning_checks': sốt cao, trẻ sơ sinh, tiêm for an oral vaccine...)
+  meaning_check       a meaning change the LLM checker found (``translator.verify``)
 
 No imports from apps/, packages/, database/ or any backend/frontend code.
 """
@@ -34,7 +42,9 @@ _LOOP_WORD = re.compile(r"[^\W_]+(?:[.,'’-][^\W_]+)*")
 _VIETNAMESE = re.compile(r"[ăâđêôơưàảãáạằẳẵắặầẩẫấậèẻẽéẹềểễếệìỉĩíịòỏõóọồổỗốộờởỡớợùủũúụừửữứựỳỷỹýỵ]", re.I)
 
 HARD_CHECKS = ("non_empty", "line_count", "bullet_count", "length_ratio", "min_words",
-               "numbers_preserved", "no_uk_services", "no_artifacts", "no_untranslated", "no_repetition")
+               "numbers_preserved", "units_preserved", "no_uk_services", "no_artifacts", "no_untranslated",
+               "no_repetition")
+REVIEW_CHECKS = ("direction_kept", "negation_kept", "wording", "meaning_check")
 
 DEFAULTS: dict[str, Any] = {
     "min_length_ratio": 0.3, "max_length_ratio": 3.0, "min_words": 3,
@@ -52,8 +62,14 @@ class Issue:
     detail: str
     line: int | None = None  # 0-based index of the line, None for a whole-chunk issue
 
+    @property
+    def review(self) -> bool:
+        """A likely meaning change: the chunk goes to a reviewer and the LLM repair round."""
+        return self.check in REVIEW_CHECKS
+
     def to_dict(self) -> dict[str, Any]:
-        return {"check": self.check, "hard": self.hard, "line": self.line, "detail": self.detail}
+        return {"check": self.check, "hard": self.hard, "review": self.review, "line": self.line,
+                "detail": self.detail}
 
 
 @dataclass
@@ -67,10 +83,16 @@ class QualityReport:
     needs_human_review: bool = False
 
     @property
+    def flagged(self) -> bool:
+        return any(issue.review for issue in self.issues)
+
+    @property
     def status(self) -> str:
-        if self.passed:
-            return "auto_verified" if not self.warnings else "auto_verified_with_warnings"
-        return "failed_quality_gate"
+        if not self.passed:
+            return "failed_quality_gate"
+        if self.flagged:
+            return "flagged_for_review"
+        return "auto_verified" if not self.warnings else "auto_verified_with_warnings"
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -146,6 +168,17 @@ def check_line(source: str, target: str, rules: Rules, settings: dict[str, Any] 
         issues.append(Issue("numbers_preserved", True, f"missing number(s): {', '.join(missing)}", index))
     if added:
         issues.append(Issue("numbers_added", False, f"number(s) not in the source: {', '.join(added)}", index))
+    units = rules.missing_units(source, target)
+    if units:
+        issues.append(Issue("units_preserved", True, f"missing unit(s): {', '.join(units)}", index))
+    for limit in rules.inverted_directions(source, target):
+        issues.append(Issue("direction_kept", False, f"direction of '{limit}' is reversed in Vietnamese", index))
+    if rules.negation_lost(source, target):
+        issues.append(Issue("negation_kept", False, "the source has a negation (not / never / without) and the "
+                                                    "Vietnamese line has none: check the meaning is kept (a line that "
+                                                    "says the same without a negation word may stay)", index))
+    for rule in rules.meaning_problems(source, target):
+        issues.append(Issue("wording", False, f"{rule.label}: {rule.hint}", index))
     forbidden = rules.forbidden_in(target)
     if forbidden:
         issues.append(Issue("no_uk_services", True, f"UK service left: {', '.join(forbidden)}", index))
@@ -173,14 +206,15 @@ def check_line(source: str, target: str, rules: Rules, settings: dict[str, Any] 
 def check_quality(chunk_id: str, source_text: str, translated_text: str, *, rules: Rules | None = None,
                   settings: dict[str, Any] | None = None, drafts: list[list[str]] | None = None,
                   names: list[str] | None = None, tags: list[str] | None = None,
-                  min_length_ratio: float | None = None, max_length_ratio: float | None = None,
+                  extra_issues: list[Issue] | None = None, min_length_ratio: float | None = None, max_length_ratio: float | None = None,
                   bullet_tolerance: int = 0) -> QualityReport:
     """Run the gate on one chunk.
 
     ``drafts[i]`` are the machine drafts of line ``i`` (for ``low_support``);
     ``names`` are medicine names of the source that the drafts kept unchanged,
     so the final text is expected to keep them too; ``tags`` are the chunk's
-    scope tags (some always require a human reviewer).
+    scope tags (some always require a human reviewer); ``extra_issues`` come from
+    outside the gate (the LLM meaning checker).
     """
     cfg = {**DEFAULTS, **(settings or {})}
     if min_length_ratio is not None:
@@ -212,6 +246,7 @@ def check_quality(chunk_id: str, source_text: str, translated_text: str, *, rule
             line_drafts = drafts[i] if drafts and i < len(drafts) else None
             issues += check_line(split_marker(src)[1], split_marker(tgt)[1], rules, cfg, drafts=line_drafts, index=i)
 
+    issues += list(extra_issues or [])
     changed = [name for name in (names or []) if not name_kept(name, translated_text)]
     if changed:
         issues.append(Issue("medicine_name_changed", False, f"international name not found: {', '.join(changed)}"))

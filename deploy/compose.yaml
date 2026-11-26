@@ -76,10 +76,10 @@ services:
     restart: unless-stopped
     environment:
       AI_SERVICE_KEY: ${AI_SERVICE_KEY}
-      LLM_ENABLED: ${LLM_ENABLED:-false}
-      LLM_BASE_URL: ${LLM_BASE_URL:-https://api.openai.com/v1}
-      LLM_API_KEY: ${LLM_API_KEY:-}
-      LLM_MODEL: ${LLM_MODEL:-}
+      AI_LLM_ENABLED: ${AI_LLM_ENABLED:-false}
+      AI_LLM_BASE_URL: ${AI_LLM_BASE_URL:-}
+      AI_LLM_API_KEY: ${AI_LLM_API_KEY:-}
+      AI_LLM_MODEL: ${AI_LLM_MODEL:-}
 
   stats:
     image: ${IMAGE_PREFIX}-stats:${IMAGE_TAG:-latest}

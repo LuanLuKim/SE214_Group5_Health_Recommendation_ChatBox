@@ -1,0 +1,174 @@
+{
+  "scope": "line corrections proposed by the reviewer in the final sample of 40 of run 5 (SCRUM-148): random 40 of 609 auto_verified chunks, seed 20261120; translation of 22/11/2026 (localisation vn-8, prompt fusion-4, meaning check verify-1); line = 1-based line of the chunk text",
+  "corrections": [
+    {
+      "chunk_id": "baa743bc-c1e7-5636-99cc-43ae6edc5ab9",
+      "line": 11,
+      "en": "• 2 separate inhalers – a preventer inhaler to use every day to help prevent symptoms, and a blue reliever inhaler to use when you get symptoms (you should not be given a blue reliever inhaler to use on its own)",
+      "old_vi": "• 2 bình hít riêng biệt – bình hít dự phòng dùng mỗi ngày để giúp ngăn ngừa triệu chứng, và bình hít cắt cơn màu xanh dương để dùng khi bạn có triệu chứng (bạn không nên được cấp riêng bình hít cắt cơn màu xanh dương để dùng đơn độc)",
+      "new_vi": "• 2 bình hít riêng biệt – bình hít dự phòng dùng mỗi ngày để giúp ngăn ngừa triệu chứng, và bình hít cắt cơn màu xanh dương để dùng khi bạn có triệu chứng (bạn không nên chỉ được cấp mỗi bình hít cắt cơn màu xanh dương để dùng một mình)",
+      "error_type": "Phủ định / điều kiện",
+      "severity": "Vừa",
+      "reason": "'cấp riêng' dễ hiểu là cấp tách ra (mâu thuẫn với '2 bình hít riêng biệt'). Ý nguồn: không được kê chỉ một bình cắt cơn để dùng một mình.",
+      "reviewer": "SCRUM-148 (Quỳnh)"
+    },
+    {
+      "chunk_id": "baa743bc-c1e7-5636-99cc-43ae6edc5ab9",
+      "line": 13,
+      "en": "It's important to use your inhaler correctly so that your medicine works properly. There are different types, including dry powder inhalers, pMDIs and soft mist inhalers. A doctor, nurse or pharmacist will show you how to use yours.",
+      "old_vi": "Điều quan trọng là phải sử dụng bình hít của bạn đúng cách để thuốc có tác dụng như mong muốn. Có nhiều loại khác nhau, bao gồm bình hít bột khô, bình xịt định liều có áp suất (pMDIs) và bình hít phun sương mịn. Bác sĩ, y tá hoặc dược sĩ sẽ hướng dẫn bạn cách sử dụng bình hít của bạn.",
+      "new_vi": "Điều quan trọng là phải sử dụng bình hít của bạn đúng cách để thuốc có tác dụng như mong muốn. Có nhiều loại khác nhau, bao gồm bình hít bột khô, bình xịt định liều có áp suất (pMDIs) và bình hít phun sương mịn. Bác sĩ, điều dưỡng hoặc dược sĩ sẽ hướng dẫn bạn cách sử dụng bình hít của bạn.",
+      "error_type": "Thuật ngữ",
+      "severity": "Nhẹ",
+      "reason": "Thống nhất 'nurse' = 'điều dưỡng' như dòng 1.2.",
+      "reviewer": "SCRUM-148 (Quỳnh)"
+    },
+    {
+      "chunk_id": "8a8db543-54cd-5551-9bc0-75ea4bc353cf",
+      "line": 4,
+      "en": "Severe burns and scalds that are large or deep may need treatment in hospital.",
+      "old_vi": "Các vết bỏng nặng, rộng hoặc sâu có thể cần điều trị tại bệnh viện.",
+      "new_vi": "Các vết bỏng nặng (rộng hoặc sâu) có thể cần điều trị tại bệnh viện.",
+      "error_type": "Diễn đạt",
+      "severity": "Nhẹ",
+      "reason": "'large or deep' giải thích thế nào là bỏng nặng, không phải 3 trường hợp ngang nhau.",
+      "reviewer": "SCRUM-148 (Quỳnh)"
+    },
+    {
+      "chunk_id": "b140faa4-82e3-5e95-babd-c734607e3778",
+      "line": 20,
+      "en": "• being drowsy or irritable",
+      "old_vi": "• buồn ngủ hoặc cáu kỉnh",
+      "new_vi": "• cảm thấy buồn ngủ bất thường hoặc dễ cáu gắt",
+      "error_type": "Phạm vi áp dụng",
+      "severity": "Vừa",
+      "reason": "buồn ngủ' dễ bị coi là bình thường. | SM: Giữ 'hoặc' như nguồn ('drowsy or irritable': chỉ cần một dấu hiệu); đổi 'hoặc' thành 'và' là đảo điều kiện, mức Nghiêm trọng theo chính sách. Thêm 'bất thường' theo ghi chú của Quỳnh ('buồn ngủ' dễ bị coi là bình thường), giữ dấu đầu dòng. Mức độ lấy theo tab Duyệt chunk (Vừa); tab Đối chiếu ghi Nhẹ.",
+      "reviewer": "SCRUM-148 (Quỳnh)",
+      "reviewer_vi": "cảm thấy buồn ngủ và dễ cáu gắt",
+      "adjusted_by": "Scrum Master"
+    },
+    {
+      "chunk_id": "5f9f1908-0593-54a1-b9a7-c6918101de0e",
+      "line": 2,
+      "en": "Pain or swelling in the heel or bottom of the foot can occur if you suddenly start doing a lot more running, run uphill, or your shoes are not supportive enough or are worn out.",
+      "old_vi": "Đau hoặc sưng ở gót chân hoặc lòng bàn chân có thể xảy ra nếu bạn đột ngột chạy nhiều hơn nhiều so với trước, chạy lên dốc, hoặc giày không đủ độ nâng đỡ hoặc đã mòn.",
+      "new_vi": "Đau hoặc sưng ở gót chân hoặc lòng bàn chân có thể xảy ra nếu bạn đột ngột tăng mạnh lượng chạy, chạy lên dốc, hoặc giày không đủ độ nâng đỡ hoặc đã mòn.",
+      "error_type": "Diễn đạt",
+      "severity": "Nhẹ",
+      "reason": "'nhiều hơn nhiều' chưa tự nhiên.",
+      "reviewer": "SCRUM-148 (Quỳnh)"
+    },
+    {
+      "chunk_id": "643936c6-3a6a-5678-8160-51810225719b",
+      "line": 5,
+      "en": "• colon and rectum (2.0 million cases)",
+      "old_vi": "• đại tràng và trực tràng (2.0 triệu ca)",
+      "new_vi": "• đại tràng và trực tràng (2,0 triệu ca)",
+      "error_type": "Diễn đạt",
+      "severity": "Nhẹ",
+      "reason": "Dấu phẩy thập phân, thống nhất với các dòng khác trong chunk.",
+      "reviewer": "SCRUM-148 (Quỳnh)"
+    },
+    {
+      "chunk_id": "643936c6-3a6a-5678-8160-51810225719b",
+      "line": 8,
+      "en": "• stomach (1.0 million cases).",
+      "old_vi": "• dạ dày (1.0 triệu ca).",
+      "new_vi": "• dạ dày (1,0 triệu ca).",
+      "error_type": "Diễn đạt",
+      "severity": "Nhẹ",
+      "reason": "Dấu phẩy thập phân, thống nhất với các dòng khác trong chunk.",
+      "reviewer": "SCRUM-148 (Quỳnh)"
+    },
+    {
+      "chunk_id": "3c8867d0-a359-5dec-8495-d8b5564b7259",
+      "line": 3,
+      "en": "Psychological treatments are the first treatments for depression. They can be combined with antidepressant medicines in moderate and severe depression. Antidepressant medicines are not needed for mild depression.",
+      "old_vi": "Điều trị tâm lý là phương pháp điều trị đầu tiên cho bệnh trầm cảm. Các phương pháp này có thể được kết hợp với thuốc chống trầm cảm trong trường hợp trầm cảm trung bình và nặng. Thuốc chống trầm cảm không cần thiết cho trầm cảm nhẹ.",
+      "new_vi": "Điều trị tâm lý là phương pháp điều trị đầu tay cho bệnh trầm cảm. Các phương pháp này có thể được kết hợp với thuốc chống trầm cảm trong trường hợp trầm cảm trung bình và nặng. Thuốc chống trầm cảm không cần thiết cho trầm cảm nhẹ.",
+      "error_type": "Thuật ngữ",
+      "severity": "Nhẹ",
+      "reason": "'first treatments' = điều trị đầu tay; dòng 17.12 đã dùng 'đầu tay'.",
+      "reviewer": "SCRUM-148 (Quỳnh)"
+    },
+    {
+      "chunk_id": "3253f862-f52c-5a1e-a56c-13bde396ce7f",
+      "line": 2,
+      "en": "In light of the widespread use of polluting fuels and stoves for cooking, WHO issued a set of normative guidance, the Guidelines for indoor air quality: household fuel combustion, which offer practical evidence-based guidance on what fuels and technologies used in the home can be considered clean, including recommendations discouraging use of kerosene and recommending against use of unprocessed coal; specifying the performance of fuels and technologies (in the form of emission rate targets) needed to protect health; and emphasizing the importance of addressing all household energy uses, particularly cooking, space heating and lighting to ensure benefits for health and the environment. WHO defines fuels and technologies that are clean for health at the point of use as solar, electricity, biogas, liquefied petroleum gas (LPG), natural gas, alcohol fuels, as well as biomass stoves that meet the emission targets in the WHO Guidelines.",
+      "old_vi": "Trước tình trạng sử dụng rộng rãi các loại nhiên liệu và bếp gây ô nhiễm để nấu ăn, WHO đã ban hành một bộ hướng dẫn tiêu chuẩn, Hướng dẫn về chất lượng không khí trong nhà: đốt nhiên liệu trong hộ gia đình, cung cấp hướng dẫn thực tiễn dựa trên bằng chứng về những loại nhiên liệu và công nghệ sử dụng trong nhà có thể được coi là sạch, bao gồm các khuyến nghị hạn chế sử dụng dầu hỏa và khuyến cáo không sử dụng than chưa qua xử lý; nêu rõ hiệu suất của các loại nhiên liệu và công nghệ (dưới dạng mục tiêu tốc độ phát thải) cần thiết để bảo vệ sức khỏe; và nhấn mạnh tầm quan trọng của việc giải quyết tất cả các mục đích sử dụng năng lượng trong hộ gia đình, đặc biệt là nấu ăn, sưởi ấm không gian và chiếu sáng để đảm bảo lợi ích cho sức khỏe và môi trường. WHO định nghĩa các loại nhiên liệu và công nghệ sạch đối với sức khỏe tại nơi sử dụng là năng lượng mặt trời, điện, khí sinh học, khí dầu mỏ hóa lỏng (LPG), khí đốt tự nhiên, nhiên liệu cồn, cũng như bếp sinh khối đáp ứng các mục tiêu phát thải trong Hướng dẫn của WHO.",
+      "new_vi": "Trước tình trạng sử dụng rộng rãi các loại nhiên liệu và bếp gây ô nhiễm để nấu ăn, WHO đã ban hành một bộ hướng dẫn tiêu chuẩn, Hướng dẫn về chất lượng không khí trong nhà: đốt nhiên liệu trong hộ gia đình, cung cấp hướng dẫn thực tiễn dựa trên bằng chứng về những loại nhiên liệu và công nghệ sử dụng trong nhà có thể được coi là sạch, bao gồm các khuyến nghị không khuyến khích sử dụng dầu hỏa và khuyến cáo không sử dụng than chưa qua xử lý; nêu rõ hiệu suất của các loại nhiên liệu và công nghệ (dưới dạng mục tiêu tốc độ phát thải) cần thiết để bảo vệ sức khỏe; và nhấn mạnh tầm quan trọng của việc giải quyết tất cả các mục đích sử dụng năng lượng trong hộ gia đình, đặc biệt là nấu ăn, sưởi ấm không gian và chiếu sáng để đảm bảo lợi ích cho sức khỏe và môi trường. WHO định nghĩa các loại nhiên liệu và công nghệ sạch đối với sức khỏe tại nơi sử dụng là năng lượng mặt trời, điện, khí sinh học, khí dầu mỏ hóa lỏng (LPG), khí đốt tự nhiên, nhiên liệu cồn, cũng như bếp sinh khối đáp ứng các mục tiêu phát thải trong Hướng dẫn của WHO.",
+      "error_type": "Thuật ngữ",
+      "severity": "Nhẹ",
+      "reason": "'discouraging' = không khuyến khích, khác 'hạn chế'.",
+      "reviewer": "SCRUM-148 (Quỳnh)"
+    },
+    {
+      "chunk_id": "15f65fc3-2c1f-57b3-a38b-68decfdee944",
+      "line": 3,
+      "en": "• Meningitis is a devastating disease that can be deadly and often results in serious long-term health issues.",
+      "old_vi": "• Viêm màng não là một bệnh nghiêm trọng có thể gây tử vong và thường dẫn đến các vấn đề sức khỏe lâu dài nghiêm trọng.",
+      "new_vi": "• Viêm màng não là một bệnh có sức tàn phá lớn, có thể gây tử vong và thường dẫn đến các vấn đề sức khỏe lâu dài nghiêm trọng.",
+      "error_type": "Diễn đạt",
+      "severity": "Nhẹ",
+      "reason": "'devastating' bị làm nhẹ nghĩa và lặp chữ 'nghiêm trọng'.",
+      "reviewer": "SCRUM-148 (Quỳnh)"
+    },
+    {
+      "chunk_id": "9ecd8a2f-4de1-5387-a2f4-c7c4b27fabff",
+      "line": 8,
+      "en": "In addition, 17 countries – Austria, Bahrain, Belgium, Bulgaria, Czech Republic, Estonia, Germany, Greece, Latvia, Lithuania, Luxembourg, Malta, Montenegro, Portugal, Serbia, Slovenia and Sweden – have self-declared free from infection with rabies virus to WOAH, in compliance with Chapters 1.6 and 8.15 of the Terrestrial Animal Health Code (Terrestrial Code, edition 2025).",
+      "old_vi": "Ngoài ra, 17 quốc gia – Áo, Bahrain, Bỉ, Bulgaria, Cộng hòa Séc, Estonia, Đức, Hy Lạp, Latvia, Lithuania, Luxembourg, Malta, Montenegro, Bồ Đào Nha, Serbia, Slovenia và Thụy Điển – đã tự tuyên bố với WOAH là không có tình trạng nhiễm vi-rút dại, tuân thủ Chương 1,6 và 8,15 của Bộ luật Sức khỏe Động vật Trên cạn (Bộ luật Trên cạn, phiên bản 2025).",
+      "new_vi": "Ngoài ra, 17 quốc gia – Áo, Bahrain, Bỉ, Bulgaria, Cộng hòa Séc, Estonia, Đức, Hy Lạp, Latvia, Lithuania, Luxembourg, Malta, Montenegro, Bồ Đào Nha, Serbia, Slovenia và Thụy Điển – đã tự tuyên bố với WOAH là không có tình trạng nhiễm vi-rút dại, tuân thủ Chương 1.6 và 8.15 của Bộ luật Sức khỏe Động vật Trên cạn (Bộ luật Trên cạn, phiên bản 2025).",
+      "error_type": "Khác",
+      "severity": "Vừa",
+      "reason": "1.6 và 8.15 là số hiệu chương, không phải số thập phân. Cần rà cả corpus mẫu Chapter/Section/Article + số.",
+      "reviewer": "SCRUM-148 (Quỳnh)"
+    },
+    {
+      "chunk_id": "88224f1b-1373-51e4-9356-de45d2490ada",
+      "line": 1,
+      "en": "Scabies › WHO response",
+      "old_vi": "Bệnh ghẻ › Hoạt động của WHO",
+      "new_vi": "Bệnh ghẻ › Đáp ứng của WHO",
+      "error_type": "Thuật ngữ",
+      "severity": "Nhẹ",
+      "reason": "Thống nhất 'WHO response' = 'Đáp ứng của WHO' như các chunk WHO khác.",
+      "reviewer": "SCRUM-148 (Quỳnh)"
+    },
+    {
+      "chunk_id": "f7c0b11e-37a0-5a9d-819a-4e438eb71d3c",
+      "line": 5,
+      "en": "Given low demand, several manufacturers have ceased production, and the price of some antivenom products have dramatically increased in the last 20 years, making treatment unaffordable for the majority of those who need it. Rising prices also further suppress demand, to the extent that antivenom availability has declined significantly or even disappeared in some areas. The entry into some markets of inappropriate, untested, or even fake antivenom products has also undermined confidence in antivenom therapy generally.",
+      "old_vi": "Do nhu cầu thấp, một số nhà sản xuất đã ngừng sản xuất, và giá của một số sản phẩm huyết thanh kháng nọc độc đã tăng đáng kể trong 20 năm qua, khiến việc điều trị vượt quá khả năng chi trả của phần lớn những người cần điều trị. Giá cả tăng cao cũng làm giảm thêm nhu cầu, đến mức nguồn cung huyết thanh kháng nọc độc đã giảm đáng kể hoặc thậm chí không còn ở một số khu vực. Việc các sản phẩm huyết thanh kháng nọc độc không phù hợp, chưa được thử nghiệm, hoặc thậm chí là giả xâm nhập vào một số thị trường cũng đã làm suy giảm niềm tin vào liệu pháp kháng nọc độc nói chung.",
+      "new_vi": "Do nhu cầu thấp, một số nhà sản xuất đã ngừng sản xuất, và giá của một số sản phẩm huyết thanh kháng nọc độc đã tăng mạnh trong 20 năm qua, khiến việc điều trị vượt quá khả năng chi trả của phần lớn những người cần điều trị. Giá cả tăng cao cũng làm giảm thêm nhu cầu, đến mức nguồn cung huyết thanh kháng nọc độc đã giảm đáng kể hoặc thậm chí không còn ở một số khu vực. Việc các sản phẩm huyết thanh kháng nọc độc không phù hợp, chưa được thử nghiệm, hoặc thậm chí là giả xâm nhập vào một số thị trường cũng đã làm suy giảm niềm tin vào liệu pháp kháng nọc độc nói chung.",
+      "error_type": "Diễn đạt",
+      "severity": "Nhẹ",
+      "reason": "'dramatically' mạnh hơn 'đáng kể'.",
+      "reviewer": "SCRUM-148 (Quỳnh)"
+    },
+    {
+      "chunk_id": "a20a48d2-0781-570f-9ed1-f52a6a66585f",
+      "line": 2,
+      "en": "Tuberculosis (TB) is an infectious disease caused by bacteria that most often affects the lungs. It spreads through the air when people with TB cough, sneeze or spit.",
+      "old_vi": "Lao (TB) là một bệnh truyền nhiễm do vi khuẩn gây ra, thường ảnh hưởng nhất đến phổi. Bệnh lây lan qua không khí khi người bị lao ho, hắt hơi hoặc khạc nhổ.",
+      "new_vi": "Lao (TB) là một bệnh truyền nhiễm do vi khuẩn gây ra, thường ảnh hưởng đến phổi nhiều nhất. Bệnh lây lan qua không khí khi người bị lao ho, hắt hơi hoặc khạc nhổ.",
+      "error_type": "Diễn đạt",
+      "severity": "Nhẹ",
+      "reason": "Trật tự từ chưa tự nhiên.",
+      "reviewer": "SCRUM-148 (Quỳnh)"
+    },
+    {
+      "chunk_id": "8f8dae95-35ce-55e9-8605-07f2e3d39436",
+      "line": 5,
+      "en": "• Wear protective clothing.",
+      "old_vi": "• Mặc quần áo bảo hộ.",
+      "new_vi": "• Mặc quần áo che chắn nắng.",
+      "error_type": "Thuật ngữ",
+      "severity": "Vừa",
+      "reason": "'quần áo bảo hộ' gợi đồ bảo hộ lao động; nguồn nói quần áo che nắng. | SM: Chỉ đúng cho bài Bức xạ cực tím (che nắng). Câu tiếng Anh giống hệt có ở bài Sốt rét (chống muỗi: 'quần áo dài che kín da') và Vết cắn của động vật: dịch theo ngữ cảnh, xem bảng thuật ngữ 'protective clothing'.",
+      "reviewer": "SCRUM-148 (Quỳnh)",
+      "reviewer_vi": "• Mặc quần áo che chắn nắng.",
+      "adjusted_by": "Scrum Master"
+    }
+  ]
+}

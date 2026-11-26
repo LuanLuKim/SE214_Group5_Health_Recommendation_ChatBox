@@ -5,7 +5,7 @@ Use cases: **UC-10, UC-11, UC-15, UC-17**. Owner: Trường Giang (`Ziang05`).
 ## Navigation
 
 - Frontend: `apps/web/src/modules/knowledge/`
-- Backend: `backend/src/main/java/vn/edu/uit/se214/health/knowledge/`
+- Backend: `backend/src/main/knowledge/`
 - Database: `database/migrations/V002__knowledge.sql`
 - Shared contracts: `packages/contracts/src/index.ts`
 - Routes and access expectations: `docs/API.md`

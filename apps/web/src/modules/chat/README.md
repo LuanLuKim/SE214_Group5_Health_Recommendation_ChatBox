@@ -5,7 +5,7 @@ Use cases: **UC-06, UC-08, UC-09**. Owner: Đặng Việt Thành (`Vncnt-uit`).
 ## Navigation
 
 - Frontend: `apps/web/src/modules/chat/`
-- Backend: `backend/src/main/java/vn/edu/uit/se214/health/chat/`
+- Backend: `backend/src/main/chat/`
 - Database: `database/migrations/V004__chat.sql`
 - Shared contracts: `packages/contracts/src/index.ts`
 - Routes and access expectations: `docs/API.md`

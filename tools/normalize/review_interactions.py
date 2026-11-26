@@ -12,10 +12,10 @@ to any entry; that always wins (see ``normalizer.tags.resolve``).
 Bring your own OpenAI-compatible endpoint; nothing is preset (the values below are
 placeholders, the key is never committed):
 
-    set LLM_BASE_URL=http://localhost:8000/v1
-    set LLM_MODEL=your-model-name
-    set LLM_API_KEY=your-key
-    set LLM_REASONING=medium        (optional, sent as reasoning_effort)
+    set REVIEW_LLM_BASE_URL=http://localhost:8000/v1
+    set REVIEW_LLM_MODEL=your-model-name
+    set REVIEW_LLM_API_KEY=your-key
+    set REVIEW_LLM_REASONING=medium        (optional, sent as reasoning_effort)
 
     python -B tools/normalize/review_interactions.py --dry-run
     python -B tools/normalize/review_interactions.py            # until done or out of quota
@@ -30,7 +30,6 @@ from __future__ import annotations
 import argparse
 from datetime import datetime, timezone
 import json
-import os
 from pathlib import Path
 import sys
 import time
@@ -43,8 +42,9 @@ sys.path.insert(0, str(HERE))
 from normalizer.chunking import MEDICINE_TOPICS  # noqa: E402
 from normalizer.tags import SUBSTANCES, interaction_candidates  # noqa: E402
 from run import COLLECTION_DIR, OUTPUT_DIR, ROOT, VERDICTS, load_medicine_names  # noqa: E402
+from project_config import data_path, read_env  # noqa: E402
 
-CORPUS_OUTPUTS = (OUTPUT_DIR, ROOT / ".data" / "normalized_reference")
+CORPUS_OUTPUTS = (OUTPUT_DIR, data_path("normalized_reference"))
 STOP_STATUS = {401, 402, 403, 429}
 
 JOB_NOTE = """You check sentences from public health pages (NHS, WHO) for a health chatbot's data pipeline.
@@ -66,7 +66,7 @@ Answer ONLY a JSON array: [{"id": "...", "interaction": true|false, "terms": [..
 
 
 def collect_candidates(outputs=CORPUS_OUTPUTS) -> dict[str, dict]:
-    names = load_medicine_names(ROOT / "docs" / "urls_discovery.txt", COLLECTION_DIR)
+    names = load_medicine_names(data_path("medicine_index_urls"), COLLECTION_DIR)
     found: dict[str, dict] = {}
     for output in outputs:
         path = Path(output) / "chunks.jsonl"
@@ -162,9 +162,9 @@ def main(argv=None) -> int:
     parser.add_argument("--dry-run", action="store_true", help="count work, send nothing")
     args = parser.parse_args(argv)
 
-    base = os.environ.get("LLM_BASE_URL", "")
-    model = os.environ.get("LLM_MODEL", "")
-    effort = os.environ.get("LLM_REASONING", "medium")
+    base = read_env().get("REVIEW_LLM_BASE_URL", "")
+    model = read_env().get("REVIEW_LLM_MODEL", "")
+    effort = read_env().get("REVIEW_LLM_REASONING", "medium")
     cands = collect_candidates()
     store = load_store(args.verdicts)
     verdicts = store["verdicts"]
@@ -176,8 +176,8 @@ def main(argv=None) -> int:
           f"conflicts_to_resolve={len(conflicts(cands, verdicts))} model={model} effort={effort}")
     if args.dry_run:
         return 0
-    key = os.environ.get("LLM_API_KEY")
-    missing = [name for name, value in (("LLM_BASE_URL", base), ("LLM_MODEL", model), ("LLM_API_KEY", key)) if not value]
+    key = read_env().get("REVIEW_LLM_API_KEY")
+    missing = [name for name, value in (("REVIEW_LLM_BASE_URL", base), ("REVIEW_LLM_MODEL", model), ("REVIEW_LLM_API_KEY", key)) if not value]
     if missing:
         print(f"set your own endpoint first: {', '.join(missing)} (see the module docstring)", file=sys.stderr)
         return 2

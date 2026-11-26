@@ -5,7 +5,7 @@ Use cases: **UC-07, UC-16**. Owner: Bảo Quỳnh (`DontMadWhenBad`).
 ## Navigation
 
 - Frontend: `apps/web/src/modules/safety/`
-- Backend: `backend/src/main/java/vn/edu/uit/se214/health/safety/`
+- Backend: `backend/src/main/safety/`
 - Database: `database/migrations/V001__safety.sql`
 - Shared contracts: `packages/contracts/src/index.ts`
 - Routes and access expectations: `docs/API.md`
