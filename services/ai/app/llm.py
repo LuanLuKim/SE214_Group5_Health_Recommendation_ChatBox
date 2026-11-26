@@ -11,7 +11,7 @@ from typing import Iterator, Literal, TypedDict
 
 import httpx
 
-from .config import Settings
+from .config import Settings, is_local_llm_url
 
 
 class LlmMessage(TypedDict):
@@ -28,10 +28,17 @@ class LlmClient:
         self._settings = settings
         self._transport = transport
 
+    def _headers(self) -> dict[str, str]:
+        s = self._settings
+        if not s.llm_enabled or not s.llm_base_url or not s.llm_model:
+            raise LlmError("LLM_NOT_CONFIGURED")
+        if not s.llm_api_key and not is_local_llm_url(s.llm_base_url):
+            raise LlmError("LLM_NOT_CONFIGURED")
+        return {"Authorization": f"Bearer {s.llm_api_key}"} if s.llm_api_key else {}
+
     def complete(self, messages: list[LlmMessage]) -> str:
         s = self._settings
-        if not s.llm_enabled or not s.llm_api_key or not s.llm_model:
-            raise LlmError("LLM_NOT_CONFIGURED")
+        headers = self._headers()
         url = s.llm_base_url.rstrip("/") + "/chat/completions"
         try:
             with httpx.Client(
@@ -41,7 +48,7 @@ class LlmClient:
             ) as client:
                 response = client.post(
                     url,
-                    headers={"Authorization": f"Bearer {s.llm_api_key}"},
+                    headers=headers,
                     json={"model": s.llm_model, "messages": messages, "stream": False},
                 )
             if response.status_code != 200:
@@ -58,8 +65,7 @@ class LlmClient:
     def stream(self, messages: list[LlmMessage]) -> Iterator[str]:
         """Stream completion tokens. Transport only; caller must validate output before display."""
         s = self._settings
-        if not s.llm_enabled or not s.llm_api_key or not s.llm_model:
-            raise LlmError("LLM_NOT_CONFIGURED")
+        headers = self._headers()
         url = s.llm_base_url.rstrip("/") + "/chat/completions"
         try:
             with httpx.Client(
@@ -70,7 +76,7 @@ class LlmClient:
                 with client.stream(
                     "POST",
                     url,
-                    headers={"Authorization": f"Bearer {s.llm_api_key}"},
+                    headers=headers,
                     json={"model": s.llm_model, "messages": messages, "stream": True},
                 ) as response:
                     if response.status_code != 200:

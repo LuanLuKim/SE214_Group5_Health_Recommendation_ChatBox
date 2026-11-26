@@ -42,6 +42,9 @@ services:
       # M5: ký access token và băm OTP. Thiếu thì backend không khởi động.
       AUTH_TOKEN_SECRET: ${AUTH_TOKEN_SECRET:?Thiếu AUTH_TOKEN_SECRET trong deploy/.env}
       EMAIL_OTP_HASH_SECRET: ${EMAIL_OTP_HASH_SECRET:?Thiếu EMAIL_OTP_HASH_SECRET trong deploy/.env}
+      ADMIN_BOOTSTRAP_ENABLED: ${ADMIN_BOOTSTRAP_ENABLED:-false}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
       TERMS_VERSION: ${TERMS_VERSION:-v1}
       # Để trống thì đăng ký/khôi phục bằng email và đăng nhập Google/Facebook trả 503, không tạo tài khoản.
       SMTP_HOST: ${SMTP_HOST:-}
@@ -49,6 +52,10 @@ services:
       SMTP_USERNAME: ${SMTP_USERNAME:-}
       SMTP_PASSWORD: ${SMTP_PASSWORD:-}
       MAIL_FROM: ${MAIL_FROM:-}
+      # M6 UC-14: worker gửi nhắc nhở qua SMTP ở trên.
+      REMINDERS_ENABLED: ${REMINDERS_ENABLED:-true}
+      # M6 SCRUM-164: job dọn dữ liệu hằng ngày; thời hạn mặc định trong application.yml.
+      LIFESTYLE_RETENTION_ENABLED: ${LIFESTYLE_RETENTION_ENABLED:-true}
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
       FACEBOOK_APP_ID: ${FACEBOOK_APP_ID:-}
       FACEBOOK_APP_SECRET: ${FACEBOOK_APP_SECRET:-}
@@ -69,10 +76,10 @@ services:
     restart: unless-stopped
     environment:
       AI_SERVICE_KEY: ${AI_SERVICE_KEY}
-      LLM_ENABLED: ${LLM_ENABLED:-false}
-      LLM_BASE_URL: ${LLM_BASE_URL:-https://api.openai.com/v1}
-      LLM_API_KEY: ${LLM_API_KEY:-}
-      LLM_MODEL: ${LLM_MODEL:-}
+      AI_LLM_ENABLED: ${AI_LLM_ENABLED:-false}
+      AI_LLM_BASE_URL: ${AI_LLM_BASE_URL:-}
+      AI_LLM_API_KEY: ${AI_LLM_API_KEY:-}
+      AI_LLM_MODEL: ${AI_LLM_MODEL:-}
 
   stats:
     image: ${IMAGE_PREFIX}-stats:${IMAGE_TAG:-latest}

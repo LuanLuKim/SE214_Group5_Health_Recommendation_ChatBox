@@ -9,7 +9,7 @@ from urllib.request import build_opener
 from uuid import uuid4
 
 from crawler.budget import allocate, memberships, split_bytes
-from crawler.config import ROOT, load_sources, load_urls, source_for
+from crawler.config import data_path, load_sources, load_urls, source_for, url_lists
 from crawler.http import MAX_BYTES, MAX_REQUESTS, Batch, NoRedirect, save, now
 from crawler.storage import Store
 from crawler.runner import run
@@ -17,7 +17,7 @@ from crawler.runner import run
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--urls', type=Path, default=ROOT / 'docs' / 'urls.txt')
+    parser.add_argument('--urls', type=Path, default=data_path('urls'))
     parser.add_argument('--source')
     modes = parser.add_mutually_exclusive_group()
     modes.add_argument('--refresh', action='store_true')
@@ -30,8 +30,8 @@ def main():
     parser.add_argument('--allocate-history', action='store_true',
                         help='one-off: assign past requests in events.jsonl to groups (backs up state.json)')
     args = parser.parse_args()
-    output = ROOT / '.data' / 'collection'
-    checkpoint = ROOT / '.data' / 'crawl'
+    output = data_path('collection')
+    checkpoint = data_path('crawl_checkpoint')
     if args.status:
         path = output / 'latest.json'
         print(path.read_text(encoding='utf-8') if path.exists() else 'No completed run.')
@@ -92,7 +92,7 @@ def allocate_history(checkpoint):
     if len(requests) != state['requests']:
         print(json.dumps({'error': 'EVENT_LOG_MISMATCH', 'events': len(requests), 'state': state['requests']}))
         return 2
-    counts = allocate(requests, memberships(sorted((ROOT / 'docs').glob('urls*.txt'))))
+    counts = allocate(requests, memberships(url_lists()))
     shares = split_bytes(state['charged_bytes'], counts)
     backup = path.with_name('state.before-groups.json')
     if backup.exists():

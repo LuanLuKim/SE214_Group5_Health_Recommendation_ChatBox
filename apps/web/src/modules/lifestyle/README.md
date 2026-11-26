@@ -5,7 +5,7 @@ Use cases: **UC-12, UC-13, UC-14**. Owner: Lữ Kim Luân (`LuanLuKim`).
 ## Navigation
 
 - Frontend: `apps/web/src/modules/lifestyle/`
-- Backend: `backend/src/main/java/vn/edu/uit/se214/health/lifestyle/`
+- Backend: `backend/src/main/lifestyle/`
 - Database: `database/migrations/V006__lifestyle.sql`
 - Shared contracts: `packages/contracts/src/index.ts`
 - Routes and access expectations: `docs/API.md`

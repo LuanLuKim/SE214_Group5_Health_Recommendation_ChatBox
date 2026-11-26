@@ -16,8 +16,18 @@ Một PostgreSQL instance, sáu schema cùng tên module. Không cần sáu data
 | `V010__accounts_registration.sql`       | accounts  | chuẩn hóa unique email; consent xử lý dữ liệu/không chẩn đoán; OAuth identities |
 | `V011__accounts_email_verification.sql` | accounts  | đăng ký email chờ OTP; lưu challenge đã băm, hạn dùng và số lần thử             |
 | `V012__accounts_authentication.sql`    | accounts  | refresh token, giới hạn thử mật khẩu và challenge khôi phục                      |
+| `V013__lifestyle_plan_choice.sql`       | lifestyle | templates: mô tả, thời lượng, mục tiêu FR-2.6; plans giữ lịch sử, một lộ trình đang dùng |
+| `V014__accounts_deletion_confirmation.sql` | accounts | challenge xác nhận xóa tài khoản qua email (mã đã băm, hạn dùng, số lần thử)  |
+| `V015__chat_feedback_handling.sql`      | chat      | feedback: trạng thái xử lý OPEN/RESOLVED và thời điểm xử lý cho UC-17           |
+| `V016__accounts_rbac.sql`               | accounts  | roles, permissions, role_permissions, audit log UC-18; mở rộng user_roles       |
+| `V017__accounts_self_management.sql`    | accounts/knowledge | thông tin liên hệ/ảnh đại diện; ẩn danh reviewer và actor khi xóa tài khoản |
+| `V018__lifestyle_reminder_pause.sql`    | lifestyle | reminders: `disabled_reason` (`PLAN_SWITCH` khi đổi lộ trình tạm tắt nhắc) |
+| `V019__lifestyle_plan_summary.sql`      | lifestyle | plans: tóm tắt completion (`completion_count`, `completed_days`) cho lịch sử sau khi dọn dữ liệu chi tiết |
+| `V020__lifestyle_retention_indexes.sql` | lifestyle | index cho job dọn dữ liệu M6 (lần gửi theo trạng thái/giờ, nhắc tạm tắt, lộ trình chưa tóm tắt) |
+| `V021__knowledge_content_authoring.sql` | knowledge, lifestyle | UC-15: nguồn, bản quyền, người tạo/sửa/gửi duyệt và `revision` cho bài viết và mẫu kế hoạch; mẫu có thêm điều kiện áp dụng, lời nhắc và ngày xác minh |
+| `V024__health_profile_sex.sql`          | health    | profiles: `sex` chỉ nhận `FEMALE`, `MALE`, `OTHER`, `UNSPECIFIED` (UC-04) |
 
-Đây là schema khởi đầu, chưa đủ để tuyên bố hoàn thành SRS. Khi triển khai nghiệp vụ, cần versioning/audit và reviewer metadata đầy đủ; thông tin bản quyền và ngày nguồn; quản lý vai trò/consent; dữ liệu eligibility/allergy phù hợp; lịch retry/delivery idempotency; chính sách retention và deletion cho feedback/backup.
+Đây là schema khởi đầu, chưa đủ để tuyên bố hoàn thành SRS. Khi triển khai nghiệp vụ, cần versioning/audit và reviewer metadata đầy đủ; thông tin bản quyền và ngày nguồn; quản lý consent; dữ liệu eligibility/allergy phù hợp; lịch retry/delivery idempotency; chính sách retention và deletion cho feedback/backup.
 
 Không suy luận quy tắc/plan được duyệt chỉ từ sự có mặt trong bảng. `review_events.subject_id` là tham chiếu đa loại ở mức ứng dụng; service phải kiểm tra loại và đối tượng. Feedback review snapshot không chứa danh tính trực tiếp, nhưng linkage xóa riêng tư phải được thiết kế trước khi bật dữ liệu thật. Seed có một plan nháp chỉ để kiểm tra liên kết FK, không phải plan được phép áp dụng qua API.
 
@@ -31,9 +41,9 @@ Không sửa migration đã được team áp dụng vào database chung. Thêm 
 
 Đặt `SEED_SYNTHETIC=true` khi chạy backend để nạp seed ngay sau migration (`system/SyntheticSeedRunner`). File seed dùng UUID cố định, `ON CONFLICT DO NOTHING`, không xóa hay cập nhật dữ liệu sẵn có. Chạy lại không nhân đôi bản ghi. Runner từ chối khi `APP_ENV=production`.
 
-Tài khoản `@example.invalid` không có mật khẩu, không đăng nhập được. URL `example.invalid` và địa chỉ cơ sở là hư cấu. Quy tắc y tế seed (`002_safety_rules.sql`) chỉ ở trạng thái nháp, chờ duyệt hoặc bị trả lại, không bao giờ `APPROVED`. Bộ quy tắc mẫu có `APPROVED` để kiểm thử UC-16 chỉ nằm trong `backend/src/test/resources/safety/sample-rules.sql`. Nhắc nhở seed đang tắt. Không có dữ liệu bệnh nhân thật hoặc yêu cầu gửi tới dịch vụ ngoài.
+Tài khoản synthetic `@example.invalid` không có mật khẩu, không đăng nhập được. Admin bootstrap lấy từ `ADMIN_EMAIL`/`ADMIN_PASSWORD`, không nằm trong synthetic seed. URL `example.invalid` và địa chỉ cơ sở là hư cấu. Quy tắc y tế seed (`002_safety_rules.sql`) chỉ ở trạng thái nháp, chờ duyệt hoặc bị trả lại, không bao giờ `APPROVED`. Bộ quy tắc mẫu có `APPROVED` để kiểm thử UC-16 chỉ nằm trong `tests/backend/resources/safety/sample-rules.sql`. Nhắc nhở seed đang tắt. Không có dữ liệu bệnh nhân thật hoặc yêu cầu gửi tới dịch vụ ngoài.
 
-Mặc định mock mode dùng public fixture tại `backend/src/main/java/vn/edu/uit/se214/health/knowledge/SyntheticKnowledgeSearch.java`, cùng ID với SQL seed. Private fixtures trong database không có public API để xem. Chọn `DATA_MODE=postgres` để thử read-only API với database đã seed.
+Mặc định mock mode dùng public fixture tại `backend/src/main/knowledge/SyntheticKnowledgeSearch.java`, cùng ID với SQL seed. Private fixtures trong database không có public API để xem. Chọn `DATA_MODE=postgres` để thử read-only API với database đã seed.
 
 ## Verification
 

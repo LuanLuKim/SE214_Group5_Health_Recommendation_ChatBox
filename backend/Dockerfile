@@ -4,6 +4,7 @@ WORKDIR /src
 COPY backend/pom.xml backend/pom.xml
 RUN mvn -B -q -f backend/pom.xml dependency:go-offline
 COPY backend/src backend/src
+COPY tests/backend tests/backend
 RUN mvn -B -q -f backend/pom.xml -DskipTests package
 
 FROM eclipse-temurin:21-jre

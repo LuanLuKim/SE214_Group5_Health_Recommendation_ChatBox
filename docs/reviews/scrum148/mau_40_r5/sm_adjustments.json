@@ -1,0 +1,17 @@
+{
+  "scope": "changes the Scrum Master made to a reviewer line before it is applied (SCRUM-148, final sample of 40 of run 5); the reviewer line is kept in reviewer_vi",
+  "adjustments": [
+    {
+      "sample": 3,
+      "line": 20,
+      "new_vi": "• cảm thấy buồn ngủ bất thường hoặc dễ cáu gắt",
+      "severity": "Vừa",
+      "reason": "Giữ 'hoặc' như nguồn ('drowsy or irritable': chỉ cần một dấu hiệu); đổi 'hoặc' thành 'và' là đảo điều kiện, mức Nghiêm trọng theo chính sách. Thêm 'bất thường' theo ghi chú của Quỳnh ('buồn ngủ' dễ bị coi là bình thường), giữ dấu đầu dòng. Mức độ lấy theo tab Duyệt chunk (Vừa); tab Đối chiếu ghi Nhẹ."
+    },
+    {
+      "sample": 39,
+      "line": 5,
+      "reason": "Chỉ đúng cho bài Bức xạ cực tím (che nắng). Câu tiếng Anh giống hệt có ở bài Sốt rét (chống muỗi: 'quần áo dài che kín da') và Vết cắn của động vật: dịch theo ngữ cảnh, xem bảng thuật ngữ 'protective clothing'."
+    }
+  ]
+}

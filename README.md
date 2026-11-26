@@ -20,7 +20,7 @@ Cần: Node.js 24 và npm 11, JDK 21 và Maven 3.9, Python 3.12. Docker chỉ c�
 ```powershell
 # 1. Frontend (cửa sổ 1)
 npm ci
-Copy-Item apps/web/.env.example apps/web/.env
+if (-not (Test-Path .env)) { Copy-Item .env.example .env }
 npm run dev                       # http://127.0.0.1:5173
 
 # 2. Backend Spring Boot (cửa sổ 2), mặc định DATA_MODE=mock, không cần database
@@ -32,18 +32,18 @@ cd services/ai;    python -m pip install -r requirements.txt; python -m uvicorn 
 cd services/stats; python -m pip install -r requirements.txt; python manage.py runserver 127.0.0.1:8002
 ```
 
-Cấu hình cục bộ đặt trong `backend/.env`, `services/ai/.env`, `services/stats/.env` (chép từ `.env.example`, Git bỏ qua). Mặc định `DATA_MODE=mock`: dữ liệu tổng hợp rất nhỏ có nhãn `[TEST]`, không cần Docker hay API key. Đây không phải tài liệu y tế được thẩm định.
+Cấu hình cục bộ dùng một `.env` ở gốc repo (chép từ `.env.example`, Git bỏ qua). Mặc định `DATA_MODE=mock`: dữ liệu tổng hợp rất nhỏ có nhãn `[TEST]`, không cần Docker hay API key. Đây không phải tài liệu y tế được thẩm định.
 
 ## Tìm đúng module của bạn
 
 | Module | Phạm vi                                                 | Frontend                          | Backend (package Java)                              |
 | ------ | ------------------------------------------------------- | --------------------------------- | --------------------------------------------------- |
-| M1     | Safety Gate & quy tắc cảnh báo — UC-07, UC-16           | `apps/web/src/modules/safety/`    | `vn.edu.uit.se214.health.safety` + `services/ai`    |
-| M2     | Tra cứu & quản lý nội dung — UC-10, UC-11, UC-15, UC-17 | `apps/web/src/modules/knowledge/` | `vn.edu.uit.se214.health.knowledge`                 |
-| M3     | Hồ sơ, chỉ số & thống kê — UC-04, UC-05, UC-19          | `apps/web/src/modules/health/`    | `vn.edu.uit.se214.health.health` + `services/stats` |
-| M4     | Hội thoại với trợ lý AI — UC-06, UC-08, UC-09           | `apps/web/src/modules/chat/`      | `vn.edu.uit.se214.health.chat` + `services/ai`      |
-| M5     | Tài khoản & phân quyền — UC-01, UC-02, UC-03, UC-18     | `apps/web/src/modules/accounts/`  | `vn.edu.uit.se214.health.accounts`                  |
-| M6     | Lộ trình sinh hoạt & nhắc nhở — UC-12, UC-13, UC-14     | `apps/web/src/modules/lifestyle/` | `vn.edu.uit.se214.health.lifestyle`                 |
+| M1     | Safety Gate & quy tắc cảnh báo — UC-07, UC-16           | `apps/web/src/modules/safety/`    | `safety` + `services/ai`    |
+| M2     | Tra cứu & quản lý nội dung — UC-10, UC-11, UC-15, UC-17 | `apps/web/src/modules/knowledge/` | `knowledge`                 |
+| M3     | Hồ sơ, chỉ số & thống kê — UC-04, UC-05, UC-19          | `apps/web/src/modules/health/`    | `health` + `services/stats` |
+| M4     | Hội thoại với trợ lý AI — UC-06, UC-08, UC-09           | `apps/web/src/modules/chat/`      | `chat` + `services/ai`      |
+| M5     | Tài khoản & phân quyền — UC-01, UC-02, UC-03, UC-18     | `apps/web/src/modules/accounts/`  | `accounts`                  |
+| M6     | Lộ trình sinh hoạt & nhắc nhở — UC-12, UC-13, UC-14     | `apps/web/src/modules/lifestyle/` | `lifestyle`                 |
 
 UC-17 là một use case của M2; phần kiểm duyệt đầu vào do M1 làm, cắm vào hàng đợi duyệt dùng chung của M2. Mỗi package module có `README.md`. Đọc [bản đồ module](docs/MODULES.md) và [hướng dẫn đóng góp](CONTRIBUTING.md) trước khi bắt đầu.
 
@@ -51,23 +51,36 @@ UC-17 là một use case của M2; phần kiểm duyệt đầu vào do M1 làm,
 apps/web/                      Giao diện React (src/modules/<module>/Page.tsx + README.md)
 packages/contracts/            Kiểu dữ liệu dùng chung cho frontend (khớp JSON của backend)
 backend/                       Spring Boot modular monolith
-  src/main/java/.../health/
+  src/main/                    Source root Java; package ngắn theo module
     accounts/                  auth/, oauth/, registration/, persistence/, web/, config/
     <module>/                  Controller, Service, Repository, package api/ công khai
     shared/                    Phản hồi chuẩn, lỗi, request ID, giới hạn request, Spring Security
     integrations/              Client gọi services/ai và services/stats
-    system/                    /healthz, danh sách module, nạp dữ liệu giả lập
-  src/test/java/               Test API, PostgreSQL nhúng, nghiệp vụ
-services/ai/                   FastAPI: app/ (safety, llm, main) và tests/
-services/stats/                Django: stats_api/ và tests
-database/migrations/           V001__… đến V008__… (Flyway)
+    system/                    Entry point, /healthz, danh sách module, nạp dữ liệu giả lập
+  src/resources/               application.yml, application-mock.yml, application-postgres.yml
+tests/backend/java/            Test API, PostgreSQL nhúng, nghiệp vụ; package khớp main
+tests/backend/resources/       Tài nguyên test Java
+tests/results/backend/         Báo cáo test backend (Git-ignore)
+tests/services/                Test services/ai (pytest) và services/stats (Django)
+services/ai/                   FastAPI: app/ (safety, llm, chat, main)
+services/stats/                Django: stats_service/ và stats_api/
+database/migrations/           V001__… đến V024__… (Flyway)
 database/seeds/                Dữ liệu tổng hợp, chạy lặp được
 tools/                         Crawler, chuẩn hóa, dịch (M7)
 deploy/                        compose.yaml và .env.example để chạy từ image trên ghcr.io
 .github/workflows/             CI (check, backend, services, data-tools, infra-smoke, compose-smoke), CD (image Docker)
 ```
 
+## Cấu hình, dữ liệu và kiểm thử
+
+- `config/paths.yaml`: đường dẫn offline, tính từ gốc repo.
+- `tests/tools/`: test công cụ dữ liệu; `tests/eval/`: công cụ đánh giá.
+- `.data/`: chỉ dữ liệu/kết quả; không đặt mã Python ở đây.
+- Bố cục và migration: [docs/PROJECT_STRUCTURE.md](docs/PROJECT_STRUCTURE.md).
+
 ## PostgreSQL với dữ liệu tổng hợp
+
+Mặc định backend không tự tạo tài khoản admin. Nếu muốn khởi tạo admin, đặt `ADMIN_BOOTSTRAP_ENABLED=true`, `ADMIN_EMAIL` và `ADMIN_PASSWORD` riêng (mật khẩu 12–72 byte UTF-8) trong `.env`; không dùng thông tin mẫu trong môi trường thật.
 
 ```powershell
 npm run db:up                      # cần Docker Desktop; đợi healthy: docker compose ps
@@ -77,19 +90,19 @@ $env:DATA_MODE="postgres"; $env:SEED_SYNTHETIC="true"; mvn spring-boot:run
 
 Khi chạy với `DATA_MODE=postgres`, Flyway tự áp dụng migration chưa chạy; `SEED_SYNTHETIC=true` nạp dữ liệu giả lập sau đó. Seed gồm ba tài khoản **không có mật khẩu đăng nhập**, hồ sơ/chỉ số giả, một bài viết công khai và một bản nháp, một cơ sở giả, một quy tắc nháp, hội thoại/feedback giả và nhắc nhở đang tắt. Xem [database/README.md](database/README.md).
 
-Chạy cả stack trong Docker để demo trên máy: `docker compose --profile full up --build --wait`. Chạy từ image đã build sẵn trên máy demo hoặc server: [docs/DEPLOY.md](docs/DEPLOY.md).
+Chạy cả stack trong Docker để demo trên máy: mặc định không tạo admin. Để bật bootstrap, đặt `ADMIN_BOOTSTRAP_ENABLED=true`, `ADMIN_EMAIL` và `ADMIN_PASSWORD` trong `.env` ở thư mục gốc rồi chạy `docker compose --profile full up --build --wait`. Chạy từ image đã build sẵn trên máy demo hoặc server: [docs/DEPLOY.md](docs/DEPLOY.md).
 
 ## Điền API key
 
-Mở **`services/ai/.env`**, điền `LLM_API_KEY`, `LLM_MODEL`, `LLM_BASE_URL` và đặt `LLM_ENABLED=true`. Đặt cùng một `AI_SERVICE_KEY` ở `services/ai/.env` và `backend/.env`. Không đặt key trong frontend hoặc biến `VITE_*`. Chi tiết: [docs/SETUP.md](docs/SETUP.md#llm).
+Mở **`.env` ở gốc repo**, điền `AI_LLM_API_KEY`, `AI_LLM_MODEL`, `AI_LLM_BASE_URL` và đặt `AI_LLM_ENABLED=true`. Backend và AI cùng đọc `AI_SERVICE_KEY` từ file này. Dịch dùng `TRANSLATE_LLM_*`, review dùng `REVIEW_LLM_*`. Không đặt key trong frontend hoặc biến `VITE_*`. Chi tiết: [docs/SETUP.md](docs/SETUP.md#llm).
 
 ## Kiểm tra trước khi push
 
 ```powershell
 npm run check                              # frontend + contracts
 mvn -f backend/pom.xml verify              # backend (gồm test PostgreSQL nhúng, không cần Docker)
-cd services/ai;    python -m pytest
-cd services/stats; python manage.py test
+cd services/ai;    python -m pytest -c ../../tests/services/ai/pytest.ini ../../tests/services/ai
+cd services/stats; python manage.py test ../../tests/services/stats
 ```
 
 CI trên GitHub Actions chạy các bước trên cho mọi nhánh được push, cùng job `infra-smoke` (PostgreSQL thật, ba service trả `/healthz`) và `compose-smoke` (dựng cả stack bằng Docker Compose, chờ healthcheck). Khi merge vào `main`, workflow CD build image Docker của backend, dịch vụ AI, dịch vụ thống kê lên GitHub Container Registry. Quy trình nhánh, PR và review: [CONTRIBUTING.md](CONTRIBUTING.md).

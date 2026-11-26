@@ -1,0 +1,44 @@
+{
+  "executionEnvironments": [
+    {
+      "root": "tests/services/ai",
+      "extraPaths": ["services/ai"]
+    },
+    {
+      "root": "tests/services/stats",
+      "extraPaths": ["services/stats"]
+    },
+    {
+      "root": "tests/tools/crawl",
+      "extraPaths": ["tools/crawl", "tools"]
+    },
+    {
+      "root": "tests/tools/normalize",
+      "extraPaths": ["tools/normalize", "tools"]
+    },
+    {
+      "root": "tests/tools/translate",
+      "extraPaths": ["tools/translate", "tools"]
+    },
+    {
+      "root": "tests/tools",
+      "extraPaths": ["tools"]
+    },
+    {
+      "root": "tools/crawl",
+      "extraPaths": ["tools/crawl", "tools"]
+    },
+    {
+      "root": "tools/normalize",
+      "extraPaths": ["tools/normalize", "tools"]
+    },
+    {
+      "root": "tools/translate",
+      "extraPaths": ["tools/translate", "tools"]
+    },
+    {
+      "root": ".",
+      "extraPaths": ["tools"]
+    }
+  ]
+}

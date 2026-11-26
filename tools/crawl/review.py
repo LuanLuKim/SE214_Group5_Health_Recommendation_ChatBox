@@ -22,8 +22,9 @@ from crawler import http as collect
 from review_legacy import MainText
 
 ROOT = Path(__file__).resolve().parents[2]
-RAW = ROOT / ".data" / "crawl"
-OUTPUT = ROOT / ".data" / "review"
+from project_config import data_path
+RAW = data_path("crawl_checkpoint")
+OUTPUT = data_path("review")
 VERSION = "pilot-review-v1"
 
 

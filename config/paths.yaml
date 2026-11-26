@@ -1,0 +1,15 @@
+{
+  "collection": ".data/crawl/collection",
+  "crawl_checkpoint": ".data/crawl/checkpoint",
+  "normalized": ".data/normalize/rag",
+  "normalized_reference": ".data/normalize/expert_reference",
+  "translated": ".data/translate",
+  "review": ".data/review",
+  "eval": ".data/eval",
+  "url_lists": "docs",
+  "urls": "docs/urls.txt",
+  "urls_lifestyle": "docs/urls_lifestyle.txt",
+  "urls_who": "docs/urls_who.txt",
+  "urls_reference": "docs/urls_reference.txt",
+  "medicine_index_urls": "docs/urls_discovery.txt"
+}

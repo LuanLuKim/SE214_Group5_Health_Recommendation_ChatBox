@@ -68,7 +68,8 @@ Hệ thống **không tin một mô hình nào một mình**. Ba mô hình dịc
 - **Lưu ý:** dùng đúng khuôn prompt của tác giả (`<|ENGLISH_TEXT_START|>…<|ENGLISH_TEXT_END|>`, dừng ở `<|VIETNAMESE_TEXT_END|>`), không dùng khuôn hội thoại của Qwen.
 
 ### 2.4. LLM biên tập (tùy chọn)
-- Một endpoint tương thích OpenAI do người chạy tự cấu hình bằng `LLM_BASE_URL`, `LLM_MODEL`, `LLM_API_KEY` (cùng quy ước với các script rà soát của `tools/normalize`). Nhóm chạy qua 9router với model `gpt-6-luna`.
+- Một endpoint tương thích OpenAI do người chạy tự cấu hình bằng `LLM_BASE_URL`, `LLM_MODEL`, `LLM_API_KEY` (cùng quy ước với các script rà soát của `tools/normalize`). Repo không ghi sẵn endpoint, model hay key; người chạy đặt qua biến môi trường.
+- Mục này tả chế độ `fusion` (lần chạy 1–3). Từ lần chạy 4, mặc định là chế độ `direct`: LLM dịch trọn từng chunk từ bản tiếng Anh, không dùng ba model ở trên. Cổng luật, lượt LLM đọc lại nghĩa và câu người duyệt đã sửa vẫn giữ nguyên; dòng lỗi không còn bản đồng thuận để thay nên chunk chuyển sang người duyệt. Chi tiết ở `tools/translate/README.md`.
 - **Vì sao vẫn dùng LLM đa dụng dù rủi ro "sáng tạo":** ba model chuyên dụng dịch từng dòng rời nên không biết ngữ cảnh ("Do" / "Don't" là tiêu đề danh sách), không biết bản địa hóa, và mỗi model có kiểu lỗi riêng. LLM sửa được các lỗi này, còn rủi ro của nó bị chặn bằng ba ràng buộc:
   1. LLM **không dịch một mình**: nhận dòng gốc kèm các bản nháp và chỉ được trả đúng một dòng cho mỗi dòng.
   2. Mọi dòng LLM trả về phải qua cổng kiểm định (số liệu, dịch vụ, cấu trúc). Dòng lỗi được gửi lại một lần kèm danh sách lỗi; vẫn lỗi thì **thay bằng bản đồng thuận** của ba model.

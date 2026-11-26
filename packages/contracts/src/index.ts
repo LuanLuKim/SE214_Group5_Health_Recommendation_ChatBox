@@ -98,7 +98,13 @@ export const modules: ModuleDescriptor[] = [
 
 export interface ApiSuccess<T> {
   data: T;
-  meta?: { status: string; total?: number };
+  meta?: {
+    status: string;
+    total?: number;
+    limit?: number;
+    offset?: number;
+    totalPages?: number;
+  };
 }
 export interface ApiFailure {
   error: { code: string; message: string; requestId: string };
@@ -116,6 +122,53 @@ export interface ArticleSummary {
   source: SourceReference;
   updatedAt: string;
 }
+
+// UC-15 authoring (backend: knowledge.authoring). Server-managed fields are read-only.
+export interface DraftMetadata {
+  id: string;
+  sourceName: string;
+  sourceUrl: string;
+  sourceUpdatedAt: string | null;
+  copyrightNotes: string;
+  verifiedAt: string | null;
+  reviewStatus: ReviewStatus;
+  createdBy: string | null;
+  updatedBy: string | null;
+  createdAt: string;
+  updatedAt: string;
+  revision: number;
+  submittedAt: string | null;
+  submittedBy: string | null;
+}
+
+export interface ArticleDraft extends DraftMetadata {
+  title: string;
+  topic: string;
+  content: string;
+}
+
+export interface TemplateActivity {
+  id: string;
+  title: string;
+  description?: string;
+}
+
+export interface TemplateDraft extends DraftMetadata {
+  title: string;
+  goal: 'SLEEP' | 'MAINTAIN' | 'GAIN' | 'LOSE';
+  summary: string;
+  activities: TemplateActivity[];
+  durationDays: number | null;
+  notSuitableFor: string[];
+  excludedAllergens: string[];
+  requiresProfile: boolean;
+  applicability: string;
+  advisory: string;
+}
+
+export interface ArticleDetail extends ArticleSummary {
+  content: string;
+}
 export interface FacilitySummary {
   id: string;
   name: string;
@@ -124,6 +177,13 @@ export interface FacilitySummary {
   address: string;
   officialUrl: string;
   source: SourceReference;
+}
+
+// UC-11 query of GET /api/v1/knowledge/facilities; specialty is a directory label.
+export interface FacilitySearchParams {
+  q?: string | undefined;
+  province?: string | undefined;
+  specialty?: string | undefined;
 }
 
 // M1 -> M4: care direction is controlled by reviewed rules, never an LLM.
@@ -213,6 +273,68 @@ export interface CompletionResult {
   streak: number;
   progress: DailyProgress;
 }
+// M3 UC-04: GET/PUT /health/profile. weightKg is the latest weight in daily_metrics; PUT also records
+// today's weight there. Without a profile the fields are null and bmi is null (no BMI without height and weight).
+export type HealthSex = 'FEMALE' | 'MALE' | 'OTHER' | 'UNSPECIFIED';
+export interface HealthProfile {
+  heightCm: number | null;
+  weightKg: number | null;
+  weightRecordedOn: string | null;
+  age: number | null;
+  sex: HealthSex | null;
+  foodAllergies: string[];
+  bmi: number | null;
+  bmiNote: string | null;
+}
+// PUT body: heightCm 50-250, weightKg 20-300, age 18-120, sex required; foodAllergies optional (max 20 items).
+export interface HealthProfileInput {
+  heightCm: number;
+  weightKg: number;
+  age: number;
+  sex: HealthSex;
+  foodAllergies?: string[];
+}
+// M3 UC-05: GET /health/metrics?period=week|month&to=yyyy-MM-dd, PUT/DELETE /health/metrics/:date.
+// A week is the 7 days and a month the 30 days ending on `to`. points holds only days with a record.
+export interface HealthMetricPoint {
+  date: string;
+  weightKg: number | null;
+  sleepHours: number | null;
+}
+// PUT body: weightKg 20-300 and/or sleepHours 0-24, at least one; a metric left out keeps its stored value.
+export interface HealthMetricInput {
+  weightKg?: number | null;
+  sleepHours?: number | null;
+}
+export type HealthMetricsPeriod = 'week' | 'month';
+export interface HealthMetricStat {
+  unit: string;
+  count: number;
+  average: number;
+  min: number;
+  max: number;
+  first?: number;
+  last?: number;
+  change?: number;
+}
+export interface HealthMetricInsight {
+  code: string;
+  severity: 'INFO' | 'WARNING';
+  symbol: string;
+  message: string;
+}
+// insightsStatus: OK (summary and insights present), NO_DATA (empty window, no comment), UNAVAILABLE (chart only, retry).
+export interface HealthMetricsView {
+  period: HealthMetricsPeriod;
+  from: string;
+  to: string;
+  points: HealthMetricPoint[];
+  units: { weightKg: string; sleepHours: string };
+  insightsStatus: 'OK' | 'NO_DATA' | 'UNAVAILABLE';
+  summary: { weight: HealthMetricStat | null; sleep: HealthMetricStat | null } | null;
+  insights: HealthMetricInsight[];
+  message: string | null;
+}
 // M6 UC-12: only approved templates; the server checks consent, allergies and profile again on apply.
 export type LifestyleGoal = 'SLEEP' | 'MAINTAIN' | 'GAIN' | 'LOSE';
 export interface TemplateSummary {
@@ -252,6 +374,9 @@ export interface TemplatePreview {
   advice: string;
 }
 // PUT /lifestyle/plan {templateId}. changed: false when the template was already active.
+// remindersTurnedOff: UC-14 reminders paused because they follow an activity the new plan lacks.
+// restorableReminderIds: reminders paused by an earlier switch whose activity this plan has again;
+// they stay off until the user turns them on (ask before PATCH {enabled: true}).
 export interface AppliedPlan {
   planId: string;
   templateId: string;
@@ -259,4 +384,61 @@ export interface AppliedPlan {
   startedOn: string;
   changed: boolean;
   previousPlanId: string | null;
+  remindersTurnedOff: number;
+  restorableReminderIds: string[];
+}
+// GET /lifestyle/plans/history: ended plans, latest first. days counts start and end day;
+// completionRate = completionCount / (days * activityCount), 2 decimals, null without activities.
+export interface PastPlan {
+  planId: string;
+  templateId: string;
+  templateTitle: string;
+  startedOn: string;
+  endedOn: string;
+  days: number;
+  activityCount: number;
+  completedDays: number;
+  completionCount: number;
+  completionRate: number | null;
+}
+export interface PlanHistory {
+  plans: PastPlan[];
+}
+// M6 UC-14: localTime is HH:mm (24 h) in timezone; daysOfWeek uses ISO 1 = Monday … 7 = Sunday.
+// Instants (nextSendAt, scheduledFor, sentAt) are ISO-8601 UTC.
+export type ReminderChannel = 'EMAIL' | 'WEB_PUSH';
+export interface ReminderDelivery {
+  scheduledFor: string;
+  status: 'PENDING' | 'SENT' | 'FAILED';
+  sentAt: string | null;
+}
+export interface Reminder {
+  id: string;
+  content: string;
+  activityId: string | null;
+  localTime: string;
+  daysOfWeek: number[];
+  timezone: string;
+  channel: ReminderChannel;
+  enabled: boolean;
+  // PLAN_SWITCH: paused by a plan switch, not counted towards the reminder limit.
+  disabledReason: 'PLAN_SWITCH' | null;
+  nextSendAt: string | null;
+  lastDelivery: ReminderDelivery | null;
+}
+// GET /lifestyle/reminders. availableChannels: channels the user can turn on now (offer only these).
+export interface ReminderList {
+  reminders: Reminder[];
+  availableChannels: ReminderChannel[];
+}
+// POST /lifestyle/reminders (localTime and content or activityId required) and
+// PATCH /lifestyle/reminders/:id (only the fields sent change; activityId null unlinks).
+export interface ReminderInput {
+  content?: string;
+  activityId?: string | null;
+  localTime?: string;
+  daysOfWeek?: number[];
+  timezone?: string;
+  channel?: ReminderChannel;
+  enabled?: boolean;
 }

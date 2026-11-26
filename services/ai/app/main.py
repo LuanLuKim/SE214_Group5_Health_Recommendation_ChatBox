@@ -37,7 +37,8 @@ class EvaluateRequest(BaseModel):
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
-    settings = settings or load_settings(read_dotenv(Path(__file__).resolve().parent.parent / ".env"))
+    root = next((p for p in Path(__file__).resolve().parents if (p / "package.json").is_file()), Path.cwd())
+    settings = settings or load_settings(read_dotenv(root / ".env"))
     app = FastAPI(title="health-assistant-ai", version="0.1.0")
 
     @app.middleware("http")

@@ -6,7 +6,9 @@ if ($LASTEXITCODE -ne 0 -or -not $pythonExe) {
     throw 'Activate se214-crawler and install tools/crawl/requirements.txt before launching.'
 }
 $runId = [guid]::NewGuid().ToString('N')
-$logs = Join-Path $repo '.data/collection/runs'
+$collection = & $pythonExe -B -c "import sys; sys.path.insert(0, sys.argv[1]); from project_config import data_path; print(data_path('collection'))" (Join-Path $repo 'tools')
+if ($LASTEXITCODE -ne 0) { throw 'Cannot load config/paths.yaml.' }
+$logs = Join-Path $collection 'runs'
 New-Item -ItemType Directory -Force -Path $logs | Out-Null
 $arguments = @('-B', 'tools/crawl/run.py', '--run-id', $runId)
 if ($Refresh) { $arguments += '--refresh' }

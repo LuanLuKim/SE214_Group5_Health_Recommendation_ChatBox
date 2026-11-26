@@ -5,7 +5,7 @@ Use cases: **UC-04, UC-05, UC-19**. Owner: Vũ Quang Dũng (`Dungdayyy`).
 ## Navigation
 
 - Frontend: `apps/web/src/modules/health/`
-- Backend: `backend/src/main/java/vn/edu/uit/se214/health/health/`
+- Backend: `backend/src/main/health/`
 - Database: `database/migrations/V003__health.sql`
 - Shared contracts: `packages/contracts/src/index.ts`
 - Routes and access expectations: `docs/API.md`
