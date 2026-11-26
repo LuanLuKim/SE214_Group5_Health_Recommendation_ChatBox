@@ -1,10 +1,18 @@
 """Source configuration and explicit URL inputs; no page-specific routing."""
 import json
+import sys
 from pathlib import Path
 from urllib.parse import urlsplit, urlunsplit
 
 HERE = Path(__file__).resolve().parents[1]
 ROOT = HERE.parents[1]
+sys.path.insert(0, str(ROOT / "tools"))
+from project_config import data_path  # noqa: E402
+
+
+def url_lists(folder=None):
+    """Every URL list (urls*.txt in the configured folder); each one is a crawl group."""
+    return sorted(Path(folder or data_path("url_lists")).glob("urls*.txt"))
 
 
 def load_sources(path=None):

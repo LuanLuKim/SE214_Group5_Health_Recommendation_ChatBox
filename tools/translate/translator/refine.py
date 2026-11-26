@@ -11,20 +11,24 @@ mode there is no consensus, so the line stays and the chunk goes to a reviewer.
 Bring your own OpenAI-compatible endpoint, as for the review scripts of
 tools/normalize; nothing is preset and the key is never written to a file:
 
-    LLM_BASE_URL, LLM_MODEL, LLM_API_KEY, optional LLM_REASONING (sent as reasoning_effort)
+    TRANSLATE_LLM_BASE_URL, TRANSLATE_LLM_MODEL, TRANSLATE_LLM_API_KEY, optional TRANSLATE_LLM_REASONING (sent as reasoning_effort)
 
 No imports from apps/, packages/, database/ or any backend/frontend code.
 """
 from __future__ import annotations
 
 import json
-import os
+import sys
+from pathlib import Path
 import time
 from typing import Any
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
 from .glossary import Rules
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+from project_config import read_env  # noqa: E402
 
 PROMPT_VERSION = "fusion-5"
 DIRECT_PROMPT_VERSION = "direct-4"
@@ -44,19 +48,22 @@ class LLMClient:
 
     @classmethod
     def from_env(cls, settings: dict[str, Any] | None = None, env: dict[str, str] | None = None) -> "LLMClient | None":
-        """Client from LLM_* variables, or None when the endpoint is not configured."""
-        env = os.environ if env is None else env
+        """Client from TRANSLATE_LLM_* variables, or None when not configured."""
+        env = read_env() if env is None else env
         settings = settings or {}
-        base, model, key = env.get("LLM_BASE_URL", ""), env.get("LLM_MODEL", ""), env.get("LLM_API_KEY", "")
+        base, model, key = env.get("TRANSLATE_LLM_BASE_URL", ""), env.get("TRANSLATE_LLM_MODEL", ""), env.get("TRANSLATE_LLM_API_KEY", "")
         if not (base and model and key):
             return None
-        return cls(base, key, model, env.get("LLM_REASONING", settings.get("default_reasoning", "")),
+        effort = env.get("TRANSLATE_LLM_REASONING", settings.get("default_reasoning", ""))
+        if not isinstance(effort, str):
+            raise ValueError("Translation reasoning effort must be a string.")
+        return cls(base, key, model, effort,
                    timeout=int(settings.get("timeout_seconds", 600)))
 
     @staticmethod
     def missing_env(env: dict[str, str] | None = None) -> list[str]:
-        env = os.environ if env is None else env
-        return [name for name in ("LLM_BASE_URL", "LLM_MODEL", "LLM_API_KEY") if not env.get(name)]
+        env = read_env() if env is None else env
+        return [name for name in ("TRANSLATE_LLM_BASE_URL", "TRANSLATE_LLM_MODEL", "TRANSLATE_LLM_API_KEY") if not env.get(name)]
 
     def chat(self, system: str, user: str) -> str:
         payload: dict[str, Any] = {"model": self.model,

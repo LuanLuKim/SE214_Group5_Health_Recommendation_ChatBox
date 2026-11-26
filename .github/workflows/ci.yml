@@ -39,6 +39,20 @@ jobs:
           cache: maven
       # Spring Boot: biên dịch, test API, test PostgreSQL nhúng (Flyway + seed), đóng gói jar.
       - run: mvn -B -f backend/pom.xml verify
+      - name: Kiểm tra cấu trúc JAR backend
+        run: |
+          jar_path="$GITHUB_WORKSPACE/backend/target/health-assistant-backend-0.1.0.jar"
+          jar tf "$jar_path" > backend-jar-entries.txt
+          for config in application.yml application-mock.yml application-postgres.yml; do
+            grep -Fx "BOOT-INF/classes/$config" backend-jar-entries.txt
+          done
+          grep -Fx 'BOOT-INF/classes/system/HealthAssistantApplication.class' backend-jar-entries.txt
+          if grep -q '^BOOT-INF/classes/vn/edu/uit/se214/health/' backend-jar-entries.txt; then
+            echo 'JAR vẫn chứa class ở namespace cũ'; exit 1
+          fi
+          manifest_dir=$(mktemp -d)
+          (cd "$manifest_dir" && jar xf "$jar_path" META-INF/MANIFEST.MF)
+          tr -d '\r' < "$manifest_dir/META-INF/MANIFEST.MF" | grep -Fx 'Start-Class: system.HealthAssistantApplication'
 
   services:
     name: services
@@ -54,10 +68,10 @@ jobs:
       - run: python -m pip install -r services/ai/requirements.txt -r services/stats/requirements.txt
       - name: FastAPI (services/ai)
         working-directory: services/ai
-        run: python -m pytest
+        run: python -m pytest -c ../../tests/services/ai/pytest.ini ../../tests/services/ai
       - name: Django (services/stats)
         working-directory: services/stats
-        run: python manage.py test
+        run: python manage.py test ../../tests/services/stats
 
   data-tools:
     name: data-tools
@@ -71,9 +85,10 @@ jobs:
           cache: pip
           cache-dependency-path: tools/crawl/requirements.txt
       - run: python -m pip install -r tools/crawl/requirements.txt
-      - run: python -B -m unittest discover -s tools/crawl -p "test_*.py"
-      - run: python -B tools/normalize/test_normalize.py
-      - run: python -B tools/translate/test_translate.py
+      - run: python -B tests/tools/test_project_config.py
+      - run: python -B -m unittest discover -s tests/tools/crawl -p "test_*.py"
+      - run: python -B tests/tools/normalize/test_normalize.py
+      - run: python -B tests/tools/translate/test_translate.py
 
   # SCRUM-45: kiểm thử hạ tầng. PostgreSQL thật, migration + seed chạy khi backend khởi động,
   # ba service trả /healthz, backend đọc được dữ liệu đã seed.

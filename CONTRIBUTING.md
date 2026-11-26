@@ -4,7 +4,7 @@
 2. Nhận việc qua issue: mỗi việc là một issue trên GitHub, đã gán cho bạn. Không tự tạo nhánh (xem mục dưới).
 3. Làm frontend/backend trong cùng hai thư mục module. Giữ thay đổi shared contract ở mức nhỏ và thông báo module bị ảnh hưởng trong PR.
 4. Thêm migration mới thay vì sửa migration team đã áp dụng. Không tạo bản sao database/schema riêng cho mỗi người trong source.
-5. Chạy kiểm tra của phần bạn sửa trước khi push: `npm run check` (frontend), `mvn -f backend/pom.xml verify` (backend), `python -m pytest` trong `services/ai`, `python manage.py test` trong `services/stats`. Hoàn thiện PR nháp đã được tạo sẵn rồi bấm **Ready for review**.
+5. Chạy kiểm tra của phần bạn sửa trước khi push: `npm run check` (frontend), `mvn -f backend/pom.xml verify` (backend), `python -m pytest -c ../../tests/services/ai/pytest.ini ../../tests/services/ai` trong `services/ai`, `python manage.py test ../../tests/services/stats` trong `services/stats`. Hoàn thiện PR nháp đã được tạo sẵn rồi bấm **Ready for review**.
 
 ## Issue → nhánh → PR (bắt buộc)
 

@@ -1,6 +1,6 @@
 """Settings for the statistics service (M3: UC-05 trends, UC-19 system statistics).
 
-Secrets come from environment variables or services/stats/.env. No database is configured: Spring
+Secrets come from environment variables or the root .env. No database is configured: Spring
 Boot reads the data and posts only what each statistic needs (UC-05: one person's days in a week or
 month; UC-19: per-day counts of aggregate events), and this service computes from that without
 storing anything.
@@ -25,7 +25,8 @@ def _dotenv(path: Path) -> dict[str, str]:
     return {**values, **os.environ}
 
 
-ENV = _dotenv(BASE_DIR / ".env")
+ROOT = next((p for p in BASE_DIR.parents if (p / "package.json").is_file()), BASE_DIR)
+ENV = _dotenv(ROOT / ".env")
 
 SECRET_KEY = ENV.get("DJANGO_SECRET_KEY") or secrets.token_urlsafe(32)
 DEBUG = ENV.get("DJANGO_DEBUG", "false") == "true"

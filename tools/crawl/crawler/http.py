@@ -8,9 +8,10 @@ import time
 from urllib.error import HTTPError
 from urllib.parse import unquote, urlsplit
 from urllib.request import HTTPRedirectHandler, Request
+from .config import data_path
 
 HERE = Path(__file__).resolve().parents[1]
-OUTPUT = HERE.parents[1] / ".data" / "crawl"
+OUTPUT = data_path("crawl_checkpoint")
 MIB = 1024 * 1024
 BODY_LIMIT = 2 * MIB
 # Per crawl group (one docs/urls*.txt list): request and byte budgets. Disk, run and pacing limits stay shared.
@@ -24,6 +25,17 @@ INTERVAL = 3
 
 def now():
     return datetime.now(timezone.utc).isoformat()
+
+
+def disk_folders(folder, configured_name):
+    """Folders sharing MAX_DISK: crawl checkpoint, collection and review.
+
+    For the configured data folder use config/paths.yaml (they are not siblings in .data/).
+    Any other folder (temporary test roots) keeps the sibling layout crawl/, collection/, review/.
+    """
+    if Path(folder).resolve() == data_path(configured_name):
+        return tuple(data_path(name) for name in ("crawl_checkpoint", "collection", "review"))
+    return tuple(Path(folder).parent / name for name in ("crawl", "collection", "review"))
 
 
 def save(path, record):
@@ -104,7 +116,8 @@ class Batch:
         group = self.usage()
         if group["requests"] >= MAX_REQUESTS or group["charged_bytes"] + BODY_LIMIT > MAX_BYTES:
             raise Limit("group request/byte budget exhausted")
-        if sum(f.stat().st_size for name in ("crawl", "collection", "review") for f in (self.folder.parent / name).rglob("*") if f.is_file()) + 3 * BODY_LIMIT > MAX_DISK:
+        folders = disk_folders(self.folder, "crawl_checkpoint")
+        if sum(f.stat().st_size for folder in folders for f in folder.rglob("*") if f.is_file()) + 3 * BODY_LIMIT > MAX_DISK:
             raise Limit("disk budget exhausted")
         time.sleep(max(0, state["last_request"] + INTERVAL - time.time()))
         # Reserve the full body before network I/O. An interrupted download stays charged.

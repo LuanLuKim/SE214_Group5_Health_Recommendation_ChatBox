@@ -1,0 +1,44 @@
+package health;
+
+import java.time.Clock;
+import java.time.ZoneId;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Profile;
+import org.springframework.jdbc.core.simple.JdbcClient;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
+import accounts.api.ConsentQuery;
+import integrations.PythonServiceClient;
+
+/** Database-backed beans exist only with DATA_MODE=postgres; in mock mode the routes answer 503. */
+@Configuration
+@Profile("postgres")
+class HealthPersistenceConfig {
+  /** "Today" for the recorded weight is the calendar day in Vietnam. */
+  private static final ZoneId ZONE = ZoneId.of("Asia/Ho_Chi_Minh");
+
+  @Bean
+  HealthProfileRepository healthProfileRepository(JdbcClient jdbc, PlatformTransactionManager transactions) {
+    return new HealthProfileRepository(jdbc, new TransactionTemplate(transactions));
+  }
+
+  @Bean
+  HealthProfileService healthProfileService(HealthProfileRepository repository, ConsentQuery consents) {
+    return new HealthProfileService(repository, consents, Clock.system(ZONE));
+  }
+
+  @Bean
+  HealthMetricsRepository healthMetricsRepository(JdbcClient jdbc) {
+    return new HealthMetricsRepository(jdbc);
+  }
+
+  @Bean
+  HealthMetricsService healthMetricsService(
+      HealthMetricsRepository repository,
+      ConsentQuery consents,
+      @Qualifier("statsService") PythonServiceClient stats) {
+    return new HealthMetricsService(repository, consents, stats, Clock.system(ZONE));
+  }
+}

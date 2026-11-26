@@ -47,7 +47,7 @@ docker compose -f deploy/compose.yaml up -d --wait
 | `BACKEND_BIND`, `BACKEND_PORT`                                          |          | Mặc định `127.0.0.1:4000`. Đặt `BACKEND_BIND=0.0.0.0` chỉ khi demo trong mạng nội bộ không có reverse proxy   |
 | `FORWARD_HEADERS`                                                       |          | `native` khi có reverse proxy phía trước, `none` khi không có                                                 |
 | `APP_ENV`, `SEED_SYNTHETIC`                                             |          | Mặc định `production` và `false`. Máy demo cần dữ liệu mẫu: `APP_ENV=demo`, `SEED_SYNTHETIC=true`             |
-| `LLM_ENABLED`, `LLM_BASE_URL`, `LLM_API_KEY`, `LLM_MODEL`               |          | Chỉ dịch vụ AI đọc. Giữ `LLM_ENABLED=false` cho tới khi chat (M4) được nối                                    |
+| `AI_LLM_ENABLED`, `AI_LLM_BASE_URL`, `AI_LLM_API_KEY`, `AI_LLM_MODEL`               |          | Chỉ dịch vụ AI đọc. Giữ `AI_LLM_ENABLED=false` cho tới khi chat (M4) được nối                                    |
 
 Tạo chuỗi ngẫu nhiên: `openssl rand -hex 32`. Bí mật chỉ nằm trong `deploy/.env` trên máy chạy (Git bỏ qua file này) hoặc trong kho secret của nền tảng. Không đưa vào commit, issue, chat.
 

@@ -10,16 +10,16 @@ Usage (from the repo root, inside the se214-translate environment):
     python -B tools/translate/run.py --status                  # summary of the last run
 
 Pipeline:
-    .data/normalized/chunks.jsonl
+    .data/normalize/rag/chunks.jsonl
         -> lines (bullet markers kept aside)
         -> UK services rewritten in English (localisation.json)
         -> machine drafts from every engine (cached per segment; none in --mode direct)
         -> LLM fusion of the drafts, or in --mode direct the LLM translates each chunk from English
-           (optional: LLM_BASE_URL, LLM_MODEL, LLM_API_KEY; config llm.mode is the default)
+           (optional: TRANSLATE_LLM_BASE_URL, TRANSLATE_LLM_MODEL, TRANSLATE_LLM_API_KEY; config llm.mode is the default)
         -> LLM meaning check, one repair of what it finds (config llm.verify; --no-verify skips it)
         -> lines a human reviewer corrected (config paths.human_corrections)
         -> quality gate per line, consensus fallback
-        -> .data/translated/chunks_vi.jsonl, db_rows_vi.json, candidates.jsonl,
+        -> .data/translate/chunks_vi.jsonl, db_rows_vi.json, candidates.jsonl,
            quality_report.json, review_queue.md, summary.json
 
 Exit code: 0 all chunks passed the gate, 1 some failed, 2 configuration problem,
@@ -41,6 +41,8 @@ from typing import Any
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parents[1]
 sys.path.insert(0, str(HERE))
+sys.path.insert(0, str(ROOT / "tools"))
+from project_config import data_path  # noqa: E402
 
 from translator.engines import get_engine  # noqa: E402
 from translator.glossary import Rules, compile_names, load_medicine_names  # noqa: E402
@@ -54,7 +56,15 @@ CONFIG_PATH = HERE / "config.json"
 
 
 def load_config(path: Path = CONFIG_PATH) -> dict[str, Any]:
-    return json.loads(Path(path).read_text(encoding="utf-8"))
+    config = json.loads(Path(path).read_text(encoding="utf-8"))
+    config["paths"].update({
+        "input_chunks": str(data_path("normalized") / "chunks.jsonl"),
+        "input_db_rows": str(data_path("normalized") / "db_rows.json"),
+        "output_dir": str(data_path("translated")),
+        "collection_dir": str(data_path("collection")),
+        "medicine_index_urls": str(data_path("medicine_index_urls")),
+    })
+    return config
 
 
 def load_chunks(path: Path) -> list[dict[str, Any]]:
@@ -276,7 +286,7 @@ def main(argv: list[str] | None = None) -> int:
                         help="fusion: LLM post-edits the MT drafts; direct: LLM translates from English "
                              "(default from config llm.mode: %(default)s)")
     parser.add_argument("--refiner", choices=("auto", "llm", "consensus"), default="auto",
-                        help="auto: LLM when LLM_BASE_URL/LLM_MODEL/LLM_API_KEY are set, else consensus")
+                        help="auto: LLM when TRANSLATE_LLM_BASE_URL/TRANSLATE_LLM_MODEL/TRANSLATE_LLM_API_KEY are set, else consensus")
     parser.add_argument("--device", default="auto", help="auto, cpu, cuda, cuda:0 ...")
     parser.add_argument("--max-chunks", type=int, default=0, help="limit the number of chunks (0 = all)")
     parser.add_argument("--only-tag", default="", help="only chunks with this scope tag, e.g. emergency")
