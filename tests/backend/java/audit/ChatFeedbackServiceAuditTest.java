@@ -18,7 +18,7 @@ import chat.ChatService;
 import chat.ChatSession;
 import chat.InMemoryChatRepository;
 import integrations.PythonServiceClient;
-import safety.RuleRepository;
+import safety.api.SafetyEvaluator;
 import shared.web.ApiException;
 
 /** Backend audit round 1, service-level case. See README.md in this package. */
@@ -30,15 +30,15 @@ class ChatFeedbackServiceAuditTest {
   @SuppressWarnings("unchecked")
   void setUp() {
     repository = new InMemoryChatRepository();
-    ObjectProvider<RuleRepository> rules = mock(ObjectProvider.class);
+    ObjectProvider<SafetyEvaluator> safetyEvaluator = mock(ObjectProvider.class);
     ObjectProvider<ConsentQuery> consentProvider = mock(ObjectProvider.class);
     ConsentQuery consents = mock(ConsentQuery.class);
     when(consents.healthDataProcessingAccepted(any(UUID.class))).thenReturn(true);
     when(consentProvider.getIfAvailable()).thenReturn(consents);
-    when(rules.getIfAvailable()).thenReturn(null);
+    when(safetyEvaluator.getIfAvailable()).thenReturn(null);
     chatService =
         new ChatService(
-            repository, mock(PythonServiceClient.class), rules, new ObjectMapper(), consentProvider);
+            repository, mock(PythonServiceClient.class), safetyEvaluator, new ObjectMapper(), consentProvider);
   }
 
   @Test

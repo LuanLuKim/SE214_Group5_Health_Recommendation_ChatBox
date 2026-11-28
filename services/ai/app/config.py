@@ -40,6 +40,7 @@ class Settings:
     llm_api_key: str = ""
     llm_model: str = ""
     llm_timeout_ms: int = 20000
+    enable_synthetic_rag_stub: bool = False
     safety_care_level_priority: tuple[str, ...] = DEFAULT_SAFETY_PRIORITY
 
     def __post_init__(self):
@@ -78,6 +79,9 @@ def load_settings(env: Mapping[str, str] | None = None) -> Settings:
     enabled = env.get("AI_LLM_ENABLED", "false")
     if enabled not in ("true", "false"):
         raise ConfigError("Invalid environment configuration. Check the .env.example fields.")
+    synthetic_rag_stub = env.get("AI_ENABLE_SYNTHETIC_RAG_STUB", "false")
+    if synthetic_rag_stub not in ("true", "false"):
+        raise ConfigError("Invalid environment configuration. Check the .env.example fields.")
     base_url = env.get("AI_LLM_BASE_URL", "")
     if base_url and not _valid_base_url(base_url):
         raise ConfigError("Invalid environment configuration. Check the .env.example fields.")
@@ -94,6 +98,7 @@ def load_settings(env: Mapping[str, str] | None = None) -> Settings:
         llm_api_key=env.get("AI_LLM_API_KEY", ""),
         llm_model=env.get("AI_LLM_MODEL", ""),
         llm_timeout_ms=timeout,
+        enable_synthetic_rag_stub=synthetic_rag_stub == "true",
         safety_care_level_priority=validate_safety_priority(
             tuple(
                 item.strip()
