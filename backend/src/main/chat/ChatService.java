@@ -3,27 +3,37 @@ package chat;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import java.util.Collections;
+import java.io.IOException;
 import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
-import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
+import java.util.concurrent.Executors;
+import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.regex.Pattern;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import accounts.api.ConsentQuery;
 import integrations.PythonServiceClient;
+import knowledge.api.FacilitySummary;
 import knowledge.api.KnowledgeSearch;
-import safety.ApprovedSafetyRule;
-import safety.RuleRepository;
+import safety.api.CareLevel;
+import safety.api.SafetyDecision;
+import safety.api.SafetyEvaluator;
 import shared.web.ApiException;
 
 @Service
 public class ChatService {
+  private static final Logger log = LoggerFactory.getLogger(ChatService.class);
   private static final int MAX_MESSAGE_LENGTH = 4000;
   private static final long SSE_TIMEOUT_MS = 60_000L;
   private static final Pattern EMAIL_PATTERN =
@@ -33,27 +43,53 @@ public class ChatService {
 
   private final ChatRepository repository;
   private final PythonServiceClient ai;
-  private final ObjectProvider<RuleRepository> ruleRepositoryProvider;
+  private final ObjectProvider<SafetyEvaluator> safetyEvaluatorProvider;
   private final ObjectMapper json;
   private final ObjectProvider<ConsentQuery> consentQueries;
+  private final Executor streamExecutor;
+  private final ChatLexicon lexicon;
   private KnowledgeSearch knowledge;
 
-  @org.springframework.beans.factory.annotation.Autowired
+  @Autowired
   public void setKnowledgeSearch(KnowledgeSearch knowledge) {
     this.knowledge = knowledge;
   }
 
+  @Autowired
   public ChatService(
       ChatRepository repository,
       @Qualifier("aiService") PythonServiceClient ai,
-      ObjectProvider<RuleRepository> ruleRepositoryProvider,
+      ObjectProvider<SafetyEvaluator> safetyEvaluatorProvider,
       ObjectMapper json,
-      ObjectProvider<ConsentQuery> consentQueries) {
+      ObjectProvider<ConsentQuery> consentQueries,
+      @Qualifier("chatStreamExecutor") ObjectProvider<Executor> streamExecutorProvider) {
     this.repository = repository;
     this.ai = ai;
-    this.ruleRepositoryProvider = ruleRepositoryProvider;
+    this.safetyEvaluatorProvider = safetyEvaluatorProvider;
     this.json = json;
     this.consentQueries = consentQueries;
+    Executor providedExecutor =
+        streamExecutorProvider != null ? streamExecutorProvider.getIfAvailable() : null;
+    this.streamExecutor =
+        providedExecutor != null
+            ? providedExecutor
+            : Executors.newFixedThreadPool(
+                2,
+                r -> {
+                  Thread t = new Thread(r, "chat-sse-fallback");
+                  t.setDaemon(true);
+                  return t;
+                });
+    this.lexicon = ChatLexicon.loadDefault(json);
+  }
+
+  public ChatService(
+      ChatRepository repository,
+      PythonServiceClient ai,
+      ObjectProvider<SafetyEvaluator> safetyEvaluatorProvider,
+      ObjectMapper json,
+      ObjectProvider<ConsentQuery> consentQueries) {
+    this(repository, ai, safetyEvaluatorProvider, json, consentQueries, null);
   }
 
   public SseEmitter send(UUID userId, SendMessageRequest request) {
@@ -77,113 +113,186 @@ public class ChatService {
               .orElseThrow(() -> ApiException.notFound("Không tìm thấy phiên hội thoại."));
     }
 
-    // Persist user message
     repository.addMessage(session.id(), "user", text);
 
     SseEmitter emitter = new SseEmitter(SSE_TIMEOUT_MS);
 
-    // Load evaluable safety rules from M1 if rule repository exists
-    List<ApprovedSafetyRule> rules = Collections.emptyList();
-    RuleRepository ruleRepository = ruleRepositoryProvider.getIfAvailable();
-    if (ruleRepository != null) {
-      try {
-        rules = ruleRepository.listEvaluable();
-      } catch (Exception ignored) {
-        // Safe fail-closed
+    if (!ai.configured()) {
+      sendSseErrorAndComplete(
+          emitter,
+          "AI_SERVICE_UNAVAILABLE",
+          "Dịch vụ AI chưa được cấu hình.");
+      return emitter;
+    }
+
+    String normalizedText = ChatLexicon.normalize(text);
+    Set<String> observedFacts = new LinkedHashSet<>(lexicon.extractFacts(normalizedText));
+    if (request.facts() != null) {
+      for (String fact : request.facts()) {
+        if (fact != null && !fact.isBlank()) {
+          observedFacts.add(fact.trim());
+        }
       }
     }
+
+    SafetyDecision safetyDecision = evaluateSafety(normalizedText, observedFacts);
+    List<FacilitySummary> facilities = resolveFacilities(safetyDecision);
 
     Map<String, Object> payload = new HashMap<>();
     payload.put("session_id", session.id().toString());
     payload.put("message", text);
-    payload.put("facts", request.facts() != null ? request.facts() : List.of());
-    payload.put("rules", rules);
+    payload.put("facts", List.copyOf(observedFacts));
+    payload.put("safety_decision", safetyDecision);
 
-    if (!ai.configured()) {
-      try {
-        emitter.send(
-            SseEmitter.event()
-                .data(
-                    "{\"type\":\"error\",\"data\":{\"code\":\"AI_SERVICE_UNAVAILABLE\",\"message\":\"Dịch vụ AI chưa được cấu hình.\",\"canRetry\":true}}"));
-        emitter.send(SseEmitter.event().data("{\"type\":\"done\",\"data\":{\"status\":\"FAILED\"}}"));
-        emitter.complete();
-      } catch (Exception e) {
-        emitter.completeWithError(e);
-      }
-      return emitter;
+    AtomicBoolean clientDisconnected = new AtomicBoolean(false);
+    emitter.onTimeout(() -> clientDisconnected.set(true));
+    emitter.onError(ignored -> clientDisconnected.set(true));
+    emitter.onCompletion(() -> clientDisconnected.set(true));
+
+    try {
+      streamExecutor.execute(
+          () -> streamFromAi(emitter, session.id(), payload, facilities, clientDisconnected));
+    } catch (RejectedExecutionException ex) {
+      log.warn("Chat stream executor queue full for session {}", session.id(), ex);
+      sendSseErrorAndComplete(
+          emitter,
+          "AI_SERVICE_BUSY",
+          "Hệ thống đang xử lý nhiều yêu cầu. Vui lòng thử lại sau giây lát.");
     }
 
-    List<ApprovedSafetyRule> evaluableRules = rules;
-    CompletableFuture.runAsync(
-        () -> {
-          StringBuilder assistantResponse = new StringBuilder();
-          try {
-            ai.postStream(
-                "/v1/chat/answer",
-                payload,
-                line -> {
-                  if (line.startsWith("data: ")) {
-                    String jsonStr = line.substring(6).trim();
-                    try {
-                      JsonNode eventNode = json.readTree(jsonStr);
-                      if ("safety".equals(eventNode.path("type").asText())
-                          && eventNode.path("data") instanceof ObjectNode data) {
-                        data.set("facilities", json.valueToTree(List.of()));
-                        try {
-                          if (knowledge != null
-                              && "DATABASE_RESULTS".equals(knowledge.dataStatus())
-                              && "EVALUATED".equals(data.path("status").asText())
-                              && !data.path("careLevel").isNull()
-                              && !"INSUFFICIENT_INFO".equals(data.path("careLevel").asText())) {
-                            java.util.Set<String> matchedIds = new java.util.HashSet<>();
-                            data.path("matchedRuleIds").forEach(node -> matchedIds.add(node.asText()));
-                            java.util.Set<String> allowed =
-                                evaluableRules.stream()
-                                    .filter(rule -> matchedIds.contains(rule.id())
-                                        && rule.careLevel().name().equals(data.path("careLevel").asText()))
-                                    .flatMap(rule -> rule.specialtyIds().stream())
-                                    .collect(java.util.stream.Collectors.toSet());
-                            List<String> specialties = new java.util.ArrayList<>();
-                            data.path("specialtyIds").forEach(
-                                node -> {
-                                  if (allowed.contains(node.asText())) specialties.add(node.asText());
-                                });
-                            data.set("facilities",
-                                json.valueToTree(knowledge.facilitiesBySpecialties(specialties)));
-                          }
-                        } catch (Exception ignored) {
-                          // Catalogue failure must not suppress emergency guidance or careLevel.
-                        }
-                      }
-                      emitter.send(SseEmitter.event().data(json.writeValueAsString(eventNode)));
-                      if ("token".equals(eventNode.path("type").asText())) {
-                        assistantResponse.append(eventNode.path("data").asText());
-                      }
-                    } catch (Exception ignored) {
-                      // Client disconnected
-                    }
-                  }
-                });
-
-            if (!assistantResponse.isEmpty()) {
-              repository.addMessage(session.id(), "assistant", assistantResponse.toString());
-            }
-            emitter.complete();
-          } catch (Exception error) {
-            try {
-              emitter.send(
-                  SseEmitter.event()
-                      .data(
-                          "{\"type\":\"error\",\"data\":{\"code\":\"AI_SERVICE_ERROR\",\"message\":\"Không thể tạo câu trả lời lúc này. Vui lòng thử lại sau.\",\"canRetry\":true}}"));
-              emitter.send(SseEmitter.event().data("{\"type\":\"done\",\"data\":{\"status\":\"FAILED\"}}"));
-              emitter.complete();
-            } catch (Exception ignored) {
-              emitter.completeWithError(error);
-            }
-          }
-        });
-
     return emitter;
+  }
+
+  private void streamFromAi(
+      SseEmitter emitter,
+      UUID sessionId,
+      Map<String, Object> payload,
+      List<FacilitySummary> facilities,
+      AtomicBoolean clientDisconnected) {
+    StringBuilder assistantResponse = new StringBuilder();
+    try {
+      ai.postStream(
+          "/v1/chat/answer",
+          payload,
+          line -> {
+            if (clientDisconnected.get()) {
+              throw new ClientDisconnectedException();
+            }
+            if (!line.startsWith("data: ")) {
+              return;
+            }
+            String jsonStr = line.substring(6).trim();
+            JsonNode eventNode = json.readTree(jsonStr);
+            if ("safety".equals(eventNode.path("type").asText())
+                && eventNode.path("data") instanceof ObjectNode data) {
+              boolean evaluated =
+                  "EVALUATED".equals(data.path("status").asText())
+                      && !data.path("careLevel").isNull()
+                      && !"INSUFFICIENT_INFO".equals(data.path("careLevel").asText());
+              data.set("facilities", json.valueToTree(evaluated ? facilities : List.of()));
+            }
+            try {
+              emitter.send(SseEmitter.event().data(json.writeValueAsString(eventNode)));
+            } catch (IOException | IllegalStateException ex) {
+              clientDisconnected.set(true);
+              throw new ClientDisconnectedException(ex);
+            }
+            if ("token".equals(eventNode.path("type").asText())) {
+              assistantResponse.append(eventNode.path("data").asText());
+            }
+          });
+
+      if (!clientDisconnected.get() && !assistantResponse.isEmpty()) {
+        repository.addMessage(sessionId, "assistant", assistantResponse.toString());
+      }
+      if (!clientDisconnected.get()) {
+        emitter.complete();
+      }
+    } catch (Exception error) {
+      if (isClientDisconnect(error)) {
+        log.debug("Client disconnected during SSE stream for session {}", sessionId);
+        return;
+      }
+      log.warn("AI streaming failed for session {}", sessionId, error);
+      sendSseErrorAndComplete(
+          emitter,
+          "AI_SERVICE_ERROR",
+          "Không thể tạo câu trả lời lúc này. Vui lòng thử lại sau.");
+    }
+  }
+
+  private SafetyDecision evaluateSafety(String normalizedText, Set<String> observedFacts) {
+    SafetyEvaluator evaluator =
+        safetyEvaluatorProvider != null ? safetyEvaluatorProvider.getIfAvailable() : null;
+    if (evaluator == null) {
+      log.warn("No SafetyEvaluator available; failing closed to UNAVAILABLE");
+      return SafetyDecision.unavailable();
+    }
+    try {
+      SafetyDecision decision = evaluator.evaluateFacts(normalizedText, observedFacts);
+      return decision != null ? decision : SafetyDecision.unavailable();
+    } catch (Exception ex) {
+      log.warn("SafetyEvaluator threw exception; failing closed to UNAVAILABLE", ex);
+      return SafetyDecision.unavailable();
+    }
+  }
+
+  private List<FacilitySummary> resolveFacilities(SafetyDecision decision) {
+    if (knowledge == null
+        || !"DATABASE_RESULTS".equals(knowledge.dataStatus())
+        || decision.status() != SafetyDecision.Status.EVALUATED
+        || decision.careLevel() == null
+        || decision.careLevel() == CareLevel.INSUFFICIENT_INFO
+        || decision.specialtyIds() == null
+        || decision.specialtyIds().isEmpty()) {
+      return List.of();
+    }
+    try {
+      return knowledge.facilitiesBySpecialties(decision.specialtyIds());
+    } catch (Exception ex) {
+      log.warn("Failed to look up verified facilities; continuing without facilities", ex);
+      return List.of();
+    }
+  }
+
+  private static void sendSseErrorAndComplete(SseEmitter emitter, String code, String message) {
+    try {
+      String safeCode = code.replace("\"", "");
+      String safeMessage = message.replace("\"", "");
+      emitter.send(
+          SseEmitter.event()
+              .data(
+                  "{\"type\":\"error\",\"data\":{\"code\":\""
+                      + safeCode
+                      + "\",\"message\":\""
+                      + safeMessage
+                      + "\",\"canRetry\":true}}"));
+      emitter.send(SseEmitter.event().data("{\"type\":\"done\",\"data\":{\"status\":\"FAILED\"}}"));
+      emitter.complete();
+    } catch (Exception e) {
+      emitter.completeWithError(e);
+    }
+  }
+
+  private static boolean isClientDisconnect(Throwable error) {
+    Throwable current = error;
+    while (current != null) {
+      if (current instanceof ClientDisconnectedException) {
+        return true;
+      }
+      current = current.getCause();
+    }
+    return false;
+  }
+
+  private static final class ClientDisconnectedException extends RuntimeException {
+    ClientDisconnectedException() {
+      super("SSE client disconnected");
+    }
+
+    ClientDisconnectedException(Throwable cause) {
+      super("SSE client disconnected", cause);
+    }
   }
 
   public List<ChatSession> listSessions(UUID userId) {
@@ -238,7 +347,6 @@ public class ChatService {
     String sharedAnswer = null;
 
     if (request.shareConversation()) {
-      // Find the user question in this session immediately preceding this assistant message
       List<ChatMessage> sessionMessages = repository.listMessages(session.id(), userId);
       String lastUserQuestion = null;
       for (ChatMessage m : sessionMessages) {

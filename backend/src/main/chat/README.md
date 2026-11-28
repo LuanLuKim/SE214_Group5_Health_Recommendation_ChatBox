@@ -16,7 +16,7 @@ Use case: **UC-06, UC-08, UC-09**. Phụ trách: Đặng Việt Thành (`Vncnt-u
 
 ## Hiện trạng và ranh giới
 
-Lịch sử hội thoại và phản hồi ở đây. Trả lời câu hỏi chạy trong `services/ai` (FastAPI): Safety Gate trước, nguồn đã duyệt của M2, gọi LLM, kiểm tra đầu ra, streaming SSE. Gọi FastAPI qua `PythonServiceClient` có `@Qualifier("aiService")`, chỉ gửi dữ liệu tối thiểu (không họ tên, email). Phản hồi "chưa hữu ích" gửi sang hàng đợi UC-17 dưới dạng ẩn danh.
+Lịch sử hội thoại và phản hồi ở đây. `ChatService` gọi `SafetyEvaluator` (`safety.api` của M1) ngay tại backend để lấy `SafetyDecision` duy nhất, sau đó chuyển `safety_decision` (không gửi `rules`) sang `services/ai` (`/v1/chat/answer`) để thực thi RAG, LLM, kiểm tra đầu ra và streaming SSE trên executor riêng (`chatStreamExecutor`). Khi `SafetyEvaluator` trả `UNAVAILABLE` hoặc gặp lỗi, hệ thống fail-closed giữ `status=UNAVAILABLE`, `careLevel=null` (không bao giờ hạ về nguy cơ thấp); nếu tiếp tục gọi LLM cho câu hỏi giáo dục sức khỏe chung, prompt buộc LLM giữ nguyên giới hạn `UNAVAILABLE` và UI hiển thị trạng thái chưa đánh giá được rủi ro lâm sàng. Gọi FastAPI qua `PythonServiceClient` có `@Qualifier("aiService")`, chỉ gửi dữ liệu tối thiểu (không họ tên, email). Phản hồi "chưa hữu ích" gửi sang hàng đợi UC-17 dưới dạng ẩn danh.
 
 ## Cách mở rộng
 
