@@ -99,6 +99,23 @@ app:
       ended-plan-completions: ${LIFESTYLE_RETENTION_ENDED_PLAN_COMPLETIONS:P365D}
       paused-reminders: ${LIFESTYLE_RETENTION_PAUSED_REMINDERS:P90D}
       batch-size: ${LIFESTYLE_RETENTION_BATCH_SIZE:1000}
+  # SCRUM-48: nạp bài và chunk của M7 vào knowledge.* một lần lúc khởi động (chỉ DATA_MODE=postgres).
+  # Mọi dòng nạp vào đều DRAFT, rag_eligible = false; chỉ UC-17 duyệt. Chạy lại với cùng file không đổi gì.
+  knowledge:
+    ingest:
+      enabled: ${KNOWLEDGE_INGEST_ENABLED:false}
+      # Thư mục có chunks.jsonl và articles/*.json của bộ chuẩn hóa.
+      normalized-dir: ${KNOWLEDGE_INGEST_NORMALIZED_DIR:}
+      # Thư mục có chunks_vi.jsonl và db_rows_vi.json của tools/translate.
+      translated-dir: ${KNOWLEDGE_INGEST_TRANSLATED_DIR:}
+      # File quyết định duyệt SCRUM-148 (review_decisions.json), cách nhau dấu phẩy: bản chuyên gia đã duyệt lại
+      # (reviewer_corrected) và các quyết định ghi vào knowledge.review_events. Để trống thì bỏ qua.
+      review-decisions: ${KNOWLEDGE_INGEST_REVIEW_DECISIONS:}
+      # Tài khoản CONTENT_EXPERT thật đứng tên các quyết định; để trống thì không ghi quyết định nào.
+      reviewer-id: ${KNOWLEDGE_INGEST_REVIEWER_ID:}
+      # Giá trị ghi vào translation_model của mọi chunk đã dịch. File dữ liệu không ghi model dịch nên
+      # loader không đọc từ file; để trống thì cột là NULL.
+      translation-model: ${KNOWLEDGE_INGEST_TRANSLATION_MODEL:}
   health:
     # UC-19 thống kê hệ thống và SCRUM-51 ghi sự kiện. Sự kiện chỉ có loại và thời điểm, không có
     # người dùng hay nội dung. Ngày thống kê tính theo múi giờ zone.
